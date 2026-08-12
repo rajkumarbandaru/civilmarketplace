@@ -34,16 +34,17 @@ jobs:
 
       - name: Build Parent POM
         run: mvn -N install
+        working-directory: backend
 
       - name: Build ${{ matrix.service }}
         run: mvn clean package -pl ${{ matrix.service }} -am -DskipTests
-        working-directory: ${{ github.workspace }}
+        working-directory: backend
 
       - name: Upload ${{ matrix.service }} JAR
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.service }}-jar
-          path: ${{ matrix.service }}/target/*.jar
+          path: backend/${{ matrix.service }}/target/*.jar
 
   backend-test:
     name: Run Backend Tests
@@ -73,6 +74,7 @@ jobs:
 
       - name: Run Unit Tests
         run: mvn test -Dspring.profiles.active=test
+        working-directory: backend
         env:
           SPRING_DATASOURCE_URL: jdbc:mysql://localhost:3306/test_db?useSSL=false
           SPRING_DATASOURCE_USERNAME: root
@@ -81,6 +83,7 @@ jobs:
 
       - name: Run Integration Tests
         run: mvn verify -Pintegration
+        working-directory: backend
         env:
           SPRING_DATASOURCE_URL: jdbc:mysql://localhost:3306/test_db?useSSL=false
           SPRING_DATASOURCE_USERNAME: root
@@ -130,7 +133,7 @@ jobs:
       - name: Download Backend JARs
         uses: actions/download-artifact@v4
         with:
-          pattern: *-jar
+          pattern: "*-jar"
           path: ./artifacts
 
       - name: Download Frontend Build
