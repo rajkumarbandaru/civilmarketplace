@@ -1,0 +1,70 @@
+server:
+  port: 8095
+
+spring:
+  application:
+    name: audit-service
+  datasource:
+    # Deliberately a separate database from every transactional service (SRS OPS-03 FR-10:
+    # audit storage segregated from primary transactional storage).
+    url: jdbc:mysql://mysql:3306/civil_engineer_audit?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    username: ${AUDIT_DB_USERNAME:civil_user}
+    password: ${AUDIT_DB_PASSWORD:civil_pass}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      idle-timeout: 300000
+      connection-timeout: 20000
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: true
+    open-in-view: false
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}
+    consumer:
+      group-id: audit-service-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+
+audit:
+  # Bulk-read anomaly threshold: more than this many sensitive records read by one actor
+  # within the window raises an alert (SRS OPS-03 FR-09).
+  anomaly:
+    bulk-read-threshold: 50
+    window-minutes: 10
+
+eureka:
+  instance:
+    prefer-ip-address: true
+    hostname: audit-service
+  client:
+    service-url:
+      defaultZone: http://service-registry:8761/eureka/
+    register-with-eureka: true
+    fetch-registry: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html

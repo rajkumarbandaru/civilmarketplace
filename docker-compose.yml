@@ -1,0 +1,554 @@
+services:
+  # ============================================================================
+  # Infrastructure Services
+  # ============================================================================
+
+  mysql:
+    image: mysql:8.0
+    container_name: civil_mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_password}
+      MYSQL_DATABASE: civil_engineer_platform
+    ports:
+      - "${HOST_PORT_MYSQL:-3306}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./database/init:/docker-entrypoint-initdb.d
+    networks:
+      - civil-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --max_connections=500
+      --innodb_buffer_pool_size=1G
+
+  redis:
+    image: redis:7-alpine
+    container_name: civil_redis
+    ports:
+      - "${HOST_PORT_REDIS:-6381}:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - civil-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: civil_zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    networks:
+      - civil-network
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: civil_kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+      - "${HOST_PORT_KAFKA:-29093}:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:${HOST_PORT_KAFKA:-29093}
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    networks:
+      - civil-network
+
+  rabbitmq:
+    image: rabbitmq:3.12-management
+    container_name: civil_rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-guest}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - civil-network
+
+  elasticsearch:
+    image: elasticsearch:8.11.0
+    container_name: civil_elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - civil-network
+
+  zipkin:
+    image: openzipkin/zipkin:2.24
+    container_name: civil_zipkin
+    ports:
+      - "9411:9411"
+    environment:
+      - STORAGE_TYPE=mem
+    networks:
+      - civil-network
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: civil_prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    networks:
+      - civil-network
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: civil_grafana
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    networks:
+      - civil-network
+    depends_on:
+      - prometheus
+
+  # ============================================================================
+  # Microservices
+  # ============================================================================
+
+  config-server:
+    build:
+      context: .
+      dockerfile: config-server/Dockerfile
+    container_name: civil_config_server
+    ports:
+      - "${HOST_PORT_CONFIG:-8888}:8888"
+    networks:
+      - civil-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://localhost:8888/actuator/health > /dev/null"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  service-registry:
+    build:
+      context: .
+      dockerfile: service-registry/Dockerfile
+    container_name: civil_service_registry
+    ports:
+      - "8761:8761"
+    networks:
+      - civil-network
+    depends_on:
+      config-server:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://localhost:8761/actuator/health > /dev/null"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: api-gateway/Dockerfile
+    container_name: civil_api_gateway
+    ports:
+      - "${HOST_PORT_GATEWAY:-8080}:8080"
+    environment:
+      - JWT_SECRET=${JWT_SECRET}
+      - REDIS_HOST=redis
+    networks:
+      - civil-network
+    depends_on:
+      redis:
+        condition: service_healthy
+      service-registry:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+
+  auth-service:
+    build:
+      context: .
+      dockerfile: auth-service/Dockerfile
+    container_name: civil_auth_service
+    ports:
+      - "${HOST_PORT_AUTH:-8093}:8081"
+    environment:
+      - AUTH_DB_USERNAME=${AUTH_DB_USERNAME:-civil_user}
+      - AUTH_DB_PASSWORD=${AUTH_DB_PASSWORD:-civil_pass}
+      - JWT_SECRET=${JWT_SECRET}
+      - REDIS_HOST=redis
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      # "docker" activates DevUserSeeder's dummy accounts. Set to "" for a clean environment.
+      - SPRING_PROFILES_ACTIVE=${AUTH_PROFILE:-docker}
+    networks:
+      - civil-network
+    depends_on:
+      mysql:
+        condition: service_started
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+      service-registry:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+
+  user-service:
+    build:
+      context: .
+      dockerfile: user-service/Dockerfile
+    container_name: civil_user_service
+    ports:
+      - "${HOST_PORT_USER:-8094}:8082"
+    environment:
+      - USER_DB_USERNAME=${USER_DB_USERNAME:-civil_user}
+      - USER_DB_PASSWORD=${USER_DB_PASSWORD:-civil_pass}
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+    networks:
+      - civil-network
+    depends_on:
+      mysql:
+        condition: service_started
+      kafka:
+        condition: service_started
+      service-registry:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+
+  booking-service:
+    build:
+      context: .
+      dockerfile: booking-service/Dockerfile
+    container_name: civil_booking_service
+    ports:
+      - "8083:8083"
+    environment:
+      - BOOKING_DB_USERNAME=${BOOKING_DB_USERNAME:-civil_user}
+      - BOOKING_DB_PASSWORD=${BOOKING_DB_PASSWORD:-civil_pass}
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - REDIS_HOST=redis
+    networks:
+      - civil-network
+    depends_on:
+      mysql:
+        condition: service_started
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+      service-registry:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+
+  payment-service:
+    build:
+      context: .
+      dockerfile: payment-service/Dockerfile
+    container_name: civil_payment_service
+    ports:
+      - "8084:8084"
+    environment:
+      - PAYMENT_DB_USERNAME=${PAYMENT_DB_USERNAME:-civil_user}
+      - PAYMENT_DB_PASSWORD=${PAYMENT_DB_PASSWORD:-civil_pass}
+      - RAZORPAY_KEY_ID=${RAZORPAY_KEY_ID}
+      - RAZORPAY_KEY_SECRET=${RAZORPAY_KEY_SECRET}
+      - RAZORPAY_WEBHOOK_SECRET=${RAZORPAY_WEBHOOK_SECRET}
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+    networks:
+      - civil-network
+    depends_on:
+      mysql:
+        condition: service_started
+      kafka:
+        condition: service_started
+      service-registry:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+
+  notification-service:
+    build:
+      context: .
+      dockerfile: notification-service/Dockerfile
+    container_name: civil_notification_service
+    ports:
+      - "8085:8085"
+    environment:
+      - NOTIFICATION_DB_USERNAME=${NOTIFICATION_DB_USERNAME:-civil_user}
+      - NOTIFICATION_DB_PASSWORD=${NOTIFICATION_DB_PASSWORD:-civil_pass}
+      - SMTP_HOST=${SMTP_HOST:-smtp.gmail.com}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USERNAME=${SMTP_USERNAME}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID}
+      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}
+      - TWILIO_PHONE_NUMBER=${TWILIO_PHONE_NUMBER}
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - REDIS_HOST=redis
+      - RABBITMQ_HOST=rabbitmq
+    networks:
+      - civil-network
+    depends_on:
+      mysql:
+        condition: service_started
+      kafka:
+        condition: service_started
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+      service-registry:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+
+  admin-service:
+    build:
+      context: .
+      dockerfile: admin-service/Dockerfile
+    container_name: civil_admin_service
+    ports:
+      - "8086:8086"
+    environment:
+      - ADMIN_DB_USERNAME=${ADMIN_DB_USERNAME:-civil_user}
+      - ADMIN_DB_PASSWORD=${ADMIN_DB_PASSWORD:-civil_pass}
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+    networks:
+      - civil-network
+    depends_on:
+      mysql:
+        condition: service_started
+      kafka:
+        condition: service_started
+      service-registry:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+
+  project-service:
+    build:
+      context: .
+      dockerfile: project-service/Dockerfile
+    container_name: civil_project_service
+    ports:
+      - "${HOST_PORT_PROJECT:-8096}:8096"
+    environment:
+      - PROJECT_DB_USERNAME=${PROJECT_DB_USERNAME:-civil_user}
+      - PROJECT_DB_PASSWORD=${PROJECT_DB_PASSWORD:-civil_pass}
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+    networks:
+      - civil-network
+    depends_on:
+      mysql:
+        condition: service_started
+      kafka:
+        condition: service_started
+      service-registry:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+
+  support-service:
+    build:
+      context: .
+      dockerfile: support-service/Dockerfile
+    container_name: civil_support_service
+    ports:
+      - "${HOST_PORT_SUPPORT:-8098}:8098"
+    environment:
+      - SUPPORT_DB_USERNAME=${SUPPORT_DB_USERNAME:-civil_user}
+      - SUPPORT_DB_PASSWORD=${SUPPORT_DB_PASSWORD:-civil_pass}
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+    networks:
+      - civil-network
+    depends_on:
+      mysql:
+        condition: service_started
+      kafka:
+        condition: service_started
+      service-registry:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+
+  review-service:
+    build:
+      context: .
+      dockerfile: review-service/Dockerfile
+    container_name: civil_review_service
+    ports:
+      - "${HOST_PORT_REVIEW:-8089}:8089"
+    environment:
+      - REVIEW_DB_USERNAME=${REVIEW_DB_USERNAME:-civil_user}
+      - REVIEW_DB_PASSWORD=${REVIEW_DB_PASSWORD:-civil_pass}
+    networks:
+      - civil-network
+    depends_on:
+      mysql:
+        condition: service_started
+      service-registry:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+
+  audit-service:
+    build:
+      context: .
+      dockerfile: audit-service/Dockerfile
+    container_name: civil_audit_service
+    ports:
+      - "${HOST_PORT_AUDIT:-8095}:8095"
+    environment:
+      - AUDIT_DB_USERNAME=${AUDIT_DB_USERNAME:-civil_user}
+      - AUDIT_DB_PASSWORD=${AUDIT_DB_PASSWORD:-civil_pass}
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+    networks:
+      - civil-network
+    depends_on:
+      mysql:
+        condition: service_started
+      kafka:
+        condition: service_started
+      service-registry:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+
+  messaging-service:
+    build:
+      context: .
+      dockerfile: messaging-service/Dockerfile
+    container_name: civil_messaging_service
+    ports:
+      # Not 8096 — project-service (built concurrently by another session) claims that as
+      # HOST_PORT_PROJECT in .env. Internal container port stays 8096; only the host mapping differs.
+      - "${HOST_PORT_MESSAGING:-8097}:8096"
+    environment:
+      - MESSAGING_DB_USERNAME=${MESSAGING_DB_USERNAME:-civil_user}
+      - MESSAGING_DB_PASSWORD=${MESSAGING_DB_PASSWORD:-civil_pass}
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+    networks:
+      - civil-network
+    depends_on:
+      mysql:
+        condition: service_started
+      kafka:
+        condition: service_started
+      service-registry:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+
+  search-service:
+    build:
+      context: .
+      dockerfile: search-service/Dockerfile
+    container_name: civil_search_service
+    ports:
+      - "${HOST_PORT_SEARCH:-8092}:8092"
+    environment:
+      - ELASTICSEARCH_URIS=http://elasticsearch:9200
+    networks:
+      - civil-network
+    depends_on:
+      elasticsearch:
+        condition: service_started
+      service-registry:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+
+  # ============================================================================
+  # Frontend
+  # ============================================================================
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: civil_frontend
+    ports:
+      - "${HOST_PORT_FRONTEND:-3000}:3000"
+    environment:
+      - VITE_API_BASE_URL=http://localhost:${HOST_PORT_GATEWAY:-8080}
+      - VITE_RAZORPAY_KEY_ID=${RAZORPAY_KEY_ID}
+      - VITE_GOOGLE_MAPS_API_KEY=${GOOGLE_MAPS_API_KEY:-}
+    networks:
+      - civil-network
+    depends_on:
+      - api-gateway
+
+  # ============================================================================
+  # Reverse Proxy
+  # ============================================================================
+
+  nginx:
+    image: nginx:alpine
+    container_name: civil_nginx
+    ports:
+      - "${HOST_PORT_NGINX:-8010}:80"
+      - "${HOST_PORT_NGINX_SSL:-8443}:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/sites:/etc/nginx/sites-enabled
+      - ./nginx/ssl:/etc/nginx/ssl
+    networks:
+      - civil-network
+    depends_on:
+      - api-gateway
+      - frontend
+
+networks:
+  civil-network:
+    driver: bridge
+
+volumes:
+  mysql_data:
+  redis_data:
+  kafka_data:
+  rabbitmq_data:
+  elasticsearch_data:
+  prometheus_data:
+  grafana_data:

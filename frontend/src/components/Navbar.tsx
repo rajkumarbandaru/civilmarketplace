@@ -1,0 +1,365 @@
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import {
+  AppBar,
+  Toolbar,
+  Typography,
+  Button,
+  IconButton,
+  Badge,
+  Avatar,
+  Menu,
+  MenuItem,
+  Box,
+  Container,
+  InputBase,
+  Drawer,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemIcon,
+  Divider,
+} from '@mui/material';
+import {
+  Menu as MenuIcon,
+  Search as SearchIcon,
+  Notifications as NotificationsIcon,
+  AccountCircle,
+  Dashboard,
+  Build,
+  People,
+  Logout,
+  Home,
+  Engineering,
+} from '@mui/icons-material';
+import { styled, alpha, useTheme } from '@mui/material/styles';
+import { useAppSelector, useAppDispatch } from '../hooks';
+import { logout } from '../store/slices/authSlice';
+import { toggleSidebar, setSearchQuery } from '../store/slices/uiSlice';
+import { motion } from 'framer-motion';
+import { useMenuSection, useUiConfig } from '../providers/UiConfigProvider';
+import DynamicIcon from './DynamicIcon';
+
+// What renders before the UI config arrives, and if it never does — admin-service being
+// unreachable must not leave a member with no way to navigate. Keys match the catalogue seeded
+// in admin-service's V2 migration.
+const FALLBACK_WORK_NAV = [
+  { key: 'services', label: 'Services', path: '/services', icon: 'Engineering' },
+];
+
+const Search = styled('div')(({ theme }) => ({
+  position: 'relative',
+  borderRadius: 12,
+  backgroundColor: alpha(theme.palette.common.white, 0.15),
+  '&:hover': {
+    backgroundColor: alpha(theme.palette.common.white, 0.25),
+  },
+  marginRight: theme.spacing(2),
+  marginLeft: 0,
+  width: '100%',
+  [theme.breakpoints.up('sm')]: {
+    marginLeft: theme.spacing(3),
+    width: 'auto',
+  },
+}));
+
+const SearchIconWrapper = styled('div')(({ theme }) => ({
+  padding: theme.spacing(0, 2),
+  height: '100%',
+  position: 'absolute',
+  pointerEvents: 'none',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+}));
+
+const StyledInputBase = styled(InputBase)(({ theme }) => ({
+  color: 'inherit',
+  '& .MuiInputBase-input': {
+    padding: theme.spacing(1, 1, 1, 0),
+    paddingLeft: `calc(1em + ${theme.spacing(4)})`,
+    transition: theme.transitions.create('width'),
+    width: '100%',
+    [theme.breakpoints.up('md')]: {
+      width: '20ch',
+    },
+  },
+}));
+
+const Navbar: React.FC = () => {
+  const navigate = useNavigate();
+  const dispatch = useAppDispatch();
+  const { isAuthenticated, user } = useAppSelector((state) => state.auth);
+  const { sidebarOpen } = useAppSelector((state) => state.ui);
+  const { unreadCount } = useAppSelector((state) => state.notification);
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const workMenuItems = useMenuSection('Work');
+
+  // The wordmark is Super Admin's to set, and the gradient behind it follows the configured
+  // palette — a re-themed platform that still says CivEngMarket in violet is not re-themed.
+  const { theme: uiTheme } = useUiConfig();
+  const muiTheme = useTheme();
+  const brandName = uiTheme?.brandName || 'CivEngMarket';
+  const brandGradient =
+    `linear-gradient(135deg, ${muiTheme.palette.primary.main} 0%, ${muiTheme.palette.secondary.main} 100%)`;
+  const accountMenuItems = useMenuSection('Account');
+
+  const handleProfileMenu = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleClose = () => setAnchorEl(null);
+
+  const handleLogout = () => {
+    dispatch(logout());
+    handleClose();
+    navigate('/');
+  };
+
+  // "Home" always shows regardless of the catalogue — it's the landing page, not a menu entry.
+  // The rest of the Work section comes from the signed-in user's resolved menu, so hiding
+  // "Services" for a role in the Workspaces screen actually hides it here too.
+  const dynamicWorkItems = workMenuItems.length > 0 ? workMenuItems : FALLBACK_WORK_NAV;
+  const navItems = [
+    { label: 'Home', path: '/', icon: <Home /> },
+    ...dynamicWorkItems.map((item) => ({
+      label: item.label,
+      path: item.path,
+      icon: <DynamicIcon name={item.icon} />,
+    })),
+  ];
+
+  return (
+    <>
+      <AppBar
+        position="fixed"
+        sx={{
+          background: 'rgba(255,255,255,0.9)',
+          backdropFilter: 'blur(20px)',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+          borderBottom: '1px solid rgba(0,0,0,0.06)',
+        }}
+      >
+        <Container maxWidth="xl">
+          <Toolbar disableGutters sx={{ height: 64 }}>
+            {/* Mobile menu */}
+            <IconButton
+              edge="start"
+              sx={{ display: { md: 'none' }, mr: 1, color: 'text.primary' }}
+              onClick={() => dispatch(toggleSidebar())}
+            >
+              <MenuIcon />
+            </IconButton>
+
+            {/* Logo */}
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5 }}
+            >
+              <Typography
+                variant="h6"
+                component={Link}
+                to="/"
+                sx={{
+                  fontWeight: 800,
+                  background: brandGradient,
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  textDecoration: 'none',
+                  whiteSpace: 'nowrap',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1,
+                }}
+              >
+                {uiTheme?.logoUrl && (
+                  <Box
+                    component="img"
+                    src={uiTheme.logoUrl}
+                    alt=""
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                    sx={{ height: 26, objectFit: 'contain' }}
+                  />
+                )}
+                {brandName}
+              </Typography>
+            </motion.div>
+
+            {/* Search bar */}
+            <Search sx={{ display: { xs: 'none', sm: 'block' } }}>
+              <SearchIconWrapper>
+                <SearchIcon sx={{ color: 'text.secondary' }} />
+              </SearchIconWrapper>
+              <StyledInputBase
+                placeholder="Search services, professionals..."
+                inputProps={{ 'aria-label': 'search' }}
+                onChange={(e) => dispatch(setSearchQuery(e.target.value))}
+                sx={{ color: 'text.primary' }}
+              />
+            </Search>
+
+            {/* Desktop nav */}
+            <Box sx={{ flexGrow: 1 }} />
+
+            <Box sx={{ display: { xs: 'none', md: 'flex' }, gap: 1, alignItems: 'center' }}>
+              {navItems.map((item) => (
+                <Button
+                  key={item.path}
+                  component={Link}
+                  to={item.path}
+                  sx={{
+                    color: 'text.primary',
+                    fontWeight: 500,
+                    '&:hover': { background: alpha('#667eea', 0.08) },
+                  }}
+                >
+                  {item.label}
+                </Button>
+              ))}
+
+              {isAuthenticated ? (
+                <>
+                  <IconButton sx={{ color: 'text.secondary' }}>
+                    <Badge badgeContent={unreadCount} color="error">
+                      <NotificationsIcon />
+                    </Badge>
+                  </IconButton>
+
+                  <IconButton onClick={handleProfileMenu} sx={{ p: 0 }}>
+                    <Avatar
+                      src={user?.profilePicture}
+                      sx={{
+                        width: 36,
+                        height: 36,
+                        background: 'linear-gradient(135deg, #667eea, #764ba2)',
+                      }}
+                    >
+                      {user?.name?.charAt(0)}
+                    </Avatar>
+                  </IconButton>
+
+                  <Menu
+                    anchorEl={anchorEl}
+                    open={Boolean(anchorEl)}
+                    onClose={handleClose}
+                    transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+                    anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+                    PaperProps={{
+                      sx: {
+                        mt: 1.5,
+                        borderRadius: 3,
+                        minWidth: 200,
+                        boxShadow: '0 10px 40px rgba(0,0,0,0.1)',
+                      },
+                    }}
+                  >
+                    <MenuItem disabled>
+                      <Typography variant="body2" color="text.secondary">
+                        {user?.email}
+                      </Typography>
+                    </MenuItem>
+                    <Divider />
+                    <MenuItem onClick={() => { navigate('/dashboard'); handleClose(); }}>
+                      <ListItemIcon><Dashboard fontSize="small" /></ListItemIcon>
+                      Dashboard
+                    </MenuItem>
+                    <MenuItem onClick={() => { navigate('/profile'); handleClose(); }}>
+                      <ListItemIcon><AccountCircle fontSize="small" /></ListItemIcon>
+                      Profile
+                    </MenuItem>
+                    {accountMenuItems
+                      .filter((item) => item.path !== '/profile')
+                      .map((item) => (
+                        <MenuItem key={item.key} onClick={() => { navigate(item.path); handleClose(); }}>
+                          <ListItemIcon><DynamicIcon name={item.icon} fontSize="small" /></ListItemIcon>
+                          {item.label}
+                        </MenuItem>
+                      ))}
+                    <MenuItem onClick={handleLogout}>
+                      <ListItemIcon><Logout fontSize="small" /></ListItemIcon>
+                      Logout
+                    </MenuItem>
+                  </Menu>
+                </>
+              ) : (
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                  <Button
+                    component={Link}
+                    to="/login"
+                    variant="outlined"
+                    sx={{ borderColor: '#667eea', color: '#667eea' }}
+                  >
+                    Login
+                  </Button>
+                  <Button
+                    component={Link}
+                    to="/register"
+                    variant="contained"
+                  >
+                    Register
+                  </Button>
+                </Box>
+              )}
+            </Box>
+          </Toolbar>
+        </Container>
+      </AppBar>
+
+      {/* Mobile drawer */}
+      <Drawer
+        anchor="left"
+        open={sidebarOpen}
+        onClose={() => dispatch(toggleSidebar())}
+      >
+        <Box sx={{ width: 280, pt: 2 }}>
+          <Typography
+            variant="h6"
+            sx={{
+              px: 2,
+              fontWeight: 800,
+              background: brandGradient,
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              mb: 2,
+            }}
+          >
+            {brandName}
+          </Typography>
+          <Divider />
+          <List>
+            {[...navItems,
+              ...(isAuthenticated
+                ? accountMenuItems.map((item) => ({
+                    label: item.label,
+                    path: item.path,
+                    icon: <DynamicIcon name={item.icon} />,
+                  }))
+                : [{ label: 'Login', path: '/login', icon: <AccountCircle /> },
+                   { label: 'Register', path: '/register', icon: <People /> }]
+              ),
+            ].map((item) => (
+              <ListItem
+                key={item.path}
+                component={Link}
+                to={item.path}
+                onClick={() => dispatch(toggleSidebar())}
+                sx={{
+                  borderRadius: 2,
+                  mx: 1,
+                  mb: 0.5,
+                  '&:hover': { background: alpha('#667eea', 0.08) },
+                }}
+              >
+                <ListItemIcon sx={{ minWidth: 40 }}>{item.icon}</ListItemIcon>
+                <ListItemText primary={item.label} />
+              </ListItem>
+            ))}
+          </List>
+        </Box>
+      </Drawer>
+    </>
+  );
+};
+
+export default Navbar;

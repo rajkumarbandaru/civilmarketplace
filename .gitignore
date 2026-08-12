@@ -1,0 +1,79 @@
+# Java
+*.class
+*.jar
+*.war
+target/
+!.mvn/wrapper/maven-wrapper.jar
+
+# Maven
+.mvn/
+log/*
+!mvnw
+
+# Node
+node_modules/
+dist/
+build/
+.next/
+
+# React
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+.factorypath
+.springBeans
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+.env.production
+*.log
+
+# Docker
+docker-compose.override.yml
+
+# Firebase
+firebase-service-account.json
+
+# JWT Secret
+*.key
+*.pem
+
+# MySQL dumps — but never the schema itself: Flyway migrations and the container's DB
+# bootstrap are source, and a clone without them cannot bring the stack up.
+*.sql
+!**/src/main/resources/db/migration/*.sql
+!database/init/*.sql
+!database/migrations/**/*.sql
+
+# Test reports
+test-output/
+*.test.js.snap
+
+# Coverage
+coverage/
+.nyc_output/
+
+# Temp files
+tmp/
+temp/
+*.tmp
+
+# Spring Boot
+*.pid
+heapdump.*

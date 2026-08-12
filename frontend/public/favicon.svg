@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="CivEngMarket">
+  <defs>
+    <linearGradient id="civeng" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#667eea"/>
+      <stop offset="1" stop-color="#764ba2"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#civeng)"/>
+  <!-- Truss: a gable frame over its baseline. Heavy strokes so the mark still reads at 16px. -->
+  <path d="M14 41 L32 19 L50 41" fill="none" stroke="#ffffff" stroke-width="6"
+        stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M12 49 H52" fill="none" stroke="#ffffff" stroke-width="6" stroke-linecap="round"/>
+</svg>
