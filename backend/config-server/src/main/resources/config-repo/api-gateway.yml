@@ -48,6 +48,17 @@ spring:
           filters:
             - StripPrefix=0
             - name: JwtAuth
+        # Both the reporter-facing and the staff paths, because SupportController and
+        # AdminSupportController each read X-User-Id / X-User-Role — headers only the JwtAuth
+        # filter sets. The discovery locator would route these by service id without it, and
+        # every request would fail on a missing header rather than on a missing route.
+        - id: support-service
+          uri: lb://support-service
+          predicates:
+            - Path=/api/v1/support/**, /api/v1/admin/support/**
+          filters:
+            - StripPrefix=0
+            - name: JwtAuth
       default-filters:
         # Downstream services (e.g. auth-service) set their own CORS headers, and the gateway
         # sets them again — browsers reject a response carrying two Access-Control-Allow-Origin

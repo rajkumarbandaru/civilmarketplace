@@ -5,6 +5,9 @@ import { CircularProgress, Box } from '@mui/material';
 import { useAppSelector } from './hooks';
 // A value import, not the lazy component below: the redirect needs it during render.
 import { landingPathFor } from './components/AdminRoute';
+// Eagerly imported, unlike the routes: it renders on every page including the first paint, so
+// lazy-loading it would only add a second chunk request for something never absent.
+import SupportChatWidget from './components/SupportChatWidget';
 
 // Layout components
 const MainLayout = lazy(() => import('./layouts/MainLayout'));
@@ -21,6 +24,7 @@ const ServicesPage = lazy(() => import('./pages/services/ServicesPage'));
 const BookingPage = lazy(() => import('./pages/booking/BookingPage'));
 const ProfilePage = lazy(() => import('./pages/profile/ProfilePage'));
 const AppearancePage = lazy(() => import('./pages/settings/AppearancePage'));
+const SupportTicketsPage = lazy(() => import('./pages/support/SupportTicketsPage'));
 
 // Admin Pages
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
@@ -34,6 +38,7 @@ const WorkspaceManagement = lazy(() => import('./pages/admin/WorkspaceManagement
 const ReportsPage = lazy(() => import('./pages/admin/ReportsPage'));
 const InvoicesPage = lazy(() => import('./pages/admin/InvoicesPage'));
 const PlatformSettingsPage = lazy(() => import('./pages/admin/PlatformSettingsPage'));
+const SupportQueuePage = lazy(() => import('./pages/admin/SupportQueuePage'));
 
 /**
  * The landing page is for visitors. Someone already signed in has a workspace, so `/` sends them
@@ -75,6 +80,7 @@ const LoadingFallback = () => (
 
 const App: React.FC = () => {
   return (
+    <>
     <Suspense fallback={<LoadingFallback />}>
       <AnimatePresence mode="wait">
         <Routes>
@@ -94,6 +100,11 @@ const App: React.FC = () => {
             } />
             <Route path="appearance" element={
               <ProtectedRoute><AppearancePage /></ProtectedRoute>
+            } />
+            {/* Protected: a ticket belongs to the account that raised it, so there is nothing
+                to show a signed-out visitor here. */}
+            <Route path="support" element={
+              <ProtectedRoute><SupportTicketsPage /></ProtectedRoute>
             } />
           </Route>
 
@@ -120,6 +131,7 @@ const App: React.FC = () => {
             <Route path="theme" element={<ThemeSettings />} />
             <Route path="reports" element={<ReportsPage />} />
             <Route path="invoices" element={<InvoicesPage />} />
+            <Route path="support" element={<SupportQueuePage />} />
             <Route path="settings" element={<PlatformSettingsPage />} />
           </Route>
 
@@ -128,6 +140,14 @@ const App: React.FC = () => {
         </Routes>
       </AnimatePresence>
     </Suspense>
+    {/*
+      Outside the router, not inside a layout: it is meant to be reachable from every page,
+      and the three layouts (main, auth, admin) would each need their own copy otherwise —
+      three chances for them to drift apart. Outside <Suspense> too, so a route still loading
+      never takes the assistant off screen with it.
+    */}
+    <SupportChatWidget />
+    </>
   );
 };
 

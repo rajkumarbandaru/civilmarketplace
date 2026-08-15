@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useMemo } from 'react';
+import React, { createContext, useContext, useEffect, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -38,22 +38,45 @@ export const useMenuSection = (section: string): ResolvedMenuItem[] => {
   return useMemo(() => menu.filter((item) => item.section === section), [menu, section]);
 };
 
+/**
+ * Prefix only — the live key appends the signed-in user's id (see {@link UiConfigProvider}).
+ * `invalidateQueries` matches by prefix, so callers can keep using this to refresh.
+ */
 export const UI_CONFIG_QUERY_KEY = ['ui-config', 'me'];
 
 /**
- * Fetches the signed-in user's UI config once and applies its theme to the whole app.
+ * Fetches the signed-in user's UI config and applies its theme to the whole app.
  *
  * Everything degrades to the shipped design system: signed-out users, a failed request, or
  * admin-service being down all render `buildTheme(null)` rather than a blank page. Losing the
  * ability to *customise* the UI must never cost the ability to *use* it.
+ *
+ * The cache key carries the user id. It used to be a bare constant, which meant one signed-in
+ * user's menu and theme were cached under the same key as the next one's: after signing out and
+ * back in as a different role, React Query served the previous user's snapshot — still inside
+ * its 5-minute `staleTime`, so it did not even refetch — and the nav and theme only corrected
+ * themselves on a full page reload, which drops the in-memory cache.
  */
 export const UiConfigProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated } = useAppSelector((state) => state.auth);
+  const { isAuthenticated, user } = useAppSelector((state) => state.auth);
   const guestMode = useAppSelector((state) => state.ui.theme);
   const queryClient = useQueryClient();
 
+  // Identity, not just presence: signing in as a different user must miss the cache.
+  const userKey = user?.id ?? user?.email ?? 'anonymous';
+  const queryKey = useMemo(() => [...UI_CONFIG_QUERY_KEY, userKey], [userKey]);
+
+  // Sign-out drops the snapshot outright. Without this it lingers for the full 30-minute
+  // gcTime, and the next user to sign in on this tab would briefly be painted the previous
+  // user's menu and theme before their own fetch resolved.
+  useEffect(() => {
+    if (!isAuthenticated) {
+      queryClient.removeQueries({ queryKey: UI_CONFIG_QUERY_KEY });
+    }
+  }, [isAuthenticated, queryClient]);
+
   const { data, isLoading, isError } = useQuery<UiConfigSnapshot>({
-    queryKey: UI_CONFIG_QUERY_KEY,
+    queryKey,
     queryFn: () => fetchUiConfig(),
     enabled: isAuthenticated,
     // One retry, not the app-wide two: the shell is blocked on this, and a slow failure is worse
@@ -75,9 +98,9 @@ export const UiConfigProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       theme: data?.theme ?? null,
       loading: isAuthenticated && isLoading,
       failed: isError,
-      refresh: () => queryClient.invalidateQueries({ queryKey: UI_CONFIG_QUERY_KEY }),
+      refresh: () => queryClient.invalidateQueries({ queryKey }),
     }),
-    [data, isAuthenticated, isLoading, isError, queryClient]
+    [data, isAuthenticated, isLoading, isError, queryClient, queryKey]
   );
 
   return (

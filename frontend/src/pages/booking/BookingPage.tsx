@@ -36,7 +36,7 @@ import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { useAppDispatch, useAppSelector } from '../../hooks';
 import { createBooking } from '../../store/slices/bookingSlice';
-import { showSnackbar } from '../../store/slices/uiSlice';
+import { openSupportChat, showSnackbar } from '../../store/slices/uiSlice';
 import { payWithRazorpay } from '../../services/razorpayCheckout';
 import { apiErrorMessage } from '../../services/apiError';
 
@@ -396,7 +396,13 @@ const BookingPage: React.FC = () => {
                   Contact our support team.
                 </Typography>
 
-                <Button variant="outlined" fullWidth sx={{ mb: 2, borderRadius: 2 }}>
+                {/* Opens the assistant in the app shell rather than a second chat surface here. */}
+                <Button
+                  variant="outlined"
+                  fullWidth
+                  onClick={() => dispatch(openSupportChat())}
+                  sx={{ mb: 2, borderRadius: 2 }}
+                >
                   Chat with Support
                 </Button>
 

@@ -602,6 +602,30 @@ Known nicety, not a hole: a formatted number like `+91-94935-64235` is rejected 
 `RegisterRequest`'s `@Pattern` before normalisation runs, so it reads as "Invalid phone number
 format" rather than being cleaned up. No duplicate can result; the frontend always submits E.164.
 
+## Nav and theme stale until refresh after login — FIXED (2026-08-15)
+
+**Symptom:** signing in did not update the side nav, top nav or theme; they only corrected
+themselves after a manual page refresh.
+
+**Cause:** `UiConfigProvider` cached the snapshot under a bare constant key, `['ui-config','me']`,
+with no user identity in it and nothing clearing it on sign-out. Sign out, sign back in as a
+different role, and React Query found a cache entry for that key that was still inside its
+5-minute `staleTime` — so it served the *previous* user's menu and theme and did not even refetch.
+A full page reload drops the in-memory cache, which is exactly why refreshing "fixed" it.
+
+Worth being precise about what was **not** the cause: the request interceptor reads the token from
+the Redux store, and the login reducer sets `isAuthenticated`, the token and localStorage in one
+synchronous reducer. A first login in a fresh tab always fetched correctly — only the second
+sign-in in the same tab was wrong.
+
+**Fix:** the query key now carries the user id (`['ui-config','me',<id>]`), so a different user is
+a cache miss; and sign-out calls `removeQueries` on the prefix, so a snapshot cannot outlive the
+session it belongs to (`gcTime` is 30 minutes). `UI_CONFIG_QUERY_KEY` stays exported as the prefix
+— `invalidateQueries` matches by prefix, so every existing `refresh()` caller is unaffected.
+
+How visible this was: SUPER_ADMIN resolves to 15 menu items with primary `#667eea`, CUSTOMER to 4
+with `#ff5722`, so a stale snapshot left admin-only nav entries on a customer's screen.
+
 ## Dummy dev logins
 
 Seeded by `auth-service`'s `DevUserSeeder` (`@Profile({"local","docker"})` — never runs in any other

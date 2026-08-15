@@ -1,6 +1,12 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import api from '../../services/api';
 import { apiErrorMessage } from '../../services/apiError';
+import {
+  clearSession,
+  persistSession,
+  persistTokens,
+  readSession,
+} from '../../services/authStorage';
 
 interface User {
   id: number;
@@ -25,11 +31,15 @@ interface AuthState {
   error: string | null;
 }
 
+// Read once at module load: the session is this tab's own (see services/authStorage), so it is
+// rehydrated before the first render and cannot be changed underneath the tab by another one.
+const stored = readSession();
+
 const initialState: AuthState = {
-  user: JSON.parse(localStorage.getItem('user') || 'null'),
-  accessToken: localStorage.getItem('accessToken'),
-  refreshToken: localStorage.getItem('refreshToken'),
-  isAuthenticated: !!localStorage.getItem('accessToken'),
+  user: stored.user as User | null,
+  accessToken: stored.accessToken,
+  refreshToken: stored.refreshToken,
+  isAuthenticated: !!stored.accessToken,
   loading: false,
   error: null,
 };
@@ -109,8 +119,7 @@ const authSlice = createSlice({
     setCredentials(state, action: PayloadAction<{ accessToken: string; refreshToken: string }>) {
       state.accessToken = action.payload.accessToken;
       state.refreshToken = action.payload.refreshToken;
-      localStorage.setItem('accessToken', action.payload.accessToken);
-      localStorage.setItem('refreshToken', action.payload.refreshToken);
+      persistTokens(action.payload.accessToken, action.payload.refreshToken);
     },
     /**
      * Completes a social (OAuth2) login. Unlike password/OTP login there is no
@@ -126,9 +135,7 @@ const authSlice = createSlice({
       state.isAuthenticated = true;
       state.loading = false;
       state.error = null;
-      localStorage.setItem('user', JSON.stringify(action.payload.user));
-      localStorage.setItem('accessToken', action.payload.accessToken);
-      localStorage.setItem('refreshToken', action.payload.refreshToken);
+      persistSession(action.payload.user, action.payload.accessToken, action.payload.refreshToken);
     },
     logout(state) {
       state.user = null;
@@ -136,9 +143,7 @@ const authSlice = createSlice({
       state.refreshToken = null;
       state.isAuthenticated = false;
       state.error = null;
-      localStorage.removeItem('user');
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
+      clearSession();
     },
     clearError(state) {
       state.error = null;
@@ -156,9 +161,7 @@ const authSlice = createSlice({
       state.user = action.payload.user;
       state.accessToken = action.payload.accessToken;
       state.refreshToken = action.payload.refreshToken;
-      localStorage.setItem('user', JSON.stringify(action.payload.user));
-      localStorage.setItem('accessToken', action.payload.accessToken);
-      localStorage.setItem('refreshToken', action.payload.refreshToken);
+      persistSession(action.payload.user, action.payload.accessToken, action.payload.refreshToken);
     });
     builder.addCase(login.rejected, (state, action) => {
       state.loading = false;
@@ -176,9 +179,7 @@ const authSlice = createSlice({
       state.user = action.payload.user;
       state.accessToken = action.payload.accessToken;
       state.refreshToken = action.payload.refreshToken;
-      localStorage.setItem('user', JSON.stringify(action.payload.user));
-      localStorage.setItem('accessToken', action.payload.accessToken);
-      localStorage.setItem('refreshToken', action.payload.refreshToken);
+      persistSession(action.payload.user, action.payload.accessToken, action.payload.refreshToken);
     });
     builder.addCase(register.rejected, (state, action) => {
       state.loading = false;
@@ -211,9 +212,7 @@ const authSlice = createSlice({
       state.user = action.payload.user;
       state.accessToken = action.payload.accessToken;
       state.refreshToken = action.payload.refreshToken;
-      localStorage.setItem('user', JSON.stringify(action.payload.user));
-      localStorage.setItem('accessToken', action.payload.accessToken);
-      localStorage.setItem('refreshToken', action.payload.refreshToken);
+      persistSession(action.payload.user, action.payload.accessToken, action.payload.refreshToken);
     });
   },
 });

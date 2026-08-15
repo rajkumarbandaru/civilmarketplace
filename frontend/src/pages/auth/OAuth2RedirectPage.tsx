@@ -9,7 +9,7 @@ import { landingPathFor } from '../../components/AdminRoute';
  * Landing page for the OAuth2 success redirect.
  *
  * The auth-service sends the browser here with the freshly minted tokens on the
- * query string; we move them into the store (and localStorage) and then replace
+ * query string; we move them into the store (and this tab's session storage) and then replace
  * the history entry so the tokens do not sit in the address bar or in history.
  */
 const OAuth2RedirectPage: React.FC = () => {

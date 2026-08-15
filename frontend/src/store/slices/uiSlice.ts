@@ -10,6 +10,19 @@ interface UiState {
   };
   searchQuery: string;
   selectedCity: string;
+  /**
+   * Whether the support chat panel is open. It lives here rather than inside the widget so that
+   * "Chat with Support" buttons elsewhere in the app can open it without the two having to be
+   * rendered near each other — the widget sits in the app shell, the buttons on their own pages.
+   */
+  supportChatOpen: boolean;
+  /**
+   * A ticket the assistant could not answer, handed to the support page to prefill its form.
+   *
+   * It is a handover, not storage: the page consumes it and clears it, so a draft cannot reappear
+   * behind an unrelated later visit to /support.
+   */
+  supportTicketDraft: { subject: string; description: string } | null;
 }
 
 /**
@@ -39,6 +52,8 @@ const initialState: UiState = {
   },
   searchQuery: '',
   selectedCity: '',
+  supportChatOpen: false,
+  supportTicketDraft: null,
 };
 
 const uiSlice = createSlice({
@@ -75,6 +90,23 @@ const uiSlice = createSlice({
     hideSnackbar(state) {
       state.snackbar.open = false;
     },
+    openSupportChat(state) {
+      state.supportChatOpen = true;
+    },
+    closeSupportChat(state) {
+      state.supportChatOpen = false;
+    },
+    toggleSupportChat(state) {
+      state.supportChatOpen = !state.supportChatOpen;
+    },
+    /** Escalation: the panel closes as the draft is handed over, so the two cannot both be up. */
+    startSupportTicket(state, action: PayloadAction<{ subject: string; description: string }>) {
+      state.supportTicketDraft = action.payload;
+      state.supportChatOpen = false;
+    },
+    clearSupportTicketDraft(state) {
+      state.supportTicketDraft = null;
+    },
   },
 });
 
@@ -85,5 +117,10 @@ export const {
   setSelectedCity,
   showSnackbar,
   hideSnackbar,
+  openSupportChat,
+  closeSupportChat,
+  toggleSupportChat,
+  startSupportTicket,
+  clearSupportTicketDraft,
 } = uiSlice.actions;
 export default uiSlice.reducer;
