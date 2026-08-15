@@ -119,7 +119,7 @@ const CategoryManagement: React.FC = () => {
         <TableContainer>
           <Table>
             <TableHead>
-              <TableRow sx={{ bgcolor: '#f8fafc' }}>
+              <TableRow sx={{ bgcolor: 'action.hover' }}>
                 <TableCell sx={{ fontWeight: 700, width: 40 }}></TableCell>
                 <TableCell sx={{ fontWeight: 700 }}>Category</TableCell>
                 <TableCell sx={{ fontWeight: 700 }}>Slug</TableCell>
@@ -144,7 +144,7 @@ const CategoryManagement: React.FC = () => {
                     <TableCell><DragIndicator sx={{ color: '#94a3b8', cursor: 'grab', fontSize: 20 }} /></TableCell>
                     <TableCell>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                        <Box sx={{ color: '#667eea', display: 'flex' }}>
+                        <Box sx={{ color: 'primary.main', display: 'flex' }}>
                           {iconMap[category.icon || ''] || <Engineering />}
                         </Box>
                         <Box>

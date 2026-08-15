@@ -163,7 +163,7 @@ const BookingManagement: React.FC = () => {
         <TableContainer>
           <Table>
             <TableHead>
-              <TableRow sx={{ bgcolor: '#f8fafc' }}>
+              <TableRow sx={{ bgcolor: 'action.hover' }}>
                 <TableCell sx={{ fontWeight: 700 }}>Booking Code</TableCell>
                 <TableCell sx={{ fontWeight: 700 }}>Customer</TableCell>
                 <TableCell sx={{ fontWeight: 700 }}>Worker</TableCell>
@@ -188,13 +188,13 @@ const BookingManagement: React.FC = () => {
                 bookings.map((booking) => (
                   <TableRow key={booking.id} hover>
                     <TableCell>
-                      <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 600, color: '#667eea' }}>
+                      <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 600, color: 'primary.main' }}>
                         {booking.bookingCode}
                       </Typography>
                     </TableCell>
                     <TableCell>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Avatar sx={{ width: 28, height: 28, fontSize: '0.75rem', bgcolor: '#eef2ff', color: '#667eea' }}>
+                        <Avatar sx={{ width: 28, height: 28, fontSize: '0.75rem', bgcolor: (t) => t.palette.primary.main + '15', color: 'primary.main' }}>
                           {booking.customerName?.charAt(0) || '?'}
                         </Avatar>
                         <Typography variant="body2">{booking.customerName}</Typography>

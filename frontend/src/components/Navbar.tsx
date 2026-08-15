@@ -39,11 +39,13 @@ import { toggleSidebar, setSearchQuery } from '../store/slices/uiSlice';
 import { motion } from 'framer-motion';
 import { useMenuSection, useUiConfig } from '../providers/UiConfigProvider';
 import DynamicIcon from './DynamicIcon';
+import ColorModeToggle from './ColorModeToggle';
 
-// What renders before the UI config arrives, and if it never does — admin-service being
-// unreachable must not leave a member with no way to navigate. Keys match the catalogue seeded
-// in admin-service's V2 migration.
-const FALLBACK_WORK_NAV = [
+// A visitor who is not signed in holds no role, so there is no workspace to resolve a menu from.
+// This is that public site's own navigation — not a fallback for a signed-in member, whose menu
+// comes from their workspace and nowhere else.
+const PUBLIC_NAV = [
+  { key: 'home', label: 'Home', path: '/', icon: 'Home' },
   { key: 'services', label: 'Services', path: '/services', icon: 'Engineering' },
 ];
 
@@ -86,7 +88,11 @@ const StyledInputBase = styled(InputBase)(({ theme }) => ({
   },
 }));
 
-const Navbar: React.FC = () => {
+/**
+ * @param navInDrawer the shell has put the workspace menu in a side drawer, so the bar must not
+ *   repeat it — one navigation surface per layout, the same rule the admin shell follows.
+ */
+const Navbar: React.FC<{ navInDrawer?: boolean }> = ({ navInDrawer = false }) => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const { isAuthenticated, user } = useAppSelector((state) => state.auth);
@@ -116,28 +122,30 @@ const Navbar: React.FC = () => {
     navigate('/');
   };
 
-  // "Home" always shows regardless of the catalogue — it's the landing page, not a menu entry.
-  // The rest of the Work section comes from the signed-in user's resolved menu, so hiding
-  // "Services" for a role in the Workspaces screen actually hides it here too.
-  const dynamicWorkItems = workMenuItems.length > 0 ? workMenuItems : FALLBACK_WORK_NAV;
-  const navItems = [
-    { label: 'Home', path: '/', icon: <Home /> },
-    ...dynamicWorkItems.map((item) => ({
-      label: item.label,
-      path: item.path,
-      icon: <DynamicIcon name={item.icon} />,
-    })),
-  ];
+  // A signed-in member's navigation is exactly their workspace's Work section — nothing is added
+  // to it here. Hiding an entry in the Workspaces screen therefore removes it from the shell, and
+  // a workspace that hides everything renders an empty bar rather than a hardcoded remainder.
+  // "Home" is not among them: it is the visitors' landing page, and `/` redirects a signed-in
+  // user back into their workspace anyway.
+  const navSource = isAuthenticated ? workMenuItems : PUBLIC_NAV;
+  const navItems = navSource.map((item) => ({
+    label: item.label,
+    path: item.path,
+    icon: <DynamicIcon name={item.icon} />,
+  }));
 
   return (
     <>
       <AppBar
         position="fixed"
+        // Resolved from the theme, not painted white: a hardcoded bar ignored every colour a
+        // Super Admin set, and stayed white in dark mode. The alpha keeps the blur effect that
+        // the flat colour would otherwise lose.
         sx={{
-          background: 'rgba(255,255,255,0.9)',
+          background: alpha(muiTheme.palette.background.paper, 0.9),
           backdropFilter: 'blur(20px)',
           boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-          borderBottom: '1px solid rgba(0,0,0,0.06)',
+          borderBottom: `1px solid ${muiTheme.palette.divider}`,
         }}
       >
         <Container maxWidth="xl">
@@ -203,7 +211,7 @@ const Navbar: React.FC = () => {
             <Box sx={{ flexGrow: 1 }} />
 
             <Box sx={{ display: { xs: 'none', md: 'flex' }, gap: 1, alignItems: 'center' }}>
-              {navItems.map((item) => (
+              {(navInDrawer ? [] : navItems).map((item) => (
                 <Button
                   key={item.path}
                   component={Link}
@@ -211,7 +219,7 @@ const Navbar: React.FC = () => {
                   sx={{
                     color: 'text.primary',
                     fontWeight: 500,
-                    '&:hover': { background: alpha('#667eea', 0.08) },
+                    '&:hover': { background: alpha(muiTheme.palette.primary.main, 0.08) },
                   }}
                 >
                   {item.label}
@@ -220,6 +228,8 @@ const Navbar: React.FC = () => {
 
               {isAuthenticated ? (
                 <>
+                  <ColorModeToggle />
+
                   <IconButton sx={{ color: 'text.secondary' }}>
                     <Badge badgeContent={unreadCount} color="error">
                       <NotificationsIcon />
@@ -232,7 +242,7 @@ const Navbar: React.FC = () => {
                       sx={{
                         width: 36,
                         height: 36,
-                        background: 'linear-gradient(135deg, #667eea, #764ba2)',
+                        background: brandGradient,
                       }}
                     >
                       {user?.name?.charAt(0)}
@@ -283,12 +293,13 @@ const Navbar: React.FC = () => {
                   </Menu>
                 </>
               ) : (
-                <Box sx={{ display: 'flex', gap: 1 }}>
+                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                  <ColorModeToggle />
                   <Button
                     component={Link}
                     to="/login"
                     variant="outlined"
-                    sx={{ borderColor: '#667eea', color: '#667eea' }}
+                    sx={{ borderColor: 'primary.main', color: 'primary.main' }}
                   >
                     Login
                   </Button>
@@ -348,7 +359,7 @@ const Navbar: React.FC = () => {
                   borderRadius: 2,
                   mx: 1,
                   mb: 0.5,
-                  '&:hover': { background: alpha('#667eea', 0.08) },
+                  '&:hover': { background: alpha(muiTheme.palette.primary.main, 0.08) },
                 }}
               >
                 <ListItemIcon sx={{ minWidth: 40 }}>{item.icon}</ListItemIcon>
@@ -356,6 +367,14 @@ const Navbar: React.FC = () => {
               </ListItem>
             ))}
           </List>
+
+          {/* The desktop toggle lives in the toolbar, which is hidden below md — without this the
+              switch would be unreachable on a phone. */}
+          <Divider />
+          <Box sx={{ px: 2, py: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+            <ColorModeToggle />
+            <Typography variant="body2" color="text.secondary">Colour mode</Typography>
+          </Box>
         </Box>
       </Drawer>
     </>

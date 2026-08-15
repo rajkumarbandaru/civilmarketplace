@@ -128,7 +128,7 @@ const ServicesPage: React.FC = () => {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               InputProps={{
-                startAdornment: <InputAdornment position="start"><Search sx={{ color: '#667eea' }} /></InputAdornment>,
+                startAdornment: <InputAdornment position="start"><Search sx={{ color: 'primary.main' }} /></InputAdornment>,
               }}
               sx={{ '& .MuiOutlinedInput-root': { borderRadius: 3 } }}
             />
@@ -153,7 +153,7 @@ const ServicesPage: React.FC = () => {
                 min={0}
                 max={5000}
                 step={100}
-                sx={{ color: '#667eea' }}
+                sx={{ color: 'primary.main' }}
               />
             </Box>
           </Grid>
@@ -177,7 +177,7 @@ const ServicesPage: React.FC = () => {
               borderRadius: 2,
               fontWeight: 600,
               ...(selectedCategory === cat
-                ? { background: 'linear-gradient(135deg, #667eea, #764ba2)', color: '#fff' }
+                ? { background: (t) => `linear-gradient(135deg, ${t.palette.primary.main}, ${t.palette.secondary.main})`, color: '#fff' }
                 : { borderColor: '#e2e8f0', color: '#64748b' }),
             }}
           />
@@ -202,8 +202,8 @@ const ServicesPage: React.FC = () => {
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
                     <Avatar
                       sx={{
-                        background: 'linear-gradient(135deg, #667eea15, #764ba215)',
-                        color: '#667eea',
+                        background: (t) => `linear-gradient(135deg, ${t.palette.primary.main}15, ${t.palette.secondary.main}15)`,
+                        color: 'primary.main',
                         width: 48,
                         height: 48,
                       }}
@@ -217,7 +217,7 @@ const ServicesPage: React.FC = () => {
                       <Chip
                         label={service.category}
                         size="small"
-                        sx={{ bgcolor: '#eef2ff', color: '#667eea', fontWeight: 500, fontSize: '0.7rem' }}
+                        sx={{ bgcolor: (t) => t.palette.primary.main + '15', color: 'primary.main', fontWeight: 500, fontSize: '0.7rem' }}
                       />
                     </Box>
                   </Box>
@@ -233,7 +233,7 @@ const ServicesPage: React.FC = () => {
                   </Box>
 
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="h6" sx={{ color: '#667eea', fontWeight: 700 }}>
+                    <Typography variant="h6" sx={{ color: 'primary.main', fontWeight: 700 }}>
                       {service.price}
                     </Typography>
                     <Verified sx={{ color: '#10b981', fontSize: 18 }} />

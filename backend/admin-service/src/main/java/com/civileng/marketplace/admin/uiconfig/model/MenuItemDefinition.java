@@ -48,6 +48,15 @@ public class MenuItemDefinition {
     @Column(nullable = false, length = 40)
     private String section;
 
+    /**
+     * Where the item sits within its section — the sidebar's sub-heading. Null renders ungrouped,
+     * which is what the member-facing rows want and what a new catalogue row gets until it is
+     * placed. A group's position is the position of its first item, so there is no separate
+     * ordering to keep in step with {@link #sortOrder}.
+     */
+    @Column(name = "menu_group", length = 40)
+    private String menuGroup;
+
     @Column(name = "sort_order", nullable = false)
     private int sortOrder;
 

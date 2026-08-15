@@ -42,7 +42,7 @@ const DENSITY_SPACING: Record<string, number> = {
  * the OS. Unset means the shipped CivEngMarket light theme — following the OS by default flipped
  * the whole app to dark for anyone on a dark desktop, which is a theme change nobody asked for.
  */
-const resolveMode = (mode: string | null | undefined): 'light' | 'dark' => {
+export const resolveMode = (mode: string | null | undefined): 'light' | 'dark' => {
   if (mode === 'light' || mode === 'dark') return mode;
   if (mode === 'system') {
     return typeof window !== 'undefined' &&
@@ -64,8 +64,20 @@ export const buildTheme = (config?: ResolvedTheme | null): Theme => {
 
   // The surface colour drives the paper layer; the page behind it is derived rather than
   // configured, so an admin picking one colour cannot leave cards invisible against the page.
-  const paper = config?.surfaceColor || (dark ? '#1e293b' : '#ffffff');
-  const defaultBg = config?.surfaceColor
+  //
+  // One stored colour has to serve both modes, and a colour chosen while looking at the light
+  // theme is almost always a pale one. Applied literally in dark mode it painted white cards on a
+  // dark page with pale text on them — unreadable, and looking like the theme had failed to
+  // change. So it is honoured only when it actually suits the mode being rendered; otherwise the
+  // mode's own default paper is used and the admin's choice waits for the mode it was picked for.
+  const surfaceSuitsMode =
+    config?.surfaceColor != null && isLight(config.surfaceColor) === !dark;
+  const paper = surfaceSuitsMode
+    ? (config!.surfaceColor as string)
+    : dark
+      ? '#1e293b'
+      : '#ffffff';
+  const defaultBg = surfaceSuitsMode
     ? undefined // let MUI derive a page colour that contrasts with the chosen surface
     : dark
       ? '#0f172a'

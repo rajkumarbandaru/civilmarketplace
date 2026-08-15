@@ -15,6 +15,7 @@ import {
   Typography,
 } from '@mui/material';
 import { useUiConfig } from '../../providers/UiConfigProvider';
+import { apiErrorMessage } from '../../services/apiError';
 import {
   AppearanceSettings,
   fetchMyAppearance,
@@ -98,7 +99,7 @@ const AppearancePage: React.FC = () => {
 
       {save.isError && (
         <Alert severity="error" sx={{ mb: 2 }}>
-          {(save.error as any)?.response?.data?.message || 'That setting could not be saved.'}
+          {apiErrorMessage(save.error, 'That setting could not be saved.')}
         </Alert>
       )}
 

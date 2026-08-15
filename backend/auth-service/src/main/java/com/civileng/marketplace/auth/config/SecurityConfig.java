@@ -2,6 +2,7 @@ package com.civileng.marketplace.auth.config;
 
 import com.civileng.marketplace.auth.security.JwtAuthenticationFilter;
 import com.civileng.marketplace.auth.security.JwtTokenProvider;
+import com.civileng.marketplace.auth.security.OAuth2FailureHandler;
 import com.civileng.marketplace.auth.security.OAuth2SuccessHandler;
 import com.civileng.marketplace.auth.service.CustomOAuth2UserService;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +35,7 @@ public class SecurityConfig {
     private final JwtTokenProvider jwtTokenProvider;
     private final CustomOAuth2UserService customOAuth2UserService;
     private final OAuth2SuccessHandler oAuth2SuccessHandler;
+    private final OAuth2FailureHandler oAuth2FailureHandler;
 
 
     @Bean
@@ -72,7 +74,8 @@ public class SecurityConfig {
             http.oauth2Login(oauth2 -> oauth2
                     .userInfoEndpoint(userInfo -> userInfo
                             .userService(customOAuth2UserService))
-                    .successHandler(oAuth2SuccessHandler));
+                    .successHandler(oAuth2SuccessHandler)
+                    .failureHandler(oAuth2FailureHandler));
             log.info("OAuth2 social login enabled");
         } else {
             log.info("No OAuth2 client registration configured — social login disabled, "

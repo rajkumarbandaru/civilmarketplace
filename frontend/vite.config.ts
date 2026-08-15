@@ -2,6 +2,10 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
+// docker/.env can remap the gateway's host port (HOST_PORT_GATEWAY) to avoid clashing
+// with other local stacks, so let the dev proxy follow it instead of assuming 8080.
+const gatewayPort = process.env.HOST_PORT_GATEWAY ?? '8080'
+
 export default defineConfig({
   plugins: [
     react(),
@@ -41,12 +45,12 @@ export default defineConfig({
     host: true,
     proxy: {
       '/api': {
-        target: 'http://localhost:8080',
+        target: `http://localhost:${gatewayPort}`,
         changeOrigin: true,
         secure: false
       },
       '/ws': {
-        target: 'ws://localhost:8080',
+        target: `ws://localhost:${gatewayPort}`,
         ws: true
       }
     }

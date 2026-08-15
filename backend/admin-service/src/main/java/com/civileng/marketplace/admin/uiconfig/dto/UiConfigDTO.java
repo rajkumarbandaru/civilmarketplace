@@ -31,6 +31,8 @@ public final class UiConfigDTO {
             String path,
             String icon,
             String section,
+            /** Sub-heading within the section; null renders the item ungrouped. */
+            String menuGroup,
             int sortOrder,
             boolean exactMatch) {
     }
@@ -65,9 +67,28 @@ public final class UiConfigDTO {
      * <p>The values are a {@link ThemeUpdateCommand}, not a stored row: applying a preset in the
      * console fills the form and still has to be saved, so a preset is never a second source of
      * truth for what a scope currently looks like.
+     *
+     * @param builtIn true for the presets shipped with the service, false for one a Super Admin
+     *                saved. Only the latter can be deleted, and the console reads this rather
+     *                than keeping its own list of which keys are ours.
      */
     public record ThemePreset(
             String key,
+            String label,
+            String description,
+            ThemeUpdateCommand values,
+            boolean builtIn) {
+    }
+
+    /**
+     * Saving the theme form as a reusable preset.
+     *
+     * <p>Only the label is required — a preset with no description is still perfectly usable, and
+     * demanding one would just get it filled with the label again. The values carry brand name and
+     * logo like any other theme command, and the service drops them: see
+     * {@link com.civileng.marketplace.admin.uiconfig.model.CustomThemePreset}.
+     */
+    public record CustomPresetCommand(
             String label,
             String description,
             ThemeUpdateCommand values) {
@@ -81,6 +102,14 @@ public final class UiConfigDTO {
             int visibleMenuCount,
             boolean menuCustomised,
             boolean themeCustomised) {
+    }
+
+    /**
+     * A new workspace. Only a name and a description: a workspace is a role, and its menu and
+     * theme start as the platform defaults, which is what "not customised yet" already means for
+     * every existing workspace.
+     */
+    public record WorkspaceCreateCommand(String name, String description) {
     }
 
     /**

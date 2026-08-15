@@ -201,6 +201,32 @@ attach → audit events present in audit-service with an intact hash chain.
    entity (ENT·02/03, out of migration scope). "Project-scoped edit access for team members" is
    unimplementable until that exists.
 
+## Custom theme presets — verified live 2026-08-14
+
+The "Start from a preset" row on the Theme & UI style screen now ends with a **Save current as
+preset** chip: it names the values currently in the form and stores them server-side, so they sit
+alongside the nine shipped presets for any scope to start from, and carry an ✕ to delete.
+
+- **`ui_theme_preset`** (`admin-service` Flyway `V5`) — the same columns as `ui_theme_config`
+  minus `brand_name`/`logo_url`. A preset is a *look*, not an identity: the service drops those two
+  fields on the way in, so applying a preset can never rename a workspace to another tenant's
+  wordmark. Label is unique, and the key is a slug of it fixed at creation.
+- **Endpoints** — `POST /api/v1/admin/theme/presets`, `DELETE /api/v1/admin/theme/presets/{key}`;
+  `GET .../presets` returns shipped presets first, then saved ones alphabetically, each carrying
+  `builtIn` so the console knows which ones may be deleted. SUPER_ADMIN only, like the rest of the
+  screen. Saving under an existing name overwrites that preset rather than erroring.
+- Style fields are validated exactly as a theme save is, so a preset can never name a layout or
+  button style the shell does not implement.
+- **Verified live 2026-08-14** through the gateway: save → brand name and logo dropped → appears in
+  the list as `builtIn: false` → re-save under the same name overwrote instead of duplicating →
+  `uiStyle: neon` and a blank name refused → deleting a built-in refused → non-admin 403 on both
+  writes → delete removed it from the list.
+- **Gap found and closed the same day:** `layoutStyle: "topbar"` had been added to the frontend
+  shell and to `ThemePresets.LAYOUT_STYLES`, but the running `admin-service` still refused it —
+  `admin-service/Dockerfile` copies `target/*.jar`, so `docker compose build` alone ships stale
+  code. **Always `mvn package` before `docker compose build` for these services.** Rebuilt properly,
+  a workspace saves `topbar` and the member's `/ui-config/me` reflects it.
+
 ## UI-config — verified live 2026-08-12
 
 Menu and theme served from the backend instead of compiled into the bundle (CEP MOB·15), ported into
@@ -470,25 +496,134 @@ the old bundle with the old API URL.
 Debugging lesson: verify browser-facing behaviour **in a browser**. Every one of these returned a
 clean 200 to curl.
 
+## Notification channels — email, SMS, WhatsApp (2026-08-15)
+
+`notification-service` delivers over four channels. Each has a `provider` setting taking either
+its real provider or `log` (the message is written to the service log and nothing leaves the
+cluster). **A real provider whose credentials are still the config-repo `placeholder` degrades to
+logging rather than throwing** — a half-configured environment never breaks OTP login or booking.
+
+| Channel | Provider setting | Real provider | Credentials |
+|---|---|---|---|
+| Email | `app.email.provider` (`EMAIL_PROVIDER`) | `smtp` (JavaMail) or `brevo` (HTTP API) | SMTP: `SMTP_HOST`/`SMTP_USERNAME`/`SMTP_PASSWORD`. Brevo: `BREVO_API_KEY` alone |
+| SMS | `app.sms.provider` (`SMS_PROVIDER`) | Twilio | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER` |
+| WhatsApp | `app.whatsapp.provider` (`WHATSAPP_PROVIDER`) | Twilio WhatsApp | the same Twilio account + `TWILIO_WHATSAPP_FROM` |
+| In-app | — | a `notifications` row | — |
+
+- **Email has two providers.** Brevo's SMTP relay needs a *login* as well as an SMTP key (two
+  separate dashboard values), whereas its HTTP API needs only `BREVO_API_KEY` — so
+  `EMAIL_PROVIDER=brevo` can be configured from one secret. `BrevoEmailSender` posts to
+  `https://api.brevo.com/v3/smtp/email`. **Verified live 2026-08-15**: a real OTP email delivered,
+  Brevo returning a `messageId`.
+- `EMAIL_FROM_ADDRESS` must be a **verified sender** on the relay account — Brevo, SendGrid and
+  friends all reject anything else with a 400. It used to be hardcoded to
+  `noreply@civilengineer.com`, which no real account owns; it is now per-environment.
+- `TwilioGateway` initialises the Twilio SDK once (it is process-wide static state) and is shared
+  by SMS and WhatsApp: same Messages API, the channel is selected purely by the `whatsapp:` address
+  prefix.
+- `PhoneNumbers` normalises stored national numbers to E.164 before dispatch
+  (`SMS_DEFAULT_COUNTRY_CODE`, default `+91`) — Twilio rejects anything else.
+- **The Thymeleaf email templates did not exist before this change.** `EmailService` referenced
+  `otp-template`, `welcome-template`, `booking-confirmed-template` and `payment-received-template`,
+  all of which threw at render time and were swallowed by the catch-and-log — every email was a
+  silent non-delivery. They now live in `resources/templates/email/` over a shared `_layout.html`,
+  covered by `EmailTemplateRenderTest` so a broken fragment fails the build instead of going quiet.
+- `NotificationDispatcher` + the `NotificationRequest` record are the single fan-out entry point;
+  which channels an event uses is decided per event type in `KafkaNotificationConsumer`.
+- **Pre-existing bug found and FIXED:** every Kafka listener except `message.sent` declared a
+  `String` parameter while the consumer factory's `value-deserializer` is `JsonDeserializer`, which
+  delivers a parsed object. All listeners now take `Map<String, Object>`.
+- **Placeholder detection matters more than it looks.** The "unconfigured → fall back to logging"
+  guard originally matched only the literal word `placeholder`, so the `your_email@gmail.com` /
+  `ACXXXX…` values that ship in `.env.example` were treated as *live* credentials — Twilio would
+  init with garbage and every send threw into the catch-and-log. Twilio is now validated by real
+  shape (`AC` + 32 hex, token 32 hex) and SMTP rejects template markers, both pinned by
+  `CredentialDetectionTest`.
+- **Pre-existing bug found and FIXED:** the OTP resend cooldown throws `IllegalStateException`,
+  which had no handler and fell through to the catch-all — callers got a 500 "unexpected error"
+  instead of "Please wait N seconds", which is the entire point of the response. Now a 429.
+- `POST /api/v1/admin/notifications/dispatch` (admin roles only) sends over any channel on demand —
+  the "did the credentials land?" check that avoids provoking a real booking or payment.
+
+### OTP over all three channels
+
+`OtpChannel` (`EMAIL`, `SMS`, `WHATSAPP`) drives both registration verification and OTP sign-in.
+Auth never touches a provider itself: it stores the code and emits `otp.sent`, and
+notification-service delivers it.
+
+- **Registration** takes `verificationChannel` (defaults to `EMAIL`) and sends a verification code
+  as part of `POST /api/v1/auth/register`. The frontend then shows a verification step —
+  registration already returns a session, so it offers "Skip for now" rather than gating access.
+- **Sign-in** offers password *or* OTP, and the OTP tab now picks Email / SMS / WhatsApp.
+  `POST /api/v1/auth/otp/send` takes an optional `channel`; without one it defaults to the channel
+  the identifier implies.
+- **Seeded phone numbers are stored in E.164** (`+91…`), matching what real registrations save:
+  the frontend converts before submitting, so the previously-bare national numbers made every
+  seeded account fail phone OTP with "Mobile number not registered". The seeder migrates existing
+  bare numbers on startup.
+- Codes are keyed `email:<userId>` or `phone:<userId>`. SMS and WhatsApp share the phone key —
+  both are delivered to the same number and prove the same thing — so `otp/verify` needs no
+  channel and is keyed on the identifier alone.
+- A code sent to one identifier still cannot be replayed against the other.
+
+## One account per email / phone — no duplicates (2026-08-15)
+
+Enforced at three layers, because each one alone has a hole.
+
+**1. Canonical form (`AccountIdentifiers`).** A uniqueness check is only as good as the string it
+compares. `9493564235`, `+91 94935 64235` and `09493564235` were three distinct values that each
+passed the "phone already registered?" check, and `Ravi@x.com` could slip past a lookup for
+`ravi@x.com`. Every write path now normalises first — email lowercased/trimmed, phone to E.164 via
+`app.phone.default-country-code` (default `+91`). Unparseable input is returned unchanged so it
+surfaces as a validation error rather than a bogus "already registered".
+
+**2. Service-layer checks on every write path.** Registration already checked both identifiers.
+`AdminUserController.updateUser` checked **neither** — an admin could assign an in-use email or
+phone to another account (email hit the V1 constraint as a 500; phone silently duplicated). It now
+excludes the user's own row so a no-op edit doesn't clash with itself. `CustomOAuth2UserService`
+normalises the provider-supplied address, so a Google login for `Ravi@x.com` resolves to the
+existing `ravi@x.com` account instead of creating a second one.
+
+**3. Database constraints.** `email` has been UNIQUE since V1; **`phone` had only a plain index**,
+so nothing stopped two concurrent registrations both passing the check and both inserting. Flyway
+`V2__unique_phone.sql` normalises legacy national-format numbers to E.164 and adds `uk_user_phone`.
+NULLs stay allowed (OAuth2 signups have no phone). A constraint hit now maps to a 409 via
+`DataIntegrityViolationException` rather than a 500.
+
+Soft-deleted rows still occupy their identifiers, matching how the V1 email constraint already
+behaved; freeing one requires a hard delete.
+
+Verified live 2026-08-15 — rejected: duplicate email in different case, duplicate phone as bare vs
+E.164, admin reassigning an in-use phone, admin reassigning an in-use email. Accepted: a genuinely
+new account, and an admin no-op edit of a user's own number. Normalisation rules are pinned by
+`AccountIdentifiersTest`.
+
+Known nicety, not a hole: a formatted number like `+91-94935-64235` is rejected by
+`RegisterRequest`'s `@Pattern` before normalisation runs, so it reads as "Invalid phone number
+format" rather than being cleaned up. No duplicate can result; the frontend always submits E.164.
+
 ## Dummy dev logins
 
 Seeded by `auth-service`'s `DevUserSeeder` (`@Profile({"local","docker"})` — never runs in any other
 environment; `docker-compose.yml` sets `SPRING_PROFILES_ACTIVE=${AUTH_PROFILE:-docker}` on
 auth-service, so set `AUTH_PROFILE=` to get a clean environment). Idempotent: skips accounts that
-already exist. **Password for all accounts: `Password123!`**
+already exist, except the SUPER_ADMIN, which is reconciled onto the address and password below on
+every startup (an environment seeded before the change is migrated off `superadmin@civileng.test`
+rather than gaining a second SUPER_ADMIN). **Password for all accounts: `Password123!`, except the
+SUPER_ADMIN — see its own password in the table.**
 
-| Role | Email |
-|---|---|
-| SUPER_ADMIN | superadmin@civileng.test |
-| ADMIN | admin@civileng.test |
-| CUSTOMER | customer@civileng.test |
-| WORKER | worker@civileng.test |
-| LABOUR | labour@civileng.test |
-| LABOUR_CONTRACTOR | contractor@civileng.test |
-| CIVIL_ENGINEER | engineer@civileng.test |
-| ARCHITECT | architect@civileng.test |
-| SURVEYOR | surveyor@civileng.test |
-| MATERIAL_SUPPLIER | supplier@civileng.test |
+| Role | Email | Password |
+|---|---|---|
+| SUPER_ADMIN | rajkumarbandaruit@gmail.com (mobile `+919493564235`) | `Testing@123` |
+| ADMIN | admin@civileng.test | `Password123!` |
+| CUSTOMER | customer@civileng.test | `Password123!` |
+| WORKER | worker@civileng.test | `Password123!` |
+| LABOUR | labour@civileng.test | `Password123!` |
+| LABOUR_CONTRACTOR | contractor@civileng.test | `Password123!` |
+| CIVIL_ENGINEER | engineer@civileng.test | `Password123!` |
+| ARCHITECT | architect@civileng.test | `Password123!` |
+| SURVEYOR | surveyor@civileng.test | `Password123!` |
+| MATERIAL_SUPPLIER | supplier@civileng.test | `Password123!` |
 
 Log in through the gateway to get a JWT, then pass it as `Authorization: Bearer <token>`:
 

@@ -223,7 +223,15 @@ services:
       - REDIS_HOST=redis
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       # "docker" activates DevUserSeeder's dummy accounts. Set to "" for a clean environment.
+      # Add "social" (AUTH_PROFILE=docker,social) to turn on Google/Facebook login — it needs
+      # real credentials below, since Spring refuses to start on an empty client-id.
       - SPRING_PROFILES_ACTIVE=${AUTH_PROFILE:-docker}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
+      - FACEBOOK_CLIENT_ID=${FACEBOOK_CLIENT_ID:-}
+      - FACEBOOK_CLIENT_SECRET=${FACEBOOK_CLIENT_SECRET:-}
+      - OAUTH2_REDIRECT_URIS=${OAUTH2_REDIRECT_URIS:-http://localhost:3000/oauth2/redirect}
+      - OAUTH2_GATEWAY_BASE_URL=${OAUTH2_GATEWAY_BASE_URL:-http://localhost:8080}
     networks:
       - civil-network
     depends_on:
@@ -330,6 +338,17 @@ services:
       - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID}
       - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}
       - TWILIO_PHONE_NUMBER=${TWILIO_PHONE_NUMBER}
+      - TWILIO_WHATSAPP_FROM=${TWILIO_WHATSAPP_FROM:-+14155238886}
+      # Set any of these to `log` to keep that channel inside the cluster (messages are
+      # written to the service log instead of being delivered).
+      - EMAIL_PROVIDER=${EMAIL_PROVIDER:-smtp}
+      - EMAIL_FROM_ADDRESS=${EMAIL_FROM_ADDRESS:-noreply@civilengineer.com}
+      - EMAIL_FROM_NAME=${EMAIL_FROM_NAME:-Civil Engineer Marketplace}
+      - BREVO_API_KEY=${BREVO_API_KEY:-}
+      - SMS_PROVIDER=${SMS_PROVIDER:-twilio}
+      - WHATSAPP_PROVIDER=${WHATSAPP_PROVIDER:-twilio}
+      - SMS_SENDER_ID=${SMS_SENDER_ID:-CIVILENG}
+      - SMS_DEFAULT_COUNTRY_CODE=${SMS_DEFAULT_COUNTRY_CODE:-+91}
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - REDIS_HOST=redis
       - RABBITMQ_HOST=rabbitmq
@@ -513,13 +532,16 @@ services:
     build:
       context: ..
       dockerfile: frontend/Dockerfile
+      # Vite inlines VITE_* into the bundle at build time, so this has to be a build arg. It was
+      # previously listed under `environment:`, where it did nothing at all — nginx serves a
+      # finished bundle and never reads it.
+      args:
+        VITE_API_BASE_URL: http://localhost:${HOST_PORT_GATEWAY:-8080}
+        VITE_RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-}
+        VITE_GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY:-}
     container_name: civil_frontend
     ports:
       - "${HOST_PORT_FRONTEND:-3000}:3000"
-    environment:
-      - VITE_API_BASE_URL=http://localhost:${HOST_PORT_GATEWAY:-8080}
-      - VITE_RAZORPAY_KEY_ID=${RAZORPAY_KEY_ID}
-      - VITE_GOOGLE_MAPS_API_KEY=${GOOGLE_MAPS_API_KEY:-}
     networks:
       - civil-network
     depends_on:

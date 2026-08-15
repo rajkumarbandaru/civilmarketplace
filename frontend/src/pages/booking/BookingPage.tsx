@@ -37,6 +37,8 @@ import * as yup from 'yup';
 import { useAppDispatch, useAppSelector } from '../../hooks';
 import { createBooking } from '../../store/slices/bookingSlice';
 import { showSnackbar } from '../../store/slices/uiSlice';
+import { payWithRazorpay } from '../../services/razorpayCheckout';
+import { apiErrorMessage } from '../../services/apiError';
 
 const steps = ['Service Details', 'Location', 'Schedule', 'Confirm & Pay'];
 
@@ -54,9 +56,11 @@ const BookingPage: React.FC = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const { loading } = useAppSelector((state) => state.booking);
+  const { user } = useAppSelector((state) => state.auth);
   const [activeStep, setActiveStep] = useState(0);
   const [bookingType, setBookingType] = useState('INSTANT');
   const [selectedDate, setSelectedDate] = useState('');
+  const [paying, setPaying] = useState(false);
 
   const {
     register,
@@ -81,6 +85,56 @@ const BookingPage: React.FC = () => {
       navigate('/dashboard');
     }
   };
+
+  /**
+   * Pays for the booking with Razorpay Checkout.
+   *
+   * The booking is created first and only then paid for: an order needs a bookingId to attach the
+   * payment to, and taking money for a booking that failed to save would leave the customer with a
+   * charge and nothing to show for it.
+   */
+  const handlePayWithRazorpay = handleSubmit(async (data: any) => {
+    setPaying(true);
+    try {
+      const created = await dispatch(createBooking({
+        ...data,
+        bookingType,
+        scheduledDate: selectedDate || undefined,
+      }));
+
+      if (created.meta.requestStatus !== 'fulfilled') {
+        return; // createBooking already surfaced why.
+      }
+
+      const booking = created.payload as { id: number; totalAmount?: number };
+      const outcome = await payWithRazorpay({
+        bookingId: booking.id,
+        amount: Number(booking.totalAmount ?? 0),
+        customer: { name: user?.name, email: user?.email, contact: user?.phone },
+      });
+
+      if (outcome.status === 'paid') {
+        dispatch(showSnackbar({ message: 'Payment successful!', severity: 'success' }));
+        navigate('/dashboard');
+      } else if (outcome.status === 'cancelled') {
+        // The booking is saved and unpaid, which is a state the customer can return to — so this
+        // is information, not an error.
+        dispatch(showSnackbar({
+          message: 'Payment cancelled. Your booking is saved and can be paid from your dashboard.',
+          severity: 'info',
+        }));
+      } else {
+        dispatch(showSnackbar({ message: outcome.message, severity: 'error' }));
+      }
+    } catch (error) {
+      dispatch(showSnackbar({
+        message: apiErrorMessage(error, 'Payment could not be confirmed. Please contact support.'),
+        severity: 'error',
+      }));
+    } finally {
+      setPaying(false);
+    }
+  });
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
@@ -186,7 +240,7 @@ const BookingPage: React.FC = () => {
                         error={!!errors.city}
                         helperText={errors.city?.message}
                         sx={{ mb: 3 }}
-                        InputProps={{ startAdornment: <LocationOn sx={{ mr: 1, color: '#667eea' }} /> }}
+                        InputProps={{ startAdornment: <LocationOn sx={{ mr: 1, color: 'primary.main' }} /> }}
                       />
 
                       <TextField
@@ -225,7 +279,7 @@ const BookingPage: React.FC = () => {
                         onChange={(e) => setSelectedDate(e.target.value)}
                         InputLabelProps={{ shrink: true }}
                         sx={{ mb: 3 }}
-                        InputProps={{ startAdornment: <CalendarToday sx={{ mr: 1, color: '#667eea' }} /> }}
+                        InputProps={{ startAdornment: <CalendarToday sx={{ mr: 1, color: 'primary.main' }} /> }}
                       />
 
                       <Typography variant="body2" sx={{ color: '#64748b', mb: 2 }}>
@@ -244,7 +298,7 @@ const BookingPage: React.FC = () => {
                         Confirm & Pay
                       </Typography>
 
-                      <Box sx={{ bgcolor: '#f8fafc', p: 3, borderRadius: 3, mb: 4 }}>
+                      <Box sx={{ bgcolor: 'action.hover', p: 3, borderRadius: 3, mb: 4 }}>
                         <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 2 }}>
                           Booking Summary
                         </Typography>
@@ -267,7 +321,7 @@ const BookingPage: React.FC = () => {
                         <Divider sx={{ my: 2 }} />
                         <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                           <Typography variant="h6" sx={{ fontWeight: 700 }}>Total</Typography>
-                          <Typography variant="h6" sx={{ fontWeight: 700, color: '#667eea' }}>
+                          <Typography variant="h6" sx={{ fontWeight: 700, color: 'primary.main' }}>
                             ₹525 - ₹2,100
                           </Typography>
                         </Box>
@@ -276,11 +330,13 @@ const BookingPage: React.FC = () => {
                       <Box sx={{ display: 'flex', gap: 2 }}>
                         <Button
                           variant="outlined"
-                          startIcon={<Payment />}
+                          startIcon={paying ? <CircularProgress size={18} /> : <Payment />}
                           fullWidth
+                          disabled={paying || loading}
+                          onClick={handlePayWithRazorpay}
                           sx={{ py: 1.5, borderRadius: 3 }}
                         >
-                          Pay with Razorpay
+                          {paying ? 'Opening Razorpay…' : 'Pay with Razorpay'}
                         </Button>
                       </Box>
                     </motion.div>
@@ -322,7 +378,7 @@ const BookingPage: React.FC = () => {
             <Card sx={{ borderRadius: 3, position: 'sticky', top: 80 }}>
               <CardContent sx={{ p: 3 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
-                  <Avatar sx={{ background: 'linear-gradient(135deg, #667eea, #764ba2)', width: 48, height: 48 }}>
+                  <Avatar sx={{ background: (t) => `linear-gradient(135deg, ${t.palette.primary.main}, ${t.palette.secondary.main})`, width: 48, height: 48 }}>
                     <Engineering />
                   </Avatar>
                   <Box>

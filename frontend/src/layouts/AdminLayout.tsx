@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
   Box,
@@ -12,6 +12,7 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
+  ListSubheader,
   Avatar,
   Menu,
   MenuItem,
@@ -36,6 +37,7 @@ import { logout } from '../store/slices/authSlice';
 import { useUiConfig } from '../providers/UiConfigProvider';
 import { sidebarPalette } from '../theme';
 import DynamicIcon from '../components/DynamicIcon';
+import ColorModeToggle from '../components/ColorModeToggle';
 
 const DRAWER_WIDTH = 280;
 
@@ -45,18 +47,41 @@ const DRAWER_WIDTH = 280;
  * catalogue seeded in admin-service's V2 migration.
  */
 const FALLBACK_NAV = [
-  { key: 'admin-overview', label: 'Dashboard', path: '/admin', icon: 'Dashboard', exactMatch: true },
-  { key: 'admin-users', label: 'Users', path: '/admin/users', icon: 'People', exactMatch: false },
-  { key: 'admin-categories', label: 'Categories', path: '/admin/categories', icon: 'Category', exactMatch: false },
-  { key: 'admin-bookings', label: 'Bookings', path: '/admin/bookings', icon: 'BookOnline', exactMatch: false },
-  { key: 'admin-analytics', label: 'Analytics', path: '/admin/analytics', icon: 'Analytics', exactMatch: false },
-  { key: 'admin-revenue', label: 'Revenue', path: '/admin/revenue', icon: 'AccountBalanceWallet', exactMatch: false },
-  { key: 'admin-reports', label: 'Reports', path: '/admin/reports', icon: 'Assessment', exactMatch: false },
-  { key: 'admin-invoices', label: 'Invoices', path: '/admin/invoices', icon: 'Receipt', exactMatch: false },
-  { key: 'admin-workspaces', label: 'Workspaces', path: '/admin/workspaces', icon: 'ViewQuilt', exactMatch: false },
-  { key: 'admin-theme', label: 'Theme & UI style', path: '/admin/theme', icon: 'Palette', exactMatch: false },
-  { key: 'admin-settings', label: 'Settings', path: '/admin/settings', icon: 'Settings', exactMatch: false },
+  { key: 'admin-overview', label: 'Dashboard', path: '/admin', icon: 'Dashboard', menuGroup: 'Overview', exactMatch: true },
+  { key: 'admin-users', label: 'Users', path: '/admin/users', icon: 'People', menuGroup: 'People', exactMatch: false },
+  { key: 'admin-categories', label: 'Categories', path: '/admin/categories', icon: 'Category', menuGroup: 'Operations', exactMatch: false },
+  { key: 'admin-bookings', label: 'Bookings', path: '/admin/bookings', icon: 'BookOnline', menuGroup: 'Operations', exactMatch: false },
+  { key: 'admin-analytics', label: 'Analytics', path: '/admin/analytics', icon: 'Analytics', menuGroup: 'Operations', exactMatch: false },
+  { key: 'admin-revenue', label: 'Revenue', path: '/admin/revenue', icon: 'AccountBalanceWallet', menuGroup: 'Finance', exactMatch: false },
+  { key: 'admin-reports', label: 'Reports', path: '/admin/reports', icon: 'Assessment', menuGroup: 'Finance', exactMatch: false },
+  { key: 'admin-invoices', label: 'Invoices', path: '/admin/invoices', icon: 'Receipt', menuGroup: 'Finance', exactMatch: false },
+  { key: 'admin-workspaces', label: 'Workspaces', path: '/admin/workspaces', icon: 'ViewQuilt', menuGroup: 'System', exactMatch: false },
+  { key: 'admin-theme', label: 'Theme & UI style', path: '/admin/theme', icon: 'Palette', menuGroup: 'System', exactMatch: false },
+  { key: 'admin-settings', label: 'Settings', path: '/admin/settings', icon: 'Settings', menuGroup: 'System', exactMatch: false },
 ];
+
+/** A menu group and the items under it, in the order the server sorted them. */
+interface NavGroup {
+  /** null for items the catalogue has not placed in a group; they render without a heading. */
+  name: string | null;
+  items: Array<{ key: string; label: string; path: string; icon: string; exactMatch: boolean }>;
+}
+
+/**
+ * Splits the flat, already-sorted item list into its groups.
+ *
+ * Consecutive runs rather than a lookup by name: a group's position is the position of its first
+ * item, so the server's sort order alone decides both the order of the groups and the order within
+ * them. Nothing here needs a second list of group names to keep in step.
+ */
+const toGroups = (items: Array<{ menuGroup?: string | null } & NavGroup['items'][number]>): NavGroup[] =>
+  items.reduce<NavGroup[]>((groups, item) => {
+    const name = item.menuGroup ?? null;
+    const current = groups[groups.length - 1];
+    if (current && current.name === name) current.items.push(item);
+    else groups.push({ name, items: [item] });
+    return groups;
+  }, []);
 
 const AdminLayout: React.FC = () => {
   const navigate = useNavigate();
@@ -71,10 +96,17 @@ const AdminLayout: React.FC = () => {
   // hiding an item for a role in the Workspaces screen actually hides it here.
   const platformItems = menu.filter((item) => item.section === 'Platform');
   const navItems = platformItems.length > 0 ? platformItems : FALLBACK_NAV;
+  // Eleven flat rows is past the point where a sidebar is scanned rather than read, so the items
+  // are drawn under their catalogue group. The grouping is presentation only — visibility and
+  // order still come from the workspace's menu.
+  const navGroups = useMemo(() => toGroups(navItems), [navItems]);
 
   // Super Admin can move the navigation to the other edge; nothing else about the shell's
   // geometry is configurable, so this is a single flex direction rather than a layout engine.
   const navOnRight = uiTheme?.layoutStyle === 'sidebar-right';
+  // 'topbar' drops the drawer entirely and runs the same items along the top instead, so the
+  // shell has one navigation surface in every layout rather than two that can disagree.
+  const navOnTop = uiTheme?.layoutStyle === 'topbar';
 
   // The sidebar is not part of the MUI palette — it is one surface owned by this layout, so its
   // colours are resolved from the config in one place and used throughout the drawer below.
@@ -104,6 +136,7 @@ const AdminLayout: React.FC = () => {
       }}
     >
       {/* Sidebar */}
+      {!navOnTop && (
       <Drawer
         variant="permanent"
         anchor={navOnRight ? 'right' : 'left'}
@@ -161,7 +194,32 @@ const AdminLayout: React.FC = () => {
 
         {/* Navigation */}
         <List sx={{ px: 1.5, py: 2 }}>
-          {navItems.map((item) => {
+          {navGroups.map((group, groupIdx) => (
+            <React.Fragment key={group.name ?? `ungrouped-${groupIdx}`}>
+              {/* Collapsed to icons there is no room for a heading, so the groups are separated by
+                  a rule instead — the grouping still reads, just without its names. */}
+              {group.name && groupIdx > 0 && !drawerOpen && (
+                <Divider sx={{ borderColor: nav.divider, my: 1, mx: 1 }} />
+              )}
+              {group.name && drawerOpen && (
+                <ListSubheader
+                  disableSticky
+                  sx={{
+                    bgcolor: 'transparent',
+                    color: nav.muted,
+                    fontSize: '0.68rem',
+                    fontWeight: 700,
+                    letterSpacing: '0.08em',
+                    lineHeight: 2.2,
+                    px: 2,
+                    mt: groupIdx > 0 ? 1.5 : 0,
+                    opacity: 0.75,
+                  }}
+                >
+                  {group.name.toUpperCase()}
+                </ListSubheader>
+              )}
+              {group.items.map((item) => {
             const isActive = isItemActive(item);
 
             return (
@@ -204,7 +262,9 @@ const AdminLayout: React.FC = () => {
                 </ListItemButton>
               </ListItem>
             );
-          })}
+              })}
+            </React.Fragment>
+          ))}
         </List>
 
         <Box sx={{ flexGrow: 1 }} />
@@ -237,6 +297,7 @@ const AdminLayout: React.FC = () => {
           </Box>
         )}
       </Drawer>
+      )}
 
       {/* Main Content */}
       <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
@@ -254,10 +315,37 @@ const AdminLayout: React.FC = () => {
           }}
         >
           <Toolbar>
+            {navOnTop && (
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ mr: 2, minWidth: 0 }}>
+                {uiTheme?.logoUrl && (
+                  <Box
+                    component="img"
+                    src={uiTheme.logoUrl}
+                    alt=""
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                    sx={{ width: 26, height: 26, objectFit: 'contain', flexShrink: 0 }}
+                  />
+                )}
+                <Typography
+                  variant="h6"
+                  noWrap
+                  sx={{
+                    fontWeight: 800,
+                    background: `linear-gradient(135deg, ${primaryColor}, ${accentColor})`,
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                  }}
+                >
+                  {uiTheme?.brandName || 'Admin Panel'}
+                </Typography>
+              </Stack>
+            )}
             <Typography variant="h6" sx={{ fontWeight: 700, flexGrow: 1 }}>
               {/* The heading is the menu label, so a renamed entry renames the page too. */}
-              {navItems.find(isItemActive)?.label || 'Admin Panel'}
+              {navOnTop ? '' : navItems.find(isItemActive)?.label || 'Admin Panel'}
             </Typography>
+
+            <ColorModeToggle color="#64748b" />
 
             <IconButton sx={{ color: '#64748b', mr: 1 }}>
               <Badge badgeContent={3} color="error">
@@ -266,7 +354,7 @@ const AdminLayout: React.FC = () => {
             </IconButton>
 
             <IconButton onClick={(e) => setAnchorEl(e.currentTarget)} sx={{ p: 0 }}>
-              <Avatar sx={{ width: 36, height: 36, background: 'linear-gradient(135deg, #667eea, #764ba2)' }}>
+              <Avatar sx={{ width: 36, height: 36, background: (t) => `linear-gradient(135deg, ${t.palette.primary.main}, ${t.palette.secondary.main})` }}>
                 {user?.name?.charAt(0) || 'A'}
               </Avatar>
             </IconButton>
@@ -292,6 +380,61 @@ const AdminLayout: React.FC = () => {
               </MenuItem>
             </Menu>
           </Toolbar>
+
+          {navOnTop && (
+            <Box
+              sx={{
+                bgcolor: nav.bg,
+                px: 2,
+                py: 0.75,
+                display: 'flex',
+                gap: 0.5,
+                // The row scrolls rather than wrapping: a wrapped nav changes the page's top
+                // offset as items are hidden or renamed per workspace.
+                overflowX: 'auto',
+                '&::-webkit-scrollbar': { height: 4 },
+              }}
+            >
+              {navGroups.map((group, groupIdx) => (
+                <React.Fragment key={group.name ?? `top-ungrouped-${groupIdx}`}>
+                  {/* A horizontal bar has no room for headings; the groups read as separated runs
+                      instead, which is the same information without a second row of text. */}
+                  {groupIdx > 0 && (
+                    <Divider orientation="vertical" flexItem sx={{ borderColor: nav.divider, mx: 0.5 }} />
+                  )}
+                  {group.items.map((item) => {
+                const isActive = isItemActive(item);
+                return (
+                  <Box
+                    key={item.key}
+                    onClick={() => navigate(item.path)}
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1,
+                      px: 1.5,
+                      py: 0.75,
+                      borderRadius: 2,
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                      fontSize: '0.875rem',
+                      fontWeight: isActive ? 600 : 400,
+                      bgcolor: isActive ? nav.activeBg : 'transparent',
+                      color: isActive ? 'primary.main' : nav.muted,
+                      '&:hover': { bgcolor: isActive ? nav.activeHoverBg : nav.hoverBg },
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', color: isActive ? 'primary.main' : nav.icon }}>
+                      <DynamicIcon name={item.icon} />
+                    </Box>
+                    {item.label}
+                  </Box>
+                );
+                  })}
+                </React.Fragment>
+              ))}
+            </Box>
+          )}
         </AppBar>
 
         {/* Page Content */}

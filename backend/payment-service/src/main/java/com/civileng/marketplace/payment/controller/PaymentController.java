@@ -25,6 +25,9 @@ public class PaymentController {
     public ResponseEntity<Payment> createOrder(
             @RequestHeader("X-User-Id") Long userId,
             @RequestBody Map<String, Object> request) {
+        if (request.get("bookingId") == null || request.get("amount") == null) {
+            throw new IllegalArgumentException("bookingId and amount are required");
+        }
         Long bookingId = Long.valueOf(request.get("bookingId").toString());
         BigDecimal amount = new BigDecimal(request.get("amount").toString());
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -35,10 +38,24 @@ public class PaymentController {
     @Operation(summary = "Verify payment and complete")
     public ResponseEntity<Payment> verifyPayment(
             @RequestBody Map<String, String> request) {
+        // Named up front so a caller that omitted a field is told which one, rather than being
+        // handed the generic "Invalid payment signature" that a null would otherwise produce.
+        require(request, "razorpayOrderId");
+        require(request, "razorpayPaymentId");
+        require(request, "razorpaySignature");
+
         return ResponseEntity.ok(paymentService.verifyAndCompletePayment(
                 request.get("razorpayOrderId"),
                 request.get("razorpayPaymentId"),
                 request.get("razorpaySignature")));
+    }
+
+    /** Missing or blank field -> IllegalArgumentException, which the handler maps to 400. */
+    private static void require(Map<String, String> request, String field) {
+        String value = request.get(field);
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException(field + " is required");
+        }
     }
 
     @PostMapping("/{paymentId}/refund")

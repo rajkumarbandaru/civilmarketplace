@@ -165,7 +165,7 @@ const UserManagement: React.FC = () => {
         <TableContainer>
           <Table>
             <TableHead>
-              <TableRow sx={{ bgcolor: '#f8fafc' }}>
+              <TableRow sx={{ bgcolor: 'action.hover' }}>
                 <TableCell sx={{ fontWeight: 700 }}>User</TableCell>
                 <TableCell sx={{ fontWeight: 700 }}>Role</TableCell>
                 <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>

@@ -5,6 +5,7 @@ import com.civileng.marketplace.auth.entity.User;
 import com.civileng.marketplace.auth.entity.UserStatus;
 import com.civileng.marketplace.auth.repository.RoleRepository;
 import com.civileng.marketplace.auth.repository.UserRepository;
+import com.civileng.marketplace.auth.service.AccountIdentifiers;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -30,6 +31,7 @@ public class AdminUserController {
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
+    private final AccountIdentifiers identifiers;
 
     @GetMapping("/users")
     @Operation(summary = "Get paginated list of all users with search and filters")
@@ -112,8 +114,30 @@ public class AdminUserController {
                 .orElseThrow(() -> new IllegalArgumentException("User not found with id: " + userId));
 
         if (request.getName() != null) user.setName(request.getName());
-        if (request.getEmail() != null) user.setEmail(request.getEmail());
-        if (request.getPhone() != null) user.setPhone(request.getPhone());
+
+        // An admin reassigning an identifier must not be able to create the duplicate that
+        // registration forbids. Excluding the user's own row keeps a no-op edit from
+        // reporting a clash with itself.
+        if (request.getEmail() != null) {
+            String email = identifiers.normaliseEmail(request.getEmail());
+            userRepository.findByEmailAndIsDeletedFalse(email)
+                    .filter(existing -> !existing.getId().equals(userId))
+                    .ifPresent(existing -> {
+                        throw new IllegalArgumentException(
+                                "Email already registered to another account");
+                    });
+            user.setEmail(email);
+        }
+        if (request.getPhone() != null) {
+            String phone = identifiers.normalisePhone(request.getPhone());
+            userRepository.findByPhoneAndIsDeletedFalse(phone)
+                    .filter(existing -> !existing.getId().equals(userId))
+                    .ifPresent(existing -> {
+                        throw new IllegalArgumentException(
+                                "Phone number already registered to another account");
+                    });
+            user.setPhone(phone);
+        }
         if (request.getRole() != null) {
             Role role = roleRepository.findByName(request.getRole().toUpperCase())
                     .orElseThrow(() -> new IllegalArgumentException("Invalid role: " + request.getRole()));
@@ -188,6 +212,63 @@ public class AdminUserController {
         return ResponseEntity.ok(Map.of("success", true, "data", roles));
     }
 
+    /**
+     * Adds a role to the catalogue — which is what creating a workspace means, since one role is
+     * one workspace in UI-config. Created roles are never system roles: the seeded ones carry
+     * behaviour elsewhere in the platform (admin gating, demand/supply-side splits), and a role
+     * invented from the console has none of that, so marking it system would misrepresent it.
+     *
+     * <p>Gated on SUPER_ADMIN here as well as in admin-service, which is the caller — this
+     * endpoint changes what roles exist platform-wide, so it should not be reachable by any other
+     * admin that happens to acquire a route to it.
+     */
+    @PostMapping("/roles")
+    @Operation(summary = "Create a new (non-system) role")
+    public ResponseEntity<Map<String, Object>> createRole(
+            @RequestHeader(value = "X-User-Role", required = false) String actorRole,
+            @Valid @RequestBody CreateRoleRequest request) {
+
+        if (!"SUPER_ADMIN".equals(actorRole)) {
+            throw new SecurityException("SUPER_ADMIN role required to create a role");
+        }
+
+        String name = normaliseRoleName(request.getName());
+        if (roleRepository.findByName(name).isPresent()) {
+            throw new IllegalArgumentException("A role named " + name + " already exists");
+        }
+
+        Role saved = roleRepository.save(Role.builder()
+                .name(name)
+                .description(request.getDescription() != null && !request.getDescription().isBlank()
+                        ? request.getDescription().trim() : null)
+                .isSystemRole(false)
+                .build());
+        log.info("Role {} created by a Super Admin", saved.getName());
+
+        return ResponseEntity.ok(Map.of("success", true, "data", Map.of(
+                "name", saved.getName(),
+                "description", saved.getDescription() != null ? saved.getDescription() : "",
+                "systemRole", false,
+                "userCount", 0L)));
+    }
+
+    /**
+     * "Site engineer" -> SITE_ENGINEER. Role names are an identifier the rest of the platform
+     * compares against literally (JWT claims, {@code X-User-Role} header checks), so the console
+     * is not trusted to send them already in that shape.
+     */
+    private static String normaliseRoleName(String raw) {
+        String name = raw.trim().toUpperCase().replaceAll("[\\s-]+", "_").replaceAll("[^A-Z0-9_]", "");
+        if (name.isBlank() || !name.matches("[A-Z][A-Z0-9_]*")) {
+            throw new IllegalArgumentException(
+                    "A role name must start with a letter and contain only letters, digits and underscores");
+        }
+        if (name.length() > 50) {
+            throw new IllegalArgumentException("A role name cannot be longer than 50 characters");
+        }
+        return name;
+    }
+
     @GetMapping("/stats")
     @Operation(summary = "Get user statistics summary")
     public ResponseEntity<Map<String, Object>> getUserStats() {
@@ -234,6 +315,13 @@ public class AdminUserController {
         private String email;
         private String phone;
         private String role;
+    }
+
+    @Data
+    public static class CreateRoleRequest {
+        @NotBlank(message = "A role name is required")
+        private String name;
+        private String description;
     }
 
     @Data

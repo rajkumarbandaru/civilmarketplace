@@ -25,11 +25,20 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { ArrowDownward, ArrowUpward, ArrowBack } from '@mui/icons-material';
+import {
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
+} from '@mui/material';
+import { ArrowDownward, ArrowUpward, ArrowBack, Add } from '@mui/icons-material';
 import ThemeEditor from '../../components/admin/ThemeEditor';
+import { apiErrorMessage } from '../../services/apiError';
 import DynamicIcon from '../../components/DynamicIcon';
 import { useUiConfig } from '../../providers/UiConfigProvider';
 import {
+  createWorkspace,
   fetchWorkspaceMenu,
   fetchWorkspaces,
   fetchEffectiveWorkspaceTheme,
@@ -40,6 +49,7 @@ import {
   ThemeUpdateCommand,
   updateWorkspaceMenu,
   updateWorkspaceTheme,
+  WorkspaceCreateCommand,
   WorkspaceMenuRow,
   WorkspaceSummary,
 } from '../../services/uiConfigApi';
@@ -48,6 +58,89 @@ import {
  * Super Admin's view over every workspace — one role is one workspace. Picking a workspace opens
  * its side menu and its theme override.
  */
+
+/** "Site engineer" -> SITE_ENGINEER, mirroring what the backend will store, so the dialog can
+ *  show the identifier the rest of the platform will actually use before it is created. */
+const previewRoleName = (name: string) =>
+  name.trim().toUpperCase().replace(/[\s-]+/g, '_').replace(/[^A-Z0-9_]/g, '');
+
+const NewWorkspaceDialog: React.FC<{
+  open: boolean;
+  onClose: () => void;
+  onCreated: (workspace: WorkspaceSummary) => void;
+}> = ({ open, onClose, onCreated }) => {
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+
+  const create = useMutation({
+    mutationFn: (command: WorkspaceCreateCommand) => createWorkspace(command),
+    onSuccess: (workspace) => {
+      setName('');
+      setDescription('');
+      onCreated(workspace);
+    },
+  });
+
+  const roleName = previewRoleName(name);
+  const valid = /^[A-Z][A-Z0-9_]*$/.test(roleName) && roleName.length <= 50;
+
+  const close = () => {
+    if (create.isPending) return;
+    create.reset();
+    onClose();
+  };
+
+  return (
+    <Dialog open={open} onClose={close} fullWidth maxWidth="sm">
+      <DialogTitle>New workspace</DialogTitle>
+      <DialogContent>
+        <DialogContentText sx={{ mb: 2 }}>
+          A workspace is a role. Creating one adds that role to the platform, and its side menu and
+          theme start on the platform defaults — configure them here afterwards.
+        </DialogContentText>
+
+        {create.isError && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {apiErrorMessage(create.error, 'The workspace could not be created.')}
+          </Alert>
+        )}
+
+        <TextField
+          autoFocus
+          fullWidth
+          label="Name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          sx={{ mb: 2 }}
+          helperText={
+            name.trim() === ''
+              ? 'For example "Site Engineer".'
+              : valid
+              ? `Stored as ${roleName}`
+              : 'Use letters, digits, spaces and underscores, starting with a letter.'
+          }
+          error={name.trim() !== '' && !valid}
+        />
+        <TextField
+          fullWidth
+          label="Description (optional)"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+        />
+      </DialogContent>
+      <DialogActions>
+        <Button color="inherit" onClick={close} disabled={create.isPending}>Cancel</Button>
+        <Button
+          variant="contained"
+          disabled={!valid || create.isPending}
+          onClick={() => create.mutate({ name: name.trim(), description: description.trim() })}
+        >
+          {create.isPending ? 'Creating…' : 'Create workspace'}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+};
 
 const WorkspaceList: React.FC<{ onOpen: (role: string) => void }> = ({ onOpen }) => {
   const { data, isLoading, isError } = useQuery<WorkspaceSummary[]>({
@@ -287,7 +380,7 @@ const WorkspaceThemeEditor: React.FC<{ role: string }> = ({ role }) => {
       {save.isSuccess && <Alert severity="success" sx={{ mb: 2 }}>Workspace theme saved.</Alert>}
       {save.isError && (
         <Alert severity="error" sx={{ mb: 2 }}>
-          {(save.error as any)?.response?.data?.message || 'The theme could not be saved.'}
+          {apiErrorMessage(save.error, 'The theme could not be saved.')}
         </Alert>
       )}
       <ThemeEditor
@@ -306,16 +399,40 @@ const WorkspaceThemeEditor: React.FC<{ role: string }> = ({ role }) => {
 const WorkspaceManagement: React.FC = () => {
   const [role, setRole] = useState<string | null>(null);
   const [tab, setTab] = useState(0);
+  const [creating, setCreating] = useState(false);
+  const queryClient = useQueryClient();
 
   if (!role) {
     return (
       <Box>
-        <Typography variant="h4" gutterBottom>Workspaces</Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-          One role is one workspace. Each has its own side menu and can override the platform
-          theme.
-        </Typography>
+        <Stack direction="row" justifyContent="space-between" alignItems="flex-start" sx={{ mb: 3 }}>
+          <Box>
+            <Typography variant="h4" gutterBottom>Workspaces</Typography>
+            <Typography variant="body2" color="text.secondary">
+              One role is one workspace. Each has its own side menu and can override the platform
+              theme.
+            </Typography>
+          </Box>
+          <Button variant="contained" startIcon={<Add />} onClick={() => setCreating(true)}>
+            New workspace
+          </Button>
+        </Stack>
+
         <WorkspaceList onOpen={(r) => { setRole(r); setTab(0); }} />
+
+        <NewWorkspaceDialog
+          open={creating}
+          onClose={() => setCreating(false)}
+          onCreated={(workspace) => {
+            setCreating(false);
+            // The list is refetched rather than patched: the row the API returns is the same
+            // shape, but the member count and menu totals of a brand-new workspace are the
+            // server's answer to give, not this component's to assume.
+            queryClient.invalidateQueries({ queryKey: ['ui-config', 'workspaces'] });
+            setRole(workspace.role);
+            setTab(0);
+          }}
+        />
       </Box>
     );
   }

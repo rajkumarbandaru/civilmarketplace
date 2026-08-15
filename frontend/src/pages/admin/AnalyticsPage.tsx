@@ -97,7 +97,7 @@ const AnalyticsPage: React.FC = () => {
                       <Box sx={{
                         width: '100%', maxWidth: 32,
                         height: `${Math.max((month.revenue / maxRevenue) * 100, 5)}%`,
-                        background: 'linear-gradient(180deg, #667eea 0%, #764ba2 100%)',
+                        background: (t) => `linear-gradient(180deg, ${t.palette.primary.main} 0%, ${t.palette.secondary.main} 100%)`,
                         borderRadius: '4px 4px 0 0', transition: 'height 0.3s ease',
                         cursor: 'pointer', '&:hover': { opacity: 0.8 },
                       }} />
@@ -154,7 +154,7 @@ const AnalyticsPage: React.FC = () => {
               ) : (
                 topCategories.map((cat, idx) => (
                   <Box key={idx} sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: idx < topCategories.length - 1 ? 2.5 : 0 }}>
-                    <Avatar sx={{ bgcolor: '#eef2ff', color: '#667eea', width: 36, height: 36, fontSize: '0.875rem' }}>{idx + 1}</Avatar>
+                    <Avatar sx={{ bgcolor: (t) => t.palette.primary.main + '15', color: 'primary.main', width: 36, height: 36, fontSize: '0.875rem' }}>{idx + 1}</Avatar>
                     <Box sx={{ flex: 1 }}>
                       <Typography variant="body2" sx={{ fontWeight: 600 }}>{cat.name}</Typography>
                       <Typography variant="caption" sx={{ color: '#94a3b8' }}>{cat.bookings?.toLocaleString() || 0} bookings</Typography>
@@ -212,7 +212,7 @@ const AnalyticsPage: React.FC = () => {
                 <Grid container spacing={3}>
                   {cityPerformance.map((city, idx) => (
                     <Grid item xs={12} sm={6} md={4} lg={2.4} key={idx}>
-                      <Box sx={{ p: 2, bgcolor: '#f8fafc', borderRadius: 3, textAlign: 'center' }}>
+                      <Box sx={{ p: 2, bgcolor: 'action.hover', borderRadius: 3, textAlign: 'center' }}>
                         <Typography variant="h6" sx={{ fontWeight: 800, mb: 2 }}>{city.city}</Typography>
                         <Box sx={{ display: 'flex', justifyContent: 'center', gap: 3 }}>
                           <Box><Typography variant="caption" sx={{ color: '#94a3b8' }}>Users</Typography><Typography variant="body2" sx={{ fontWeight: 600 }}>{city.users}</Typography></Box>

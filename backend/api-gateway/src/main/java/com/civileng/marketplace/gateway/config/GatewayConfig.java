@@ -98,7 +98,8 @@ public class GatewayConfig {
                 // must precede admin-service — /api/v1/admin/** would otherwise swallow
                 // /api/v1/admin/announcements/**, which belongs to notification-service
                 .route("notification-service", r -> r
-                        .path("/api/v1/notifications/**", "/api/v1/admin/announcements/**")
+                        .path("/api/v1/notifications/**", "/api/v1/admin/announcements/**",
+                                "/api/v1/admin/notifications/**")
                         .filters(f -> f.stripPrefix(0)
                                 .filter(jwtAuthFilter.apply(new JwtAuthGatewayFilterFactory.Config())))
                         .uri("lb://notification-service"))
@@ -109,7 +110,8 @@ public class GatewayConfig {
                         .uri("lb://support-service"))
                 // must follow review-service, notification-service and support-service —
                 // /api/v1/admin/** would otherwise swallow /api/v1/admin/reviews/**,
-                // /api/v1/admin/announcements/** and /api/v1/admin/support/**
+                // /api/v1/admin/announcements/**, /api/v1/admin/notifications/** and
+                // /api/v1/admin/support/**
                 .route("admin-service", r -> r
                         .path("/api/v1/admin/**", "/api/v1/ui-config/**")
                         .filters(f -> f.stripPrefix(0)

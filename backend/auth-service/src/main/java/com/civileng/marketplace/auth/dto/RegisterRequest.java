@@ -26,9 +26,17 @@ public class RegisterRequest {
     )
     private String password;
 
+    @NotBlank(message = "Phone number is required")
     @Pattern(regexp = "^\\+?[1-9]\\d{1,14}$",
             message = "Invalid phone number format")
     private String phone;
 
     private String role;
+
+    /**
+     * Where the account-verification OTP is sent: EMAIL (default), SMS or WHATSAPP.
+     * Both an email address and a phone number are mandatory at registration, so any of
+     * the three is always deliverable.
+     */
+    private String verificationChannel;
 }

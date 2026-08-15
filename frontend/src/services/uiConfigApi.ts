@@ -38,6 +38,8 @@ export interface ResolvedMenuItem {
   /** A Material-UI icon name, resolved by components/DynamicIcon. */
   icon: string;
   section: string;
+  /** Sub-heading within the section; null when the catalogue has not placed the item in a group. */
+  menuGroup: string | null;
   sortOrder: number;
   exactMatch: boolean;
 }
@@ -71,6 +73,12 @@ export interface WorkspaceSummary {
   visibleMenuCount: number;
   menuCustomised: boolean;
   themeCustomised: boolean;
+}
+
+export interface WorkspaceCreateCommand {
+  /** Normalised to UPPER_SNAKE_CASE by the backend — "Site engineer" becomes SITE_ENGINEER. */
+  name: string;
+  description?: string;
 }
 
 export interface WorkspaceMenuRow {
@@ -119,6 +127,8 @@ export interface ThemePreset {
   label: string;
   description: string;
   values: ThemeUpdateCommand;
+  /** False for a preset a Super Admin saved — only those can be deleted. */
+  builtIn: boolean;
 }
 
 // ------------------------------------------------------------------ the signed-in user's shell
@@ -165,8 +175,31 @@ export const fetchThemePresets = async (): Promise<ThemePreset[]> => {
   return data;
 };
 
+/**
+ * Saves the editor's current values as a named preset. Saving under a name that already exists
+ * overwrites that preset, so re-saving is how one is corrected.
+ */
+export const saveThemePreset = async (
+  preset: { label: string; description: string | null; values: ThemeUpdateCommand }
+): Promise<ThemePreset> => {
+  const { data } = await api.post<ThemePreset>('/admin/theme/presets', preset);
+  return data;
+};
+
+export const deleteThemePreset = async (key: string): Promise<void> => {
+  await api.delete(`/admin/theme/presets/${key}`);
+};
+
 export const fetchWorkspaces = async (): Promise<WorkspaceSummary[]> => {
   const { data } = await api.get<WorkspaceSummary[]>('/admin/workspaces');
+  return data;
+};
+
+/** Creating a workspace creates the role behind it, so the name is an identifier, not a label. */
+export const createWorkspace = async (
+  command: WorkspaceCreateCommand
+): Promise<WorkspaceSummary> => {
+  const { data } = await api.post<WorkspaceSummary>('/admin/workspaces', command);
   return data;
 };
 

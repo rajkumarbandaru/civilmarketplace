@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import api from '../../services/api';
+import { apiErrorMessage } from '../../services/apiError';
 
 interface Booking {
   id: number;
@@ -44,7 +45,7 @@ export const createBooking = createAsyncThunk(
       const response = await api.post('/bookings', bookingData);
       return response.data;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || 'Failed to create booking');
+      return rejectWithValue(apiErrorMessage(error, 'Failed to create booking'));
     }
   }
 );
@@ -56,7 +57,7 @@ export const fetchCustomerBookings = createAsyncThunk(
       const response = await api.get('/bookings/customer', { params });
       return response.data;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || 'Failed to fetch bookings');
+      return rejectWithValue(apiErrorMessage(error, 'Failed to fetch bookings'));
     }
   }
 );
@@ -68,7 +69,7 @@ export const fetchBookingById = createAsyncThunk(
       const response = await api.get(`/bookings/${bookingId}`);
       return response.data;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || 'Booking not found');
+      return rejectWithValue(apiErrorMessage(error, 'Booking not found'));
     }
   }
 );

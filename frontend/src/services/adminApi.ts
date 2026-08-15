@@ -347,6 +347,166 @@ export interface Transaction {
   date: string;
 }
 
+// ============================================================================
+// Reports
+// ============================================================================
+
+export interface ReportDefinition {
+  key: string;
+  label: string;
+  description: string;
+  category: string;
+  /** Column headings, in the order the export writes them. */
+  columns: string[];
+}
+
+export interface ReportCatalogue {
+  reports: ReportDefinition[];
+  generatedAt: string;
+}
+
+export interface ReportPreview {
+  key: string;
+  label: string;
+  columns: string[];
+  /** Rows keyed by column heading, already projected to the report's columns. */
+  rows: Record<string, string>[];
+  /** How many rows the full export holds — the preview is only the first page of them. */
+  totalRows: number;
+  generatedAt: string;
+}
+
+export const reportApi = {
+  getReports: () =>
+    api.get<ApiResponse<ReportCatalogue>>(`${ADMIN_BASE}/reports`),
+
+  getReportPreview: (key: string, limit = 25) =>
+    api.get<ApiResponse<ReportPreview>>(`${ADMIN_BASE}/reports/${key}`, { params: { limit } }),
+
+  /** The full report as CSV. Returned as a blob so the caller can hand it straight to a download. */
+  exportReport: (key: string) =>
+    api.get<Blob>(`${ADMIN_BASE}/reports/${key}/export`, { responseType: 'blob' }),
+};
+
+// ============================================================================
+// Invoices
+// ============================================================================
+
+export type InvoiceStatus = 'PAID' | 'PENDING' | 'REFUNDED' | 'CANCELLED';
+
+export interface InvoiceLine {
+  label: string;
+  amount: number;
+}
+
+export interface AdminInvoice {
+  invoiceNumber: string;
+  paymentCode: string;
+  bookingId: number;
+  bookingCode: string;
+  customerId: number;
+  customerName: string | null;
+  customerEmail: string | null;
+  subtotal: number;
+  platformFee: number;
+  gstAmount: number;
+  total: number;
+  refundAmount: number;
+  currency: string;
+  status: InvoiceStatus;
+  paymentStatus: string;
+  paymentMethod: string | null;
+  description: string | null;
+  issuedAt: string | null;
+  paidAt: string | null;
+  refundedAt: string | null;
+  /** Detail only — the billing lines the total is made of. */
+  lines?: InvoiceLine[];
+  razorpayPaymentId?: string | null;
+  refundReason?: string | null;
+  failureReason?: string | null;
+}
+
+export interface InvoiceSummary {
+  totalBilled: number;
+  totalCollected: number;
+  totalOutstanding: number;
+  totalRefunded: number;
+  invoiceCount: number;
+  paidCount: number;
+  pendingCount: number;
+  refundedCount: number;
+  failedCount: number;
+}
+
+export const invoiceApi = {
+  getInvoices: (params?: { page?: number; size?: number; status?: string; search?: string }) =>
+    api.get<ApiListResponse<AdminInvoice[]>>(`${ADMIN_BASE}/invoices`, { params }),
+
+  getInvoiceSummary: () =>
+    api.get<ApiResponse<InvoiceSummary>>(`${ADMIN_BASE}/invoices/summary`),
+
+  getInvoice: (invoiceNumber: string) =>
+    api.get<ApiResponse<AdminInvoice>>(`${ADMIN_BASE}/invoices/${invoiceNumber}`),
+
+  /**
+   * Raises a new invoice against a booking. Platform fee and GST are applied server-side from the
+   * configured percentages, so only the subtotal is sent — the browser never decides what is owed.
+   */
+  raiseInvoice: (command: RaiseInvoiceCommand) =>
+    api.post<ApiResponse<AdminInvoice>>(`${ADMIN_BASE}/invoices`, command),
+};
+
+export interface RaiseInvoiceCommand {
+  bookingId: number;
+  customerId: number;
+  /** Subtotal in rupees, before platform fee and GST. */
+  amount: number;
+  description?: string;
+}
+
+// ============================================================================
+// Platform settings
+// ============================================================================
+
+export type SettingType = 'TEXT' | 'EMAIL' | 'NUMBER' | 'PERCENT' | 'BOOLEAN' | 'CHOICE';
+
+export interface PlatformSetting {
+  key: string;
+  label: string;
+  help: string;
+  type: SettingType;
+  /** Always a string; `type` says how to read it. */
+  value: string;
+  defaultValue: string;
+  /** True when an admin has overridden it, as opposed to it merely equalling the default. */
+  customised: boolean;
+  choices: string[];
+  min: number | null;
+  max: number | null;
+}
+
+export interface SettingsGroup {
+  group: string;
+  settings: PlatformSetting[];
+}
+
+export interface PlatformSettingsData {
+  groups: SettingsGroup[];
+}
+
+export const settingsApi = {
+  getSettings: () =>
+    api.get<ApiResponse<PlatformSettingsData>>(`${ADMIN_BASE}/settings`),
+
+  /** Only the changed keys need to be sent; anything omitted is left as it is. */
+  updateSettings: (changes: Record<string, string>) =>
+    api.put<ApiResponse<PlatformSettingsData>>(`${ADMIN_BASE}/settings`, changes),
+
+  resetSetting: (key: string) =>
+    api.delete<ApiResponse<PlatformSettingsData>>(`${ADMIN_BASE}/settings/${key}`),
+};
+
 export const revenueApi = {
   getRevenueData: () =>
     api.get<ApiResponse<RevenueData>>(`${ADMIN_BASE}/revenue`),

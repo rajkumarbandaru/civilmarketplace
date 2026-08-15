@@ -56,7 +56,7 @@ const ProfilePage: React.FC = () => {
       {/* Profile Header */}
       <Card sx={{ borderRadius: 3, mb: 4, overflow: 'hidden' }}>
         <Box sx={{
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          background: (t) => `linear-gradient(135deg, ${t.palette.primary.main} 0%, ${t.palette.secondary.main} 100%)`,
           p: 4,
           position: 'relative',
         }}>
@@ -68,8 +68,8 @@ const ProfilePage: React.FC = () => {
                   width: 100,
                   height: 100,
                   border: '4px solid #fff',
-                  bgcolor: '#eef2ff',
-                  color: '#667eea',
+                  bgcolor: (t) => t.palette.primary.main + '15',
+                  color: 'primary.main',
                   fontSize: '2.5rem',
                 }}
               >
@@ -86,7 +86,7 @@ const ProfilePage: React.FC = () => {
                 }}
                 size="small"
               >
-                <CameraAlt sx={{ fontSize: 18, color: '#667eea' }} />
+                <CameraAlt sx={{ fontSize: 18, color: 'primary.main' }} />
               </IconButton>
             </Box>
             <Box sx={{ color: '#fff' }}>
@@ -120,7 +120,7 @@ const ProfilePage: React.FC = () => {
               top: 24,
               right: 24,
               bgcolor: '#fff',
-              color: '#667eea',
+              color: 'primary.main',
               '&:hover': { bgcolor: '#f1f5f9' },
             }}
           >
@@ -133,8 +133,8 @@ const ProfilePage: React.FC = () => {
           <Grid container spacing={2}>
             {profileInfo.map((info, idx) => (
               <Grid item xs={6} md={3} key={idx}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, p: 2, bgcolor: '#f8fafc', borderRadius: 2 }}>
-                  <Box sx={{ color: '#667eea' }}>{info.icon}</Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, p: 2, bgcolor: 'action.hover', borderRadius: 2 }}>
+                  <Box sx={{ color: 'primary.main' }}>{info.icon}</Box>
                   <Box>
                     <Typography variant="caption" sx={{ color: '#94a3b8' }}>
                       {info.label}
@@ -240,7 +240,7 @@ const ProfilePage: React.FC = () => {
                 key={addr}
                 sx={{
                   p: 2,
-                  bgcolor: '#f8fafc',
+                  bgcolor: 'action.hover',
                   borderRadius: 2,
                   mb: 2,
                   display: 'flex',
@@ -249,7 +249,7 @@ const ProfilePage: React.FC = () => {
                 }}
               >
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <LocationOn sx={{ color: '#667eea' }} />
+                  <LocationOn sx={{ color: 'primary.main' }} />
                   <Box>
                     <Typography variant="body2" sx={{ fontWeight: 600 }}>
                       {addr === 1 ? 'Home' : 'Office'}

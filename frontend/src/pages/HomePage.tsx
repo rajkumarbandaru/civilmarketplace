@@ -93,7 +93,7 @@ const HomePage: React.FC = () => {
           alignItems: 'center',
           position: 'relative',
           overflow: 'hidden',
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          background: (t) => `linear-gradient(135deg, ${t.palette.primary.main} 0%, ${t.palette.secondary.main} 100%)`,
         }}
       >
         {/* Animated background shapes */}
@@ -180,7 +180,7 @@ const HomePage: React.FC = () => {
                     InputProps={{
                       startAdornment: (
                         <InputAdornment position="start">
-                          <Search sx={{ color: '#667eea' }} />
+                          <Search sx={{ color: 'primary.main' }} />
                         </InputAdornment>
                       ),
                     }}
@@ -291,8 +291,8 @@ const HomePage: React.FC = () => {
               >
                 <Avatar
                   sx={{
-                    bgcolor: '#eef2ff',
-                    color: '#667eea',
+                    bgcolor: (t) => t.palette.primary.main + '15',
+                    color: 'primary.main',
                     width: 56,
                     height: 56,
                     mx: 'auto',
@@ -314,7 +314,7 @@ const HomePage: React.FC = () => {
       </Container>
 
       {/* How It Works */}
-      <Box sx={{ bgcolor: '#f8fafc', py: 10 }}>
+      <Box sx={{ bgcolor: 'action.hover', py: 10 }}>
         <Container maxWidth="xl">
           <Typography variant="h2" sx={{ textAlign: 'center', mb: 2 }}>
             How It Works
@@ -341,7 +341,7 @@ const HomePage: React.FC = () => {
                       width: 80,
                       height: 80,
                       borderRadius: '50%',
-                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      background: (t) => `linear-gradient(135deg, ${t.palette.primary.main} 0%, ${t.palette.secondary.main} 100%)`,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -414,7 +414,7 @@ const HomePage: React.FC = () => {
       {/* CTA Section */}
       <Box
         sx={{
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          background: (t) => `linear-gradient(135deg, ${t.palette.primary.main} 0%, ${t.palette.secondary.main} 100%)`,
           py: 10,
           textAlign: 'center',
         }}
@@ -441,7 +441,7 @@ const HomePage: React.FC = () => {
                   py: 1.5,
                   borderRadius: 3,
                   bgcolor: '#fff',
-                  color: '#667eea',
+                  color: 'primary.main',
                   fontSize: '1.1rem',
                   fontWeight: 700,
                   '&:hover': { bgcolor: '#f1f5f9', boxShadow: '0 8px 25px rgba(0,0,0,0.2)' },

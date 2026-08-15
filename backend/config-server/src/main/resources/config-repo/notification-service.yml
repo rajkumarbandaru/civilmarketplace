@@ -62,18 +62,37 @@ spring:
     password: ${RABBITMQ_PASS:guest}
 
 app:
+  # Every channel takes a provider of `log` (write the message to the service log, nothing
+  # leaves the cluster) or its real provider. A real provider whose credentials are still the
+  # `placeholder` default below degrades to logging rather than failing the send, so a
+  # half-configured environment never breaks OTP login or booking flows.
   sms:
-    provider: twilio
+    provider: ${SMS_PROVIDER:twilio}
+    sender-id: ${SMS_SENDER_ID:CIVILENG}
+    # Accounts store bare national numbers; this is prepended to reach E.164 for Twilio.
+    default-country-code: ${SMS_DEFAULT_COUNTRY_CODE:+91}
     twilio:
       account-sid: ${TWILIO_ACCOUNT_SID:placeholder}
       auth-token: ${TWILIO_AUTH_TOKEN:placeholder}
       phone-number: ${TWILIO_PHONE_NUMBER:+1234567890}
+  whatsapp:
+    provider: ${WHATSAPP_PROVIDER:twilio}
+    sender-name: ${WHATSAPP_SENDER_NAME:Civil Engineer Marketplace}
+    twilio:
+      # Twilio's shared sandbox number; replace with your approved WhatsApp sender in prod.
+      from-number: ${TWILIO_WHATSAPP_FROM:+14155238886}
   push:
     firebase:
       config-path: /etc/config/firebase-service-account.json
   email:
-    from-address: noreply@civilengineer.com
-    from-name: Civil Engineer Marketplace
+    provider: ${EMAIL_PROVIDER:smtp}
+    # Relays reject any sender not verified on the account (Brevo, SendGrid and friends all
+    # enforce this), so this has to be settable per environment rather than hardcoded.
+    from-address: ${EMAIL_FROM_ADDRESS:noreply@civilengineer.com}
+    from-name: ${EMAIL_FROM_NAME:Civil Engineer Marketplace}
+    brevo:
+      # Only used when provider=brevo. Unlike the SMTP relay this needs no separate login.
+      api-key: ${BREVO_API_KEY:}
     templates:
       otp: otp-template
       welcome: welcome-template

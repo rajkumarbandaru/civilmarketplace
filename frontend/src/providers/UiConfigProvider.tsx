@@ -49,6 +49,7 @@ export const UI_CONFIG_QUERY_KEY = ['ui-config', 'me'];
  */
 export const UiConfigProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated } = useAppSelector((state) => state.auth);
+  const guestMode = useAppSelector((state) => state.ui.theme);
   const queryClient = useQueryClient();
 
   const { data, isLoading, isError } = useQuery<UiConfigSnapshot>({
@@ -61,7 +62,12 @@ export const UiConfigProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     staleTime: 5 * 60 * 1000,
   });
 
-  const muiTheme = useMemo(() => buildTheme(data?.theme ?? null), [data?.theme]);
+  // Signed out there is no config to fetch, but the visitor may still have picked light or dark in
+  // the header — so the shipped theme is built with that mode and nothing else overridden.
+  const muiTheme = useMemo(() => {
+    if (data?.theme) return buildTheme(data.theme);
+    return buildTheme(guestMode === 'dark' ? ({ mode: 'dark' } as ResolvedTheme) : null);
+  }, [data?.theme, guestMode]);
 
   const value = useMemo<UiConfigContextValue>(
     () => ({

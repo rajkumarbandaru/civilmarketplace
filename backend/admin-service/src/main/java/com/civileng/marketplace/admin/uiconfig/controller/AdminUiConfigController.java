@@ -72,6 +72,30 @@ public class AdminUiConfigController {
         return ResponseEntity.ok(uiConfigService.themePresets());
     }
 
+    /**
+     * Saves the current theme form as a reusable preset. This stores a look, not a theme: nothing
+     * a workspace is painting changes, which is why it is not audited as a theme edit.
+     */
+    @PostMapping("/theme/presets")
+    @Operation(summary = "Save the current theme values as a custom preset")
+    public ResponseEntity<ThemePreset> saveThemePreset(
+            @RequestHeader(value = "X-User-Role", required = false) String role,
+            @RequestHeader(value = "X-User-Id", required = false) Long adminId,
+            @RequestBody CustomPresetCommand command) {
+        requireSuperAdmin(role);
+        return ResponseEntity.ok(uiConfigService.saveCustomPreset(command, adminId));
+    }
+
+    @DeleteMapping("/theme/presets/{key}")
+    @Operation(summary = "Delete a custom theme preset (built-in presets cannot be deleted)")
+    public ResponseEntity<Void> deleteThemePreset(
+            @RequestHeader(value = "X-User-Role", required = false) String role,
+            @PathVariable String key) {
+        requireSuperAdmin(role);
+        uiConfigService.deleteCustomPreset(key);
+        return ResponseEntity.noContent().build();
+    }
+
     // ------------------------------------------------------------------- workspaces
 
     @GetMapping("/workspaces")
@@ -80,6 +104,33 @@ public class AdminUiConfigController {
             @RequestHeader(value = "X-User-Role", required = false) String role) {
         requireSuperAdmin(role);
         return ResponseEntity.ok(uiConfigService.listWorkspaces());
+    }
+
+    /**
+     * Creates a workspace. One role is one workspace, so this adds a role to the platform's
+     * catalogue — a heavier change than editing a menu, which is why it is audited as a CREATE
+     * against the new workspace rather than as a UI edit.
+     */
+    @PostMapping("/workspaces")
+    @Operation(summary = "Create a new workspace (role)")
+    public ResponseEntity<WorkspaceSummary> createWorkspace(
+            @RequestHeader(value = "X-User-Role", required = false) String role,
+            @RequestHeader(value = "X-User-Id", required = false) Long adminId,
+            @RequestHeader(value = "X-User-Name", required = false) String adminName,
+            @RequestBody WorkspaceCreateCommand command) {
+        requireSuperAdmin(role);
+        WorkspaceSummary created = uiConfigService.createWorkspace(command);
+        log.info("Workspace {} created by {} (#{})", created.role(), adminName, adminId);
+        auditPublisher.publish(AuditEventMessage.builder()
+                .sourceService(SOURCE)
+                .actorId(adminId)
+                .actorRole("SUPER_ADMIN")
+                .action(AuditAction.CREATE)
+                .entityType("UiWorkspace")
+                .entityId(created.role())
+                .afterState(created.toString())
+                .build());
+        return ResponseEntity.ok(created);
     }
 
     /** Every catalogue item with this workspace's overlay applied, hidden ones included. */

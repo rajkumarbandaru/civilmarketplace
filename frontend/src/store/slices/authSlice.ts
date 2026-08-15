@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import api from '../../services/api';
+import { apiErrorMessage } from '../../services/apiError';
 
 interface User {
   id: number;
@@ -11,6 +12,8 @@ interface User {
   emailVerified: boolean;
   phoneVerified: boolean;
   status: string;
+  /** Set when the account was created through a social provider. */
+  provider?: string;
 }
 
 interface AuthState {
@@ -38,7 +41,7 @@ export const login = createAsyncThunk(
       const response = await api.post('/auth/login', credentials);
       return response.data;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || 'Login failed');
+      return rejectWithValue(apiErrorMessage(error, 'Login failed'));
     }
   }
 );
@@ -51,36 +54,50 @@ export const register = createAsyncThunk(
     password: string;
     phone?: string;
     role?: string;
+    /** Where the account-verification code is sent; the backend defaults to EMAIL. */
+    verificationChannel?: 'EMAIL' | 'SMS' | 'WHATSAPP';
   }, { rejectWithValue }) => {
     try {
       const response = await api.post('/auth/register', userData);
       return response.data;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || 'Registration failed');
+      return rejectWithValue(apiErrorMessage(error, 'Registration failed'));
     }
   }
 );
 
+/** Exactly one of email/phone identifies the account; phone must be E.164. */
+export interface OtpIdentifier {
+  email?: string;
+  phone?: string;
+  /**
+   * Delivery route. Optional — the backend defaults to the one the identifier implies
+   * (email address → EMAIL, phone number → SMS). Only meaningful on the send call;
+   * verification is keyed on the identifier, not the channel it arrived over.
+   */
+  channel?: 'EMAIL' | 'SMS' | 'WHATSAPP';
+}
+
 export const sendOtp = createAsyncThunk(
   'auth/sendOtp',
-  async (data: { email: string }, { rejectWithValue }) => {
+  async (data: OtpIdentifier, { rejectWithValue }) => {
     try {
       const response = await api.post('/auth/otp/send', data);
       return response.data;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || 'Failed to send OTP');
+      return rejectWithValue(apiErrorMessage(error, 'Failed to send OTP'));
     }
   }
 );
 
 export const verifyOtp = createAsyncThunk(
   'auth/verifyOtp',
-  async (data: { email: string; otp: string }, { rejectWithValue }) => {
+  async (data: OtpIdentifier & { otp: string }, { rejectWithValue }) => {
     try {
       const response = await api.post('/auth/otp/verify', data);
       return response.data;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || 'OTP verification failed');
+      return rejectWithValue(apiErrorMessage(error, 'OTP verification failed'));
     }
   }
 );
@@ -92,6 +109,24 @@ const authSlice = createSlice({
     setCredentials(state, action: PayloadAction<{ accessToken: string; refreshToken: string }>) {
       state.accessToken = action.payload.accessToken;
       state.refreshToken = action.payload.refreshToken;
+      localStorage.setItem('accessToken', action.payload.accessToken);
+      localStorage.setItem('refreshToken', action.payload.refreshToken);
+    },
+    /**
+     * Completes a social (OAuth2) login. Unlike password/OTP login there is no
+     * thunk here — the tokens arrive on the redirect back from the provider.
+     */
+    setSocialCredentials(
+      state,
+      action: PayloadAction<{ user: User; accessToken: string; refreshToken: string }>
+    ) {
+      state.user = action.payload.user;
+      state.accessToken = action.payload.accessToken;
+      state.refreshToken = action.payload.refreshToken;
+      state.isAuthenticated = true;
+      state.loading = false;
+      state.error = null;
+      localStorage.setItem('user', JSON.stringify(action.payload.user));
       localStorage.setItem('accessToken', action.payload.accessToken);
       localStorage.setItem('refreshToken', action.payload.refreshToken);
     },
@@ -151,7 +186,10 @@ const authSlice = createSlice({
     });
 
     // OTP send
-    builder.addCase(sendOtp.pending, (state) => { state.loading = true; });
+    builder.addCase(sendOtp.pending, (state) => {
+      state.loading = true;
+      state.error = null;
+    });
     builder.addCase(sendOtp.fulfilled, (state) => { state.loading = false; });
     builder.addCase(sendOtp.rejected, (state, action) => {
       state.loading = false;
@@ -159,6 +197,14 @@ const authSlice = createSlice({
     });
 
     // OTP verify
+    builder.addCase(verifyOtp.pending, (state) => {
+      state.loading = true;
+      state.error = null;
+    });
+    builder.addCase(verifyOtp.rejected, (state, action) => {
+      state.loading = false;
+      state.error = action.payload as string;
+    });
     builder.addCase(verifyOtp.fulfilled, (state, action) => {
       state.loading = false;
       state.isAuthenticated = true;
@@ -172,5 +218,5 @@ const authSlice = createSlice({
   },
 });
 
-export const { logout, clearError, setCredentials } = authSlice.actions;
+export const { logout, clearError, setCredentials, setSocialCredentials } = authSlice.actions;
 export default authSlice.reducer;

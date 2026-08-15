@@ -3,6 +3,8 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { CircularProgress, Box } from '@mui/material';
 import { useAppSelector } from './hooks';
+// A value import, not the lazy component below: the redirect needs it during render.
+import { landingPathFor } from './components/AdminRoute';
 
 // Layout components
 const MainLayout = lazy(() => import('./layouts/MainLayout'));
@@ -13,6 +15,7 @@ const AdminLayout = lazy(() => import('./layouts/AdminLayout'));
 const HomePage = lazy(() => import('./pages/HomePage'));
 const LoginPage = lazy(() => import('./pages/auth/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/auth/RegisterPage'));
+const OAuth2RedirectPage = lazy(() => import('./pages/auth/OAuth2RedirectPage'));
 const DashboardPage = lazy(() => import('./pages/dashboard/DashboardPage'));
 const ServicesPage = lazy(() => import('./pages/services/ServicesPage'));
 const BookingPage = lazy(() => import('./pages/booking/BookingPage'));
@@ -28,6 +31,22 @@ const AnalyticsPage = lazy(() => import('./pages/admin/AnalyticsPage'));
 const RevenuePage = lazy(() => import('./pages/admin/RevenuePage'));
 const ThemeSettings = lazy(() => import('./pages/admin/ThemeSettings'));
 const WorkspaceManagement = lazy(() => import('./pages/admin/WorkspaceManagement'));
+const ReportsPage = lazy(() => import('./pages/admin/ReportsPage'));
+const InvoicesPage = lazy(() => import('./pages/admin/InvoicesPage'));
+const PlatformSettingsPage = lazy(() => import('./pages/admin/PlatformSettingsPage'));
+
+/**
+ * The landing page is for visitors. Someone already signed in has a workspace, so `/` sends them
+ * to it rather than to the marketing page — which is neither themed by their workspace nor
+ * reachable from its menu, and so reads as having been signed out.
+ */
+const HomeOrWorkspace: React.FC = () => {
+  const { isAuthenticated, user } = useAppSelector((state) => state.auth);
+  if (isAuthenticated) {
+    return <Navigate to={landingPathFor(user?.role)} replace />;
+  }
+  return <HomePage />;
+};
 
 // Protected route component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -47,7 +66,7 @@ const LoadingFallback = () => (
     alignItems="center"
     minHeight="100vh"
     sx={{
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      background: (t) => `linear-gradient(135deg, ${t.palette.primary.main} 0%, ${t.palette.secondary.main} 100%)`,
     }}
   >
     <CircularProgress sx={{ color: '#fff' }} size={48} />
@@ -61,7 +80,7 @@ const App: React.FC = () => {
         <Routes>
           {/* Public routes */}
           <Route path="/" element={<MainLayout />}>
-            <Route index element={<HomePage />} />
+            <Route index element={<HomeOrWorkspace />} />
             <Route path="services" element={<ServicesPage />} />
             <Route path="services/:category" element={<ServicesPage />} />
             <Route path="book/:serviceId" element={
@@ -83,6 +102,8 @@ const App: React.FC = () => {
             <Route path="login" element={<LoginPage />} />
             <Route path="register" element={<RegisterPage />} />
             <Route path="login/otp" element={<LoginPage />} />
+            {/* Landing point for the OAuth2 success redirect from auth-service */}
+            <Route path="oauth2/redirect" element={<OAuth2RedirectPage />} />
           </Route>
 
           {/* Admin routes */}
@@ -97,9 +118,9 @@ const App: React.FC = () => {
             <Route path="revenue" element={<RevenuePage />} />
             <Route path="workspaces" element={<WorkspaceManagement />} />
             <Route path="theme" element={<ThemeSettings />} />
-            <Route path="reports" element={<RevenuePage />} />
-            <Route path="invoices" element={<RevenuePage />} />
-            <Route path="settings" element={<AdminDashboard />} />
+            <Route path="reports" element={<ReportsPage />} />
+            <Route path="invoices" element={<InvoicesPage />} />
+            <Route path="settings" element={<PlatformSettingsPage />} />
           </Route>
 
           {/* Fallback */}

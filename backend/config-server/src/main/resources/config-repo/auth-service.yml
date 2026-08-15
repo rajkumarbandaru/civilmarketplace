@@ -23,6 +23,11 @@ spring:
         dialect: org.hibernate.dialect.MySQLDialect
         format_sql: true
     open-in-view: false
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
   flyway:
     enabled: true
     baseline-on-migrate: true
@@ -44,7 +49,9 @@ app:
     length: 6
     resend-cooldown-seconds: 30
   oauth2:
-    authorized-redirect-uris: http://localhost:3000/oauth2/redirect,https://app.civilengineer.com/oauth2/redirect
+    # First entry is where the tokens are delivered after a successful social login.
+    # Override per environment (e.g. http://192.168.0.22:3000/oauth2/redirect on LAN).
+    authorized-redirect-uris: ${OAUTH2_REDIRECT_URIS:http://localhost:3000/oauth2/redirect,https://app.civilengineer.com/oauth2/redirect}
 
 eureka:
   instance:
@@ -72,3 +79,43 @@ springdoc:
     path: /swagger-ui.html
     operationsSorter: method
     tagsSorter: alpha
+
+# ---------------------------------------------------------------------------
+# Social login (Google / Facebook).
+#
+# Kept in its own profile on purpose: Spring rejects an empty client-id at
+# startup, so registrations with unset credentials would break the service for
+# everyone. Password and OTP login are unaffected when this profile is off.
+#
+# Enable with SPRING_PROFILES_ACTIVE=social once the credentials are set.
+# Redirect URI to register with each provider:
+#   {gateway-base}/login/oauth2/code/{google|facebook}
+# ---------------------------------------------------------------------------
+---
+spring:
+  config:
+    activate:
+      on-profile: social
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+            scope: openid,email,profile
+            # Spring would otherwise derive this from auth-service's own host:port, which is
+            # unreachable from the browser. It must be the gateway's public base URL, and must
+            # match the redirect URI registered with the provider exactly.
+            redirect-uri: ${OAUTH2_GATEWAY_BASE_URL:http://localhost:8080}/login/oauth2/code/google
+          facebook:
+            client-id: ${FACEBOOK_CLIENT_ID}
+            client-secret: ${FACEBOOK_CLIENT_SECRET}
+            scope: email,public_profile
+            redirect-uri: ${OAUTH2_GATEWAY_BASE_URL:http://localhost:8080}/login/oauth2/code/facebook
+        provider:
+          facebook:
+            # Spring's default Facebook user-info URI returns only id and name; the
+            # email must be requested explicitly or CustomOAuth2UserService rejects
+            # the login with "Email not provided by OAuth2 provider".
+            user-info-uri: https://graph.facebook.com/me?fields=id,name,email,picture

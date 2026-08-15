@@ -2,9 +2,9 @@ import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { store } from '../store';
 import { logout, setCredentials } from '../store/slices/authSlice';
 
-// Gateway runs on host port 8087 (HOST_PORT_GATEWAY) — 8080 is taken by another app on this
-// host, so defaulting to 8080 silently sends API calls to a foreign server.
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8087';
+// Gateway runs on host port 8080 (HOST_PORT_GATEWAY in docker/.env). Keep this default in step
+// with that variable — pointing at a port nothing serves sends every API call into the void.
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
 
 const api = axios.create({
   baseURL: `${API_BASE_URL}/api/v1`,
@@ -34,7 +34,14 @@ api.interceptors.response.use(
       _retry?: boolean;
     };
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // A 401 from the auth endpoints means "those credentials are wrong", not "your
+    // session expired" — refreshing (and logging out on failure) there would turn a
+    // simple bad-password response into a surprise sign-out.
+    const isAuthEndpoint = /\/auth\/(login|register|refresh|otp)\b/.test(
+      originalRequest?.url || ''
+    );
+
+    if (error.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint) {
       originalRequest._retry = true;
 
       try {

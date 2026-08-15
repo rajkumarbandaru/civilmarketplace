@@ -3,6 +3,7 @@ import {
   Box, Card, CardContent, Typography, Grid, Chip, Avatar, Table, TableBody, TableCell,
   TableContainer, TableHead, TableRow, Button, LinearProgress, Skeleton,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import {
   AccountBalanceWallet, TrendingUp, Receipt, Download, Payment, MoneyOff,
 } from '@mui/icons-material';
@@ -16,6 +17,9 @@ const formatCurrency = (amount: number) => {
 };
 
 const RevenuePage: React.FC = () => {
+  // The brand colour is read from the theme, not written in: these cards used the shipped violet
+  // literally, so re-theming the platform left them unchanged.
+  const theme = useTheme();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<RevenueData | null>(null);
 
@@ -43,7 +47,7 @@ const RevenuePage: React.FC = () => {
 
   const revenueStats = summary ? [
     { label: 'Total Revenue (MTD)', value: formatCurrency(summary.totalRevenueMtd), change: summary.revenueChange, icon: <AccountBalanceWallet />, color: '#10b981' },
-    { label: 'Platform Fees', value: formatCurrency(summary.platformFees), change: summary.platformFeePercentage, icon: <TrendingUp />, color: '#667eea' },
+    { label: 'Platform Fees', value: formatCurrency(summary.platformFees), change: summary.platformFeePercentage, icon: <TrendingUp />, color: theme.palette.primary.main },
     { label: 'Pending Payouts', value: formatCurrency(summary.pendingPayouts), change: `${summary.pendingPayoutWorkers} workers`, icon: <Payment />, color: '#f59e0b' },
     { label: 'Refunds (MTD)', value: formatCurrency(summary.refundsMtd), change: summary.refundChange, icon: <MoneyOff />, color: '#ef4444' },
   ] : [];
@@ -94,7 +98,7 @@ const RevenuePage: React.FC = () => {
               <Typography variant="h6" sx={{ fontWeight: 700 }}>Monthly Revenue</Typography>
               <Box sx={{ display: 'flex', gap: 2 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                  <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: '#667eea' }} />
+                  <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: 'primary.main' }} />
                   <Typography variant="caption" sx={{ color: '#64748b' }}>Revenue</Typography>
                 </Box>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
@@ -114,7 +118,7 @@ const RevenuePage: React.FC = () => {
                     <Box key={month.month} sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%', justifyContent: 'flex-end' }}>
                       <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.3 }}>
                         <Box sx={{ width: '100%', maxWidth: 24, height: `${Math.max((month.payouts / maxMonthlyRevenue) * 100, 3)}%`, bgcolor: '#10b981', borderRadius: '2px 2px 0 0', opacity: 0.7 }} />
-                        <Box sx={{ width: '100%', maxWidth: 24, height: `${Math.max((month.revenue / maxMonthlyRevenue) * 100, 5)}%`, bgcolor: '#667eea', borderRadius: '2px 2px 0 0' }} />
+                        <Box sx={{ width: '100%', maxWidth: 24, height: `${Math.max((month.revenue / maxMonthlyRevenue) * 100, 5)}%`, bgcolor: 'primary.main', borderRadius: '2px 2px 0 0' }} />
                       </Box>
                       <Typography variant="caption" sx={{ color: '#94a3b8', mt: 0.5, fontSize: '0.6rem' }}>{month.month}</Typography>
                     </Box>
@@ -157,12 +161,12 @@ const RevenuePage: React.FC = () => {
           <Card sx={{ borderRadius: 3 }}>
             <Box sx={{ p: 3, borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Typography variant="h6" sx={{ fontWeight: 700 }}>Recent Transactions</Typography>
-              <Button size="small" sx={{ color: '#667eea' }}>View All</Button>
+              <Button size="small" sx={{ color: 'primary.main' }}>View All</Button>
             </Box>
             <TableContainer>
               <Table>
                 <TableHead>
-                  <TableRow sx={{ bgcolor: '#f8fafc' }}>
+                  <TableRow sx={{ bgcolor: 'action.hover' }}>
                     <TableCell sx={{ fontWeight: 700 }}>Transaction ID</TableCell>
                     <TableCell sx={{ fontWeight: 700 }}>Booking</TableCell>
                     <TableCell sx={{ fontWeight: 700 }}>Customer</TableCell>
@@ -185,7 +189,7 @@ const RevenuePage: React.FC = () => {
                     transactions.map((txn, idx) => (
                       <TableRow key={idx} hover>
                         <TableCell><Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 600 }}>{txn.transactionId}</Typography></TableCell>
-                        <TableCell><Typography variant="body2" sx={{ fontFamily: 'monospace', color: '#667eea' }}>{txn.bookingCode}</Typography></TableCell>
+                        <TableCell><Typography variant="body2" sx={{ fontFamily: 'monospace', color: 'primary.main' }}>{txn.bookingCode}</Typography></TableCell>
                         <TableCell><Typography variant="body2">{txn.customerName}</Typography></TableCell>
                         <TableCell><Typography variant="body2" sx={{ fontWeight: 600 }}>{formatCurrency(txn.amount)}</Typography></TableCell>
                         <TableCell>

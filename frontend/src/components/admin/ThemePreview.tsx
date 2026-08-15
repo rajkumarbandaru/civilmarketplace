@@ -78,6 +78,9 @@ const ThemePreview: React.FC<Props> = ({ form, inherited, scopeLabel }) => {
   const previewTheme = buildTheme(merged);
   const nav = sidebarPalette(merged);
   const navOnRight = merged.layoutStyle === 'sidebar-right';
+  // The top bar is the one layout that is not a left/right flip, so it changes the axis rather
+  // than only the direction — the nav strip then runs full width above the content.
+  const navOnTop = merged.layoutStyle === 'topbar';
 
   return (
     <Card variant="outlined">
@@ -91,7 +94,7 @@ const ThemePreview: React.FC<Props> = ({ form, inherited, scopeLabel }) => {
           <Box
             sx={{
               display: 'flex',
-              flexDirection: navOnRight ? 'row-reverse' : 'row',
+              flexDirection: navOnTop ? 'column' : navOnRight ? 'row-reverse' : 'row',
               minHeight: 320,
               borderRadius: 2,
               overflow: 'hidden',
@@ -100,8 +103,22 @@ const ThemePreview: React.FC<Props> = ({ form, inherited, scopeLabel }) => {
               bgcolor: 'background.default',
             }}
           >
-            <Box sx={{ width: 150, flexShrink: 0, bgcolor: nav.bg, p: 1.5 }}>
-              <Stack direction="row" spacing={1} alignItems="center" sx={{ px: 1, pb: 1.5 }}>
+            <Box
+              sx={{
+                bgcolor: nav.bg,
+                p: 1.5,
+                flexShrink: 0,
+                ...(navOnTop
+                  ? { display: 'flex', alignItems: 'center', gap: 1.5 }
+                  : { width: 150 }),
+              }}
+            >
+              <Stack
+                direction="row"
+                spacing={1}
+                alignItems="center"
+                sx={navOnTop ? { pr: 1 } : { px: 1, pb: 1.5 }}
+              >
                 {merged.logoUrl && (
                   <Box
                     component="img"
@@ -114,16 +131,21 @@ const ThemePreview: React.FC<Props> = ({ form, inherited, scopeLabel }) => {
                   {merged.brandName || 'CivEngMarket'}
                 </Typography>
               </Stack>
-              <Divider sx={{ borderColor: nav.divider, mb: 1 }} />
+              <Divider
+                orientation={navOnTop ? 'vertical' : 'horizontal'}
+                flexItem={navOnTop}
+                sx={{ borderColor: nav.divider, mb: navOnTop ? 0 : 1 }}
+              />
               {NAV_ITEMS.map((label, index) => (
                 <Box
                   key={label}
                   sx={{
                     px: 1.5,
                     py: 0.9,
-                    mb: 0.5,
+                    mb: navOnTop ? 0 : 0.5,
                     borderRadius: 1.5,
                     fontSize: '0.8rem',
+                    whiteSpace: 'nowrap',
                     bgcolor: index === 0 ? nav.activeBg : 'transparent',
                     color: index === 0 ? 'primary.main' : nav.muted,
                     fontWeight: index === 0 ? 600 : 400,

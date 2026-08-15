@@ -1,11 +1,14 @@
 package com.civileng.marketplace.admin.uiconfig.service;
 
+import com.civileng.marketplace.admin.client.AuthServiceClient;
 import com.civileng.marketplace.admin.uiconfig.dto.UiConfigDTO.*;
+import com.civileng.marketplace.admin.uiconfig.model.CustomThemePreset;
 import com.civileng.marketplace.admin.uiconfig.model.MenuItemDefinition;
 import com.civileng.marketplace.admin.uiconfig.model.ThemeConfig;
 import com.civileng.marketplace.admin.uiconfig.model.UserAppearance;
 import com.civileng.marketplace.admin.uiconfig.model.UserMenuOverride;
 import com.civileng.marketplace.admin.uiconfig.model.WorkspaceMenuEntry;
+import com.civileng.marketplace.admin.uiconfig.repository.CustomThemePresetRepository;
 import com.civileng.marketplace.admin.uiconfig.repository.MenuItemDefinitionRepository;
 import com.civileng.marketplace.admin.uiconfig.repository.ThemeConfigRepository;
 import com.civileng.marketplace.admin.uiconfig.repository.UserAppearanceRepository;
@@ -19,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
@@ -42,8 +46,10 @@ public class UiConfigService {
     private final WorkspaceMenuEntryRepository workspaceMenuRepository;
     private final UserMenuOverrideRepository userOverrideRepository;
     private final ThemeConfigRepository themeRepository;
+    private final CustomThemePresetRepository customPresetRepository;
     private final UserAppearanceRepository userAppearanceRepository;
     private final RoleDirectory roleDirectory;
+    private final AuthServiceClient authServiceClient;
 
     // ---------------------------------------------------------------- client read
 
@@ -65,6 +71,9 @@ public class UiConfigService {
                 })
                 .map(row -> new ResolvedMenuItem(
                         row.itemKey(), row.label(), row.path(), row.icon(), row.section(),
+                        // Grouping is a catalogue property like exactMatch — no overlay moves an
+                        // item between groups, so it is read from the same preloaded map.
+                        catalogue.get(row.itemKey()).getMenuGroup(),
                         row.sortOrder(), catalogue.get(row.itemKey()).isExactMatch()))
                 .toList();
 
@@ -121,6 +130,77 @@ public class UiConfigService {
                             themedScopes.contains(role));
                 })
                 .toList();
+    }
+
+    /**
+     * Creates a workspace, which means creating a role — roles live in auth-service, so that is
+     * where the write goes. Nothing is stored here: a workspace with no menu overlay and no theme
+     * row is exactly a workspace on the platform defaults, and the console already renders that
+     * state for every role that has never been customised.
+     *
+     * @return the new workspace as the list renders it, so the console can show the row without a
+     *         second round-trip.
+     */
+    public WorkspaceSummary createWorkspace(WorkspaceCreateCommand command) {
+        if (command == null || command.name() == null || command.name().isBlank()) {
+            throw new IllegalArgumentException("A workspace needs a name");
+        }
+
+        Map<String, Object> body;
+        try {
+            body = authServiceClient.createRole(
+                    "SUPER_ADMIN",
+                    // Nulls would be rejected by the request body's own validation; the caller's
+                    // blank description is simply "no description".
+                    Map.of("name", command.name().trim(),
+                            "description", blankToNull(command.description()) == null
+                                    ? "" : command.description().trim()))
+                    .getBody();
+        } catch (feign.FeignException e) {
+            // Auth-service owns the name rules and uniqueness, so its 4xx is the real answer here
+            // — surfacing it as a 400 keeps "that role already exists" readable in the console
+            // instead of collapsing into a generic 500.
+            if (e.status() >= 400 && e.status() < 500) {
+                throw new IllegalArgumentException(feignMessage(e));
+            }
+            throw e;
+        }
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> created = body == null ? null : (Map<String, Object>) body.get("data");
+        if (created == null || created.get("name") == null) {
+            throw new IllegalStateException("auth-service did not return the created role");
+        }
+        String role = created.get("name").toString();
+
+        // The catalogue is cached for two minutes; without this the workspace it was just asked to
+        // create would be absent from the list it reloads next.
+        roleDirectory.invalidate();
+        log.info("Workspace {} created", role);
+
+        List<WorkspaceMenuRow> rows = effectiveRows(role);
+        return new WorkspaceSummary(
+                role,
+                humanise(role),
+                0L,
+                (int) rows.stream().filter(WorkspaceMenuRow::visible).count(),
+                false,
+                false);
+    }
+
+    /** The {@code message} auth-service put in its error body, or the raw status line. */
+    private static String feignMessage(feign.FeignException e) {
+        String content = e.contentUTF8();
+        if (content != null && !content.isBlank()) {
+            try {
+                Object message = new com.fasterxml.jackson.databind.ObjectMapper()
+                        .readValue(content, Map.class).get("message");
+                if (message != null) return message.toString();
+            } catch (Exception ignored) {
+                // A non-JSON body is no worse than no body — fall through to the generic message.
+            }
+        }
+        return "The workspace could not be created (auth-service returned " + e.status() + ")";
     }
 
     // ---------------------------------------------------------------- workspace menu
@@ -266,9 +346,117 @@ public class UiConfigService {
                         null, null, null, null, 0));
     }
 
-    /** The shipped starting points a Super Admin can load into the theme form. */
+    /**
+     * The starting points a Super Admin can load into the theme form: the ones shipped with the
+     * service first, then the ones this platform saved for itself. Shipped first because that
+     * order never changes as presets are added and removed, so the picker does not reshuffle
+     * under an admin who has learned where "Midnight" sits.
+     */
+    @Transactional(readOnly = true)
     public List<ThemePreset> themePresets() {
-        return ThemePresets.all();
+        List<ThemePreset> presets = new ArrayList<>(ThemePresets.all());
+        customPresetRepository.findAllByOrderByLabelAsc().stream()
+                .map(UiConfigService::toPreset)
+                .forEach(presets::add);
+        return presets;
+    }
+
+    /**
+     * Saves the theme form as a reusable preset.
+     *
+     * <p>Saving under a label that already exists overwrites that preset rather than failing:
+     * "save as My Brand" twice is one admin correcting the first attempt, and a duplicate-name
+     * error there would leave them inventing "My Brand 2".
+     */
+    @Transactional
+    public ThemePreset saveCustomPreset(CustomPresetCommand command, Long adminId) {
+        String label = blankToNull(command.label());
+        if (label == null) {
+            throw new IllegalArgumentException("A preset needs a name");
+        }
+        if (label.length() > 60) {
+            throw new IllegalArgumentException("A preset name can be at most 60 characters");
+        }
+
+        ThemeUpdateCommand values = command.values();
+        if (values == null) {
+            throw new IllegalArgumentException("A preset needs theme values");
+        }
+
+        CustomThemePreset preset = customPresetRepository.findByLabelIgnoreCase(label)
+                .orElseGet(() -> CustomThemePreset.builder().presetKey(newKey(label)).build());
+
+        preset.setLabel(label);
+        preset.setDescription(truncate(blankToNull(command.description()), 200));
+        preset.setCreatedBy(adminId);
+        // Validated exactly like a theme save: a preset that named an unimplemented style would
+        // otherwise be storable here and only fail later, when someone tried to apply it.
+        preset.setMode(requireOneOf("mode", values.mode(), AppearanceSettings.COLOR_MODES, "system"));
+        preset.setPrimaryColor(blankToNull(values.primaryColor()));
+        preset.setAccentColor(blankToNull(values.accentColor()));
+        preset.setSurfaceColor(blankToNull(values.surfaceColor()));
+        preset.setSidebarColor(blankToNull(values.sidebarColor()));
+        preset.setBorderRadius(values.borderRadius());
+        preset.setFontFamily(blankToNull(values.fontFamily()));
+        preset.setUiStyle(requireOneOf("uiStyle", values.uiStyle(), ThemePresets.UI_STYLES, null));
+        preset.setButtonStyle(
+                requireOneOf("buttonStyle", values.buttonStyle(), ThemePresets.BUTTON_STYLES, null));
+        preset.setLayoutStyle(
+                requireOneOf("layoutStyle", values.layoutStyle(), ThemePresets.LAYOUT_STYLES, null));
+        preset.setDensity(requireOneOf("density", values.density(), AppearanceSettings.DENSITIES, null));
+
+        customPresetRepository.save(preset);
+        log.info("Custom theme preset '{}' ({}) saved by admin {}", label, preset.getPresetKey(), adminId);
+        return toPreset(preset);
+    }
+
+    /** Deletes a saved preset. Nothing that is already painted changes — see the entity. */
+    @Transactional
+    public void deleteCustomPreset(String key) {
+        if (ThemePresets.isBuiltInKey(key)) {
+            throw new IllegalArgumentException(
+                    "'" + key + "' is a built-in preset and cannot be deleted");
+        }
+        CustomThemePreset preset = customPresetRepository.findById(key)
+                .orElseThrow(() -> new IllegalArgumentException("No such preset: " + key));
+        customPresetRepository.delete(preset);
+        log.info("Custom theme preset '{}' deleted", preset.getLabel());
+    }
+
+    /**
+     * A slug of the label, suffixed if that slug is taken — a label of nothing but punctuation
+     * still has to produce a usable key, hence the fallback.
+     */
+    private String newKey(String label) {
+        String base = label.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+", "-")
+                .replaceAll("(^-|-$)", "");
+        if (base.isBlank()) base = "preset";
+        base = truncate(base, 50);
+
+        String key = base;
+        for (int suffix = 2; ThemePresets.isBuiltInKey(key) || customPresetRepository.existsById(key); suffix++) {
+            key = base + "-" + suffix;
+        }
+        return key;
+    }
+
+    /** Brand name and logo are null by construction: a preset carries a look, not an identity. */
+    private static ThemePreset toPreset(CustomThemePreset preset) {
+        return new ThemePreset(
+                preset.getPresetKey(),
+                preset.getLabel(),
+                preset.getDescription() == null ? "Saved on this platform." : preset.getDescription(),
+                new ThemeUpdateCommand(
+                        preset.getMode(), preset.getPrimaryColor(), preset.getAccentColor(),
+                        preset.getSurfaceColor(), preset.getSidebarColor(), preset.getBorderRadius(),
+                        preset.getFontFamily(), null, null, preset.getUiStyle(),
+                        preset.getButtonStyle(), preset.getLayoutStyle(), preset.getDensity()),
+                false);
+    }
+
+    private static String truncate(String value, int max) {
+        if (value == null) return null;
+        return value.length() <= max ? value : value.substring(0, max);
     }
 
     @Transactional

@@ -27,6 +27,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
+    private final AccountIdentifiers identifiers;
 
     @Override
     @Transactional
@@ -45,8 +46,11 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             throw new OAuth2AuthenticationException("Email not provided by OAuth2 provider");
         }
 
-        User user = userRepository.findByEmailAndIsDeletedFalse(email)
-                .orElseGet(() -> registerNewOAuth2User(email, name, provider, providerId));
+        // Normalised so a Google login for `Ravi@x.com` resolves to the existing
+        // `ravi@x.com` account instead of trying to create a second one.
+        String normalisedEmail = identifiers.normaliseEmail(email);
+        User user = userRepository.findByEmailAndIsDeletedFalse(normalisedEmail)
+                .orElseGet(() -> registerNewOAuth2User(normalisedEmail, name, provider, providerId));
 
         if (!user.getProvider().equals(provider)) {
             throw new OAuth2AuthenticationException(

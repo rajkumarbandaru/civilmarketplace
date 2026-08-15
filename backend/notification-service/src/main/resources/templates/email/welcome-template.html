@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{email/_layout :: page(~{::content})}">
+<body>
+<div th:fragment="content" th:remove="tag">
+    <h1 style="margin:0 0 12px; font-size:20px; color:#1f2933;">
+        Welcome, <span th:text="${name}">there</span>!
+    </h1>
+    <p style="margin:0 0 16px; font-size:14px; line-height:22px; color:#3e4c59;">
+        Your account is ready. You can now post projects, hire verified professionals, and
+        manage bookings and payments in one place.
+    </p>
+    <p style="margin:0; font-size:14px; line-height:22px; color:#3e4c59;">
+        Complete your profile and verification to get the best matches.
+    </p>
+</div>
+</body>
+</html>

@@ -15,7 +15,9 @@ spring:
         - id: auth-service
           uri: lb://auth-service
           predicates:
-            - Path=/api/v1/auth/**, /oauth2/**
+            # /login/oauth2/code/** is where the provider sends the user back; without it
+            # the social login round-trip 404s at the gateway on the return leg.
+            - Path=/api/v1/auth/**, /oauth2/**, /login/oauth2/code/**
           filters:
             - StripPrefix=0
         - id: user-service

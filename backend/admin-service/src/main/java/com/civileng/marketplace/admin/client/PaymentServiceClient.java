@@ -3,6 +3,9 @@ package com.civileng.marketplace.admin.client;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.Map;
@@ -23,6 +26,22 @@ public interface PaymentServiceClient {
     ResponseEntity<Map<String, Object>> getRecentTransactions(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size);
+
+    @GetMapping("/admin/invoices")
+    ResponseEntity<Map<String, Object>> getInvoices(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String search);
+
+    @PostMapping("/admin/invoices")
+    ResponseEntity<Map<String, Object>> raiseInvoice(@RequestBody Map<String, Object> command);
+
+    @GetMapping("/admin/invoices/summary")
+    ResponseEntity<Map<String, Object>> getInvoiceSummary();
+
+    @GetMapping("/admin/invoices/{invoiceNumber}")
+    ResponseEntity<Map<String, Object>> getInvoice(@PathVariable("invoiceNumber") String invoiceNumber);
 
     @GetMapping("/admin/analytics/growth")
     ResponseEntity<Map<String, Object>> getGrowthMetrics();

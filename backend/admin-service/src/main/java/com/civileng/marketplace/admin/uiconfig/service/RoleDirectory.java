@@ -47,6 +47,15 @@ public class RoleDirectory {
         return counts();
     }
 
+    /**
+     * Drops the cached catalogue so the next read goes to auth-service. Called after this service
+     * creates a role: without it the new workspace would be missing from the console for up to
+     * the TTL, which reads as the save having failed.
+     */
+    public void invalidate() {
+        fetchedAt = Instant.EPOCH;
+    }
+
     private Map<String, Long> counts() {
         if (Duration.between(fetchedAt, Instant.now()).compareTo(TTL) < 0 && !cachedCounts.isEmpty()) {
             return cachedCounts;

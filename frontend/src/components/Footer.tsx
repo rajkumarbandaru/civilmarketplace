@@ -84,7 +84,7 @@ const Footer: React.FC = () => {
               variant="h5"
               sx={{
                 fontWeight: 800,
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                background: (t) => `linear-gradient(135deg, ${t.palette.primary.main} 0%, ${t.palette.secondary.main} 100%)`,
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
                 mb: 2,
@@ -105,7 +105,7 @@ const Footer: React.FC = () => {
                   size="small"
                   sx={{
                     color: '#94a3b8',
-                    '&:hover': { color: '#667eea', background: 'rgba(102,126,234,0.1)' },
+                    '&:hover': { color: 'primary.main', background: (t) => t.palette.primary.main + '1a' },
                   }}
                 >
                   <Icon fontSize="small" />
@@ -134,7 +134,7 @@ const Footer: React.FC = () => {
                     mb: 1.5,
                     fontSize: '0.875rem',
                     transition: 'color 0.2s',
-                    '&:hover': { color: '#667eea' },
+                    '&:hover': { color: 'primary.main' },
                   }}
                 >
                   {link}

@@ -18,7 +18,9 @@ import org.springframework.transaction.annotation.Transactional;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
+import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -37,6 +39,16 @@ public class PaymentService {
 
     @Value("${razorpay.webhook-secret}")
     private String webhookSecret;
+
+    /** Signs Checkout handler responses; the webhook secret above signs webhook payloads. */
+    @Value("${razorpay.key-secret}")
+    private String keySecret;
+
+    /**
+     * Razorpay rejects an order below 100 paise (₹1), so the call is refused here rather than
+     * spending a round trip to be told the same thing.
+     */
+    private static final BigDecimal MIN_AMOUNT = BigDecimal.ONE;
 
     @Transactional
     public Payment createPaymentOrder(Long bookingId, Long userId, BigDecimal amount) {
@@ -64,6 +76,11 @@ public class PaymentService {
     }
 
     private Payment newPaymentOrder(Long bookingId, Long userId, BigDecimal amount) {
+        if (amount == null || amount.compareTo(MIN_AMOUNT) < 0) {
+            throw new IllegalArgumentException(
+                    "Amount must be at least ₹1 (100 paise)");
+        }
+
         Payment payment = Payment.builder()
                 .paymentCode(generatePaymentCode())
                 .bookingId(bookingId)
@@ -225,10 +242,25 @@ public class PaymentService {
         }
     }
 
+    /**
+     * Checkout's handler signature, which Razorpay signs with the API <em>key secret</em> — not the
+     * webhook secret. The two are different credentials issued for different channels, so signing
+     * with the webhook secret here rejected every genuine payment and would have accepted a forged
+     * one from anybody who learned the webhook secret.
+     *
+     * <p>Compared in constant time: a byte-by-byte {@code equals} leaks, through its timing, how
+     * long a prefix of the expected signature an attacker has guessed, which is enough to forge one
+     * a byte at a time.
+     */
     private boolean verifySignature(String orderId, String paymentId, String signature) {
+        if (signature == null) {
+            return false;
+        }
         String payload = orderId + "|" + paymentId;
-        String expected = calculateHmacSha256(payload, webhookSecret);
-        return expected.equals(signature);
+        String expected = calculateHmacSha256(payload, keySecret);
+        return MessageDigest.isEqual(
+                expected.getBytes(StandardCharsets.UTF_8),
+                signature.getBytes(StandardCharsets.UTF_8));
     }
 
     private String calculateHmacSha256(String data, String key) {

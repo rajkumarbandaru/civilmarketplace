@@ -15,6 +15,7 @@ import {
   LinearProgress,
   Skeleton,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import {
   People,
   Receipt,
@@ -89,6 +90,8 @@ const StatCard: React.FC<{
 );
 
 const AdminDashboard: React.FC = () => {
+  // Read from the theme rather than hardcoded, so a re-themed platform re-colours these too.
+  const theme = useTheme();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -137,7 +140,7 @@ const AdminDashboard: React.FC = () => {
   };
 
   const statCards = stats ? [
-    { label: 'Total Users', value: stats.totalUsers.toLocaleString(), change: stats.userGrowth, icon: <People />, color: '#667eea' },
+    { label: 'Total Users', value: stats.totalUsers.toLocaleString(), change: stats.userGrowth, icon: <People />, color: theme.palette.primary.main },
     { label: 'Active Bookings', value: stats.activeBookings.toLocaleString(), change: stats.bookingGrowth, icon: <Receipt />, color: '#10b981' },
     { label: 'Revenue (Month)', value: formatRevenue(stats.monthlyRevenue), change: stats.revenueGrowth, icon: <TrendingUp />, color: '#f59e0b' },
     { label: 'Pending Actions', value: stats.pendingActions.toString(), change: stats.pendingActionsChange, icon: <Warning />, color: '#ef4444' },
@@ -177,7 +180,7 @@ const AdminDashboard: React.FC = () => {
         ))}
         {loading && Array.from({ length: 4 }).map((_, idx) => (
           <Grid item xs={12} sm={6} md={3} key={`skeleton-${idx}`}>
-            <StatCard label="" value="" change="" icon={<People />} color="#667eea" loading />
+            <StatCard label="" value="" change="" icon={<People />} color={theme.palette.primary.main} loading />
           </Grid>
         ))}
       </Grid>
@@ -199,7 +202,7 @@ const AdminDashboard: React.FC = () => {
             onClick={() => navigate(action.path)}
           >
             <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 1.5, py: 2, px: 3 }}>
-              <Avatar sx={{ bgcolor: '#eef2ff', color: '#667eea', width: 36, height: 36 }}>
+              <Avatar sx={{ bgcolor: (t) => t.palette.primary.main + '15', color: 'primary.main', width: 36, height: 36 }}>
                 {action.icon}
               </Avatar>
               <Typography variant="body2" sx={{ fontWeight: 600 }}>{action.label}</Typography>
@@ -250,7 +253,7 @@ const AdminDashboard: React.FC = () => {
                         }
                       />
                     </ListItem>
-                    {idx < activity.length - 1 && <Box sx={{ mx: 3, borderBottom: '1px solid #f1f5f9' }} />}
+                    {idx < activity.length - 1 && <Box sx={{ mx: 3, borderBottom: 1, borderColor: 'divider' }} />}
                   </React.Fragment>
                 ))
               ) : (
@@ -291,7 +294,7 @@ const AdminDashboard: React.FC = () => {
                       value={city.percentage}
                       sx={{
                         height: 8, borderRadius: 4, bgcolor: '#e2e8f0',
-                        '& .MuiLinearProgress-bar': { borderRadius: 4, background: 'linear-gradient(135deg, #667eea, #764ba2)' },
+                        '& .MuiLinearProgress-bar': { borderRadius: 4, background: (t) => `linear-gradient(135deg, ${t.palette.primary.main}, ${t.palette.secondary.main})` },
                       }}
                     />
                   </Box>
@@ -313,7 +316,7 @@ const AdminDashboard: React.FC = () => {
               <CardContent sx={{ p: 3 }}>
                 <Grid container spacing={3}>
                   {[
-                    { label: 'Total Engineers', value: overview.totalEngineers.toLocaleString(), icon: <Engineering />, color: '#667eea' },
+                    { label: 'Total Engineers', value: overview.totalEngineers.toLocaleString(), icon: <Engineering />, color: theme.palette.primary.main },
                     { label: 'Active Projects', value: overview.activeProjects.toLocaleString(), icon: <CheckCircle />, color: '#10b981' },
                     { label: 'Pending Verifications', value: overview.pendingVerifications.toLocaleString(), icon: <PendingActions />, color: '#f59e0b' },
                     { label: 'Disputes', value: overview.disputes.toString(), icon: <Warning />, color: '#ef4444' },
@@ -322,8 +325,8 @@ const AdminDashboard: React.FC = () => {
                   ].map((item, idx) => (
                     <Grid item xs={6} sm={4} md={2} key={idx}>
                       <Box sx={{
-                        textAlign: 'center', p: 2, bgcolor: '#f8fafc', borderRadius: 3,
-                        transition: 'all 0.2s', '&:hover': { bgcolor: '#f1f5f9', transform: 'translateY(-2px)' },
+                        textAlign: 'center', p: 2, bgcolor: 'action.hover', borderRadius: 3,
+                        transition: 'all 0.2s', '&:hover': { bgcolor: 'action.selected', transform: 'translateY(-2px)' },
                       }}>
                         <Avatar sx={{ bgcolor: `${item.color}15`, color: item.color, width: 40, height: 40, mx: 'auto', mb: 1 }}>
                           {item.icon}

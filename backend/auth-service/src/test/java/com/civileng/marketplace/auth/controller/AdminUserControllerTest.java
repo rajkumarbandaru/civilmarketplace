@@ -35,7 +35,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(AdminUserController.class)
 @AutoConfigureMockMvc(addFilters = false)
-@Import(com.civileng.marketplace.auth.exception.GlobalExceptionHandler.class)
+// The real AccountIdentifiers, not a mock: these tests assert on the stored email/phone,
+// and a mock would return null and quietly hide the normalisation the controller now does.
+@Import({com.civileng.marketplace.auth.exception.GlobalExceptionHandler.class,
+        com.civileng.marketplace.auth.service.AccountIdentifiers.class})
 @DisplayName("AdminUserController - admin endpoints for user management")
 @TestPropertySource(properties = {
     "spring.cloud.config.enabled=false",
