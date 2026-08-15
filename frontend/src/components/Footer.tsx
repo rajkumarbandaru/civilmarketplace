@@ -1,8 +1,37 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Box, Container, Grid, Typography, Link, IconButton, Divider } from '@mui/material';
 import { Facebook, Twitter, Instagram, LinkedIn, YouTube } from '@mui/icons-material';
+import { ALL_SERVICES, slugify } from '../constants/serviceCatalogue';
+
+/**
+ * Where a footer link goes.
+ *
+ * A link whose text names a real catalogue service resolves to that service alone — the category
+ * page narrowed by `?q=`, which is what "click Cement, see Cement" requires. Anything else (About
+ * Us, Careers) has no destination built yet and stays inert rather than pretending to have one.
+ */
+const destinationFor = (label: string): string | null => {
+  const service = ALL_SERVICES.find(
+    (entry) => entry.title.toLowerCase() === label.toLowerCase()
+  );
+  if (service) {
+    return `/services/${slugify(service.category)}?q=${encodeURIComponent(service.title)}`;
+  }
+  const SECTION_LINKS: Record<string, string> = {
+    // 'Material Supply' is no longer one catalogue row — it is the whole Materials category now,
+    // so the old catch-all label lands on the category rather than on a service that ceased to
+    // exist when the materials list was broken out properly.
+    'Material Supply': '/services/materials',
+    'All Materials (A–Z)': '/services/materials',
+    'Raise a Ticket': '/support',
+    'Help Center': '/support',
+  };
+  return SECTION_LINKS[label] ?? null;
+};
 
 const Footer: React.FC = () => {
+  const navigate = useNavigate();
   const footerSections = [
     {
       title: 'Services',
@@ -38,6 +67,24 @@ const Footer: React.FC = () => {
         'Daily Wage Labour',
         'Skill & Safety Training',
         'Request a Quote (RFQ)',
+      ],
+    },
+    {
+      // A sample, not the whole A-Z list — 37 rows would dominate the footer. Each one deep-links
+      // to that material alone; the last row opens the full category.
+      title: 'Materials',
+      links: [
+        'Cement',
+        'Iron & TMT Steel Bars',
+        'Bricks & Blocks',
+        'Sand & Filling Material',
+        'Aggregates & Crushed Stone',
+        'Concrete (Ready Mix)',
+        'Ceramic & Vitrified Tiles',
+        'Paints & Coatings',
+        'Pipes & Fittings',
+        'Sanitaryware & Bath Fittings',
+        'All Materials (A–Z)',
       ],
     },
     {
@@ -114,32 +161,46 @@ const Footer: React.FC = () => {
             </Box>
           </Grid>
 
-          {/* Link sections */}
+          {/* Link sections. Six of them now that Materials has its own column; md=1.8 keeps them
+              on one row alongside the 3-wide brand block. */}
           {footerSections.map((section) => (
-            <Grid item xs={6} md={2.25} key={section.title}>
+            <Grid item xs={6} md={1.8} key={section.title}>
               <Typography
                 variant="subtitle2"
                 sx={{ color: '#fff', fontWeight: 600, mb: 2, textTransform: 'uppercase', letterSpacing: 1 }}
               >
                 {section.title}
               </Typography>
-              {section.links.map((link) => (
-                <Link
-                  key={link}
-                  href="#"
-                  underline="none"
-                  sx={{
-                    display: 'block',
-                    color: '#94a3b8',
-                    mb: 1.5,
-                    fontSize: '0.875rem',
-                    transition: 'color 0.2s',
-                    '&:hover': { color: 'primary.main' },
-                  }}
-                >
-                  {link}
-                </Link>
-              ))}
+              {section.links.map((link) => {
+                const to = destinationFor(link);
+                return (
+                  <Link
+                    key={link}
+                    component="button"
+                    type="button"
+                    onClick={() => to && navigate(to)}
+                    underline="none"
+                    // Routed through the router rather than an <a href>, so a click does not
+                    // reload the whole SPA just to move between two of its own pages.
+                    sx={{
+                      display: 'block',
+                      textAlign: 'left',
+                      background: 'none',
+                      border: 'none',
+                      p: 0,
+                      color: '#94a3b8',
+                      mb: 1.5,
+                      fontSize: '0.875rem',
+                      fontFamily: 'inherit',
+                      cursor: to ? 'pointer' : 'default',
+                      transition: 'color 0.2s',
+                      '&:hover': { color: to ? 'primary.main' : '#94a3b8' },
+                    }}
+                  >
+                    {link}
+                  </Link>
+                );
+              })}
             </Grid>
           ))}
         </Grid>

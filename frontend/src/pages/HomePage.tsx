@@ -46,31 +46,31 @@ const MotionBox = motion(Box);
 const MotionCard = motion(Card);
 
 const services = [
-  { icon: <Home />, title: 'House Planning', desc: 'Custom home design', color: '#667eea' },
-  { icon: <Architecture />, title: 'Architecture', desc: 'Architectural design', color: '#764ba2' },
-  { icon: <Engineering />, title: 'Structural Eng.', desc: 'Structural analysis', color: '#10b981' },
-  { icon: <Map />, title: 'Survey Services', desc: 'Land surveying', color: '#f59e0b' },
-  { icon: <DesignServices />, title: 'Interior Design', desc: 'Interior decoration', color: '#ef4444' },
-  { icon: <Construction />, title: 'Construction', desc: 'Building services', color: '#8b5cf6' },
-  { icon: <ElectricalServices />, title: 'Electrical', desc: 'Electrical work', color: '#06b6d4' },
-  { icon: <WaterDrop />, title: 'Plumbing', desc: 'Plumbing services', color: '#3b82f6' },
-  { icon: <Home />, title: 'Villa Planning', desc: 'Luxury villa design', color: '#0ea5e9' },
-  { icon: <Architecture />, title: 'Elevation Design', desc: 'Facade & elevation', color: '#a855f7' },
-  { icon: <Engineering />, title: 'BIM Modeling', desc: 'Building information modeling', color: '#14b8a6' },
-  { icon: <Engineering />, title: 'Earthquake Design', desc: 'Seismic-resistant design', color: '#f97316' },
-  { icon: <Map />, title: 'Drone Survey', desc: 'Aerial site survey', color: '#eab308' },
-  { icon: <Map />, title: 'GIS Mapping', desc: 'Geospatial mapping', color: '#84cc16' },
-  { icon: <DesignServices />, title: '3D Modeling', desc: '3D visualization', color: '#ec4899' },
-  { icon: <Construction />, title: 'Renovation', desc: 'Remodeling & repairs', color: '#6366f1' },
-  { icon: <Inventory />, title: 'Material Supply', desc: 'Cement, steel & aggregates', color: '#d97706' },
-  { icon: <Agriculture />, title: 'Equipment Rental', desc: 'Machinery with operator', color: '#65a30d' },
-  { icon: <LocalShipping />, title: 'Transport & Logistics', desc: 'Material & worker transport', color: '#0891b2' },
-  { icon: <HandymanOutlined />, title: 'Skilled Labour', desc: 'Masons, carpenters & fitters', color: '#b45309' },
-  { icon: <Groups />, title: 'Daily Wage Labour', desc: 'Muster-roll site labour', color: '#7c3aed' },
-  { icon: <AssignmentTurnedIn />, title: 'Contractor Services', desc: 'End-to-end execution', color: '#dc2626' },
-  { icon: <SupervisorAccount />, title: 'Site Supervision', desc: 'On-site QA/QC & sign-off', color: '#059669' },
-  { icon: <Work />, title: 'Project Management', desc: 'Scope, budget & milestones', color: '#4f46e5' },
-  { icon: <School />, title: 'Skill & Safety Training', desc: 'Certified worker upskilling', color: '#db2777' },
+  { icon: <Home />, title: 'House Planning', desc: 'Custom home design', color: '#667eea', category: 'architecture' },
+  { icon: <Architecture />, title: 'Architecture', desc: 'Architectural design', color: '#764ba2', category: 'architecture' },
+  { icon: <Engineering />, title: 'Structural Eng.', desc: 'Structural analysis', color: '#10b981', category: 'engineering' },
+  { icon: <Map />, title: 'Survey Services', desc: 'Land surveying', color: '#f59e0b', category: 'survey' },
+  { icon: <DesignServices />, title: 'Interior Design', desc: 'Interior decoration', color: '#ef4444', category: 'design' },
+  { icon: <Construction />, title: 'Construction', desc: 'Building services', color: '#8b5cf6', category: 'construction' },
+  { icon: <ElectricalServices />, title: 'Electrical', desc: 'Electrical work', color: '#06b6d4', category: 'services' },
+  { icon: <WaterDrop />, title: 'Plumbing', desc: 'Plumbing services', color: '#3b82f6', category: 'services' },
+  { icon: <Home />, title: 'Villa Planning', desc: 'Luxury villa design', color: '#0ea5e9', category: 'architecture' },
+  { icon: <Architecture />, title: 'Elevation Design', desc: 'Facade & elevation', color: '#a855f7', category: 'architecture' },
+  { icon: <Engineering />, title: 'BIM Modeling', desc: 'Building information modeling', color: '#14b8a6', category: 'engineering' },
+  { icon: <Engineering />, title: 'Earthquake Design', desc: 'Seismic-resistant design', color: '#f97316', category: 'engineering' },
+  { icon: <Map />, title: 'Drone Survey', desc: 'Aerial site survey', color: '#eab308', category: 'survey' },
+  { icon: <Map />, title: 'GIS Mapping', desc: 'Geospatial mapping', color: '#84cc16', category: 'survey' },
+  { icon: <DesignServices />, title: '3D Modeling', desc: '3D visualization', color: '#ec4899', category: 'design' },
+  { icon: <Construction />, title: 'Renovation', desc: 'Remodeling & repairs', color: '#6366f1', category: 'construction' },
+  { icon: <Inventory />, title: 'Material Supply', desc: 'Cement, steel & aggregates', color: '#d97706', category: 'materials' },
+  { icon: <Agriculture />, title: 'Equipment Rental', desc: 'Machinery with operator', color: '#65a30d', category: 'equipment' },
+  { icon: <LocalShipping />, title: 'Transport & Logistics', desc: 'Material & worker transport', color: '#0891b2', category: 'logistics' },
+  { icon: <HandymanOutlined />, title: 'Skilled Labour', desc: 'Masons, carpenters & fitters', color: '#b45309', category: 'labour' },
+  { icon: <Groups />, title: 'Daily Wage Labour', desc: 'Muster-roll site labour', color: '#7c3aed', category: 'labour' },
+  { icon: <AssignmentTurnedIn />, title: 'Contractor Services', desc: 'End-to-end execution', color: '#dc2626', category: 'construction' },
+  { icon: <SupervisorAccount />, title: 'Site Supervision', desc: 'On-site QA/QC & sign-off', color: '#059669', category: 'engineering' },
+  { icon: <Work />, title: 'Project Management', desc: 'Scope, budget & milestones', color: '#4f46e5', category: 'management' },
+  { icon: <School />, title: 'Skill & Safety Training', desc: 'Certified worker upskilling', color: '#db2777', category: 'training' },
 ];
 
 const stats = [
@@ -385,7 +385,8 @@ const HomePage: React.FC = () => {
                 transition={{ duration: 0.3, delay: idx * 0.05 }}
                 className="card-hover"
                 sx={{ p: 3, cursor: 'pointer', borderRadius: 4, textAlign: 'center' }}
-                onClick={() => navigate('/services')}
+                // The tile names a category, so it must land on that category rather than the full list.
+                onClick={() => navigate(`/services/${service.category}`)}
               >
                 <Avatar
                   sx={{

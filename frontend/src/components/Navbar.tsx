@@ -12,7 +12,6 @@ import {
   MenuItem,
   Box,
   Container,
-  InputBase,
   Drawer,
   List,
   ListItem,
@@ -22,7 +21,6 @@ import {
 } from '@mui/material';
 import {
   Menu as MenuIcon,
-  Search as SearchIcon,
   Notifications as NotificationsIcon,
   AccountCircle,
   Dashboard,
@@ -35,11 +33,12 @@ import {
 import { styled, alpha, useTheme } from '@mui/material/styles';
 import { useAppSelector, useAppDispatch } from '../hooks';
 import { logout } from '../store/slices/authSlice';
-import { toggleSidebar, setSearchQuery } from '../store/slices/uiSlice';
+import { toggleSidebar } from '../store/slices/uiSlice';
 import { motion } from 'framer-motion';
 import { useMenuSection, useUiConfig } from '../providers/UiConfigProvider';
 import DynamicIcon from './DynamicIcon';
 import ColorModeToggle from './ColorModeToggle';
+import GlobalSearch from './GlobalSearch';
 
 // A visitor who is not signed in holds no role, so there is no workspace to resolve a menu from.
 // This is that public site's own navigation — not a fallback for a signed-in member, whose menu
@@ -49,44 +48,8 @@ const PUBLIC_NAV = [
   { key: 'services', label: 'Services', path: '/services', icon: 'Engineering' },
 ];
 
-const Search = styled('div')(({ theme }) => ({
-  position: 'relative',
-  borderRadius: 12,
-  backgroundColor: alpha(theme.palette.common.white, 0.15),
-  '&:hover': {
-    backgroundColor: alpha(theme.palette.common.white, 0.25),
-  },
-  marginRight: theme.spacing(2),
-  marginLeft: 0,
-  width: '100%',
-  [theme.breakpoints.up('sm')]: {
-    marginLeft: theme.spacing(3),
-    width: 'auto',
-  },
-}));
 
-const SearchIconWrapper = styled('div')(({ theme }) => ({
-  padding: theme.spacing(0, 2),
-  height: '100%',
-  position: 'absolute',
-  pointerEvents: 'none',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-}));
 
-const StyledInputBase = styled(InputBase)(({ theme }) => ({
-  color: 'inherit',
-  '& .MuiInputBase-input': {
-    padding: theme.spacing(1, 1, 1, 0),
-    paddingLeft: `calc(1em + ${theme.spacing(4)})`,
-    transition: theme.transitions.create('width'),
-    width: '100%',
-    [theme.breakpoints.up('md')]: {
-      width: '20ch',
-    },
-  },
-}));
 
 /**
  * @param navInDrawer the shell has put the workspace menu in a side drawer, so the bar must not
@@ -194,18 +157,9 @@ const Navbar: React.FC<{ navInDrawer?: boolean }> = ({ navInDrawer = false }) =>
               </Typography>
             </motion.div>
 
-            {/* Search bar */}
-            <Search sx={{ display: { xs: 'none', sm: 'block' } }}>
-              <SearchIconWrapper>
-                <SearchIcon sx={{ color: 'text.secondary' }} />
-              </SearchIconWrapper>
-              <StyledInputBase
-                placeholder="Search services, professionals..."
-                inputProps={{ 'aria-label': 'search' }}
-                onChange={(e) => dispatch(setSearchQuery(e.target.value))}
-                sx={{ color: 'text.primary' }}
-              />
-            </Search>
+            {/* Search bar. Its own component now — it dispatched into Redux and nothing read the
+                value, so the box was inert. */}
+            <GlobalSearch />
 
             {/* Desktop nav */}
             <Box sx={{ flexGrow: 1 }} />

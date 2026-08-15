@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
   Box,
   Container,
@@ -37,8 +37,10 @@ import * as yup from 'yup';
 import { useAppDispatch, useAppSelector } from '../../hooks';
 import { createBooking } from '../../store/slices/bookingSlice';
 import { openSupportChat, showSnackbar } from '../../store/slices/uiSlice';
+import { CATEGORIES, serviceBySlug, slugify } from '../../constants/serviceCatalogue';
 import { payWithRazorpay } from '../../services/razorpayCheckout';
 import { apiErrorMessage } from '../../services/apiError';
+import DynamicIcon from '../../components/DynamicIcon';
 
 const steps = ['Service Details', 'Location', 'Schedule', 'Confirm & Pay'];
 
@@ -54,6 +56,12 @@ const schema = yup.object({
 
 const BookingPage: React.FC = () => {
   const navigate = useNavigate();
+  // `/book/:serviceId` carries the catalogue slug. The page previously ignored it entirely — every
+  // card linked to `/book/1` — so whichever service you clicked, you landed on a blank form and had
+  // to type its name back in. Unknown slugs resolve to undefined and the form stays blank, which is
+  // the old behaviour rather than an error page.
+  const { serviceId } = useParams<{ serviceId?: string }>();
+  const service = serviceBySlug(serviceId);
   const dispatch = useAppDispatch();
   const { loading } = useAppSelector((state) => state.booking);
   const { user } = useAppSelector((state) => state.auth);
@@ -156,6 +164,40 @@ const BookingPage: React.FC = () => {
             transition={{ duration: 0.4 }}
           >
             <Card sx={{ borderRadius: 3, overflow: 'hidden' }}>
+              {/* Names what is being booked. Without it the form is identical for all 116
+                  catalogue entries, and nothing on screen confirms the right card was clicked. */}
+              {service && (
+                <Box
+                  sx={{
+                    px: 3,
+                    py: 2,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 2,
+                    color: 'primary.contrastText',
+                    background: (t) =>
+                      `linear-gradient(135deg, ${t.palette.primary.main}, ${t.palette.secondary.main})`,
+                  }}
+                >
+                  <Avatar sx={{ bgcolor: 'rgba(255,255,255,0.22)' }}>
+                    <DynamicIcon name={service.icon} />
+                  </Avatar>
+                  <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
+                      {service.title}
+                    </Typography>
+                    <Typography variant="caption" sx={{ opacity: 0.9 }}>
+                      {service.category} · {service.price}
+                    </Typography>
+                  </Box>
+                  <Chip
+                    size="small"
+                    label="Change"
+                    onClick={() => navigate(`/services/${slugify(service.category)}`)}
+                    sx={{ bgcolor: 'rgba(255,255,255,0.22)', color: 'inherit', fontWeight: 600 }}
+                  />
+                </Box>
+              )}
               <Box sx={{ p: 3, borderBottom: '1px solid #e2e8f0' }}>
                 <Stepper activeStep={activeStep} alternativeLabel>
                   {steps.map((label) => (
@@ -180,14 +222,16 @@ const BookingPage: React.FC = () => {
                           label="Service Category"
                           {...register('serviceCategory')}
                           error={!!errors.serviceCategory}
-                          defaultValue=""
+                          // Driven by the catalogue rather than a hand-written list, which had
+                          // drifted to six options and could not express Materials, Equipment or
+                          // Vehicles at all — a materials booking had no category to sit under.
+                          defaultValue={service?.category ?? ''}
                         >
-                          <MenuItem value="House Planning">House Planning</MenuItem>
-                          <MenuItem value="Architecture">Architecture</MenuItem>
-                          <MenuItem value="Structural Engineering">Structural Engineering</MenuItem>
-                          <MenuItem value="Survey">Survey Services</MenuItem>
-                          <MenuItem value="Interior Design">Interior Design</MenuItem>
-                          <MenuItem value="Construction">Construction</MenuItem>
+                          {CATEGORIES.map((category) => (
+                            <MenuItem key={category} value={category}>
+                              {category}
+                            </MenuItem>
+                          ))}
                         </Select>
                       </FormControl>
 
@@ -197,6 +241,9 @@ const BookingPage: React.FC = () => {
                         {...register('serviceName')}
                         error={!!errors.serviceName}
                         helperText={errors.serviceName?.message}
+                        // Prefilled from the card that was clicked, and still editable — the
+                        // catalogue title is a starting point, not the final scope of the job.
+                        defaultValue={service?.title ?? ''}
                         sx={{ mb: 3 }}
                       />
 
