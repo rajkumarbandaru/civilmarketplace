@@ -59,6 +59,16 @@ spring:
           filters:
             - StripPrefix=0
             - name: JwtAuth
+        # The audit log is admin-only and decides access from X-User-Role, so it must come through
+        # JwtAuth like the rest — routed by the discovery locator instead, every request would
+        # arrive with no role header and be refused as if the caller were not an admin.
+        - id: audit-service
+          uri: lb://audit-service
+          predicates:
+            - Path=/api/v1/admin/audit/**, /api/v1/privacy/**
+          filters:
+            - StripPrefix=0
+            - name: JwtAuth
       default-filters:
         # Downstream services (e.g. auth-service) set their own CORS headers, and the gateway
         # sets them again — browsers reject a response carrying two Access-Control-Allow-Origin

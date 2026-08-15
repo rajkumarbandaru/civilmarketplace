@@ -25,6 +25,7 @@ const BookingPage = lazy(() => import('./pages/booking/BookingPage'));
 const ProfilePage = lazy(() => import('./pages/profile/ProfilePage'));
 const AppearancePage = lazy(() => import('./pages/settings/AppearancePage'));
 const SupportTicketsPage = lazy(() => import('./pages/support/SupportTicketsPage'));
+const LiveTrackingPage = lazy(() => import('./pages/tracking/LiveTrackingPage'));
 
 // Admin Pages
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
@@ -39,6 +40,8 @@ const ReportsPage = lazy(() => import('./pages/admin/ReportsPage'));
 const InvoicesPage = lazy(() => import('./pages/admin/InvoicesPage'));
 const PlatformSettingsPage = lazy(() => import('./pages/admin/PlatformSettingsPage'));
 const SupportQueuePage = lazy(() => import('./pages/admin/SupportQueuePage'));
+const UserActivityPage = lazy(() => import('./pages/admin/UserActivityPage'));
+const AdminTrackingPage = lazy(() => import('./pages/admin/AdminTrackingPage'));
 
 /**
  * The landing page is for visitors. Someone already signed in has a workspace, so `/` sends them
@@ -106,6 +109,13 @@ const App: React.FC = () => {
             <Route path="support" element={
               <ProtectedRoute><SupportTicketsPage /></ProtectedRoute>
             } />
+            {/* Both forms: the list of what can be tracked, and one booking's live view. */}
+            <Route path="track" element={
+              <ProtectedRoute><LiveTrackingPage /></ProtectedRoute>
+            } />
+            <Route path="track/:bookingId" element={
+              <ProtectedRoute><LiveTrackingPage /></ProtectedRoute>
+            } />
           </Route>
 
           {/* Auth routes */}
@@ -123,6 +133,7 @@ const App: React.FC = () => {
           }>
             <Route index element={<AdminDashboard />} />
             <Route path="users" element={<UserManagement />} />
+            <Route path="activity" element={<UserActivityPage />} />
             <Route path="categories" element={<CategoryManagement />} />
             <Route path="bookings" element={<BookingManagement />} />
             <Route path="analytics" element={<AnalyticsPage />} />
@@ -132,6 +143,7 @@ const App: React.FC = () => {
             <Route path="reports" element={<ReportsPage />} />
             <Route path="invoices" element={<InvoicesPage />} />
             <Route path="support" element={<SupportQueuePage />} />
+            <Route path="tracking" element={<AdminTrackingPage />} />
             <Route path="settings" element={<PlatformSettingsPage />} />
           </Route>
 
