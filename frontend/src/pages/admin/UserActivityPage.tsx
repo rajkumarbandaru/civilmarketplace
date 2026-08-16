@@ -37,6 +37,8 @@ import {
   fetchAuditEvents,
   verifyIntegrity,
 } from '../../services/auditApi';
+import { useDateTime } from '../../providers/UiConfigProvider';
+import { SortableTableCell, useTableSort } from '../../components/admin/SortableTable';
 
 /**
  * Common actions, offered as a dropdown rather than a free-text box.
@@ -47,14 +49,9 @@ import {
  */
 const ACTIONS = ['CREATE', 'READ', 'UPDATE', 'DELETE', 'LOGIN', 'LOGOUT', 'EXPORT'];
 
-const formatWhen = (iso: string | null): string => {
-  if (!iso) return '—';
-  const date = new Date(iso);
-  return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString();
-};
-
 /** One event, expandable to its before/after state. */
 const EventRow: React.FC<{ event: AuditEvent }> = ({ event }) => {
+  const { formatDateTime: formatWhen } = useDateTime();
   const [open, setOpen] = useState(false);
   const hasState = Boolean(event.beforeState || event.afterState || event.reason);
 
@@ -173,6 +170,19 @@ const UserActivityPage: React.FC = () => {
 
   const integrityOk =
     integrity.data && (integrity.data.valid === true || integrity.data.intact === true);
+
+  // Sorts the page in hand. The log is server-paged, so this reorders the rows currently loaded
+  // rather than the whole audit history — narrow with the filters above first.
+  const { sorted, sort, onSort } = useTableSort(events.data?.data ?? [], {
+    occurredAt: (e) => (e.occurredAt ? new Date(e.occurredAt) : null),
+    actorId: (e) => e.actorId ?? null,
+    actorRole: (e) => e.actorRole,
+    action: (e) => e.action,
+    entityType: (e) => e.entityType,
+    entityId: (e) => e.entityId ?? null,
+    subjectUserId: (e) => e.subjectUserId ?? null,
+    sourceService: (e) => e.sourceService,
+  }, { key: 'occurredAt', direction: 'desc' });
 
   return (
     <Box sx={{ p: 3 }}>
@@ -316,19 +326,19 @@ const UserActivityPage: React.FC = () => {
             <Table size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell>When</TableCell>
-                  <TableCell>Actor</TableCell>
-                  <TableCell>Role</TableCell>
-                  <TableCell>Action</TableCell>
-                  <TableCell>Entity</TableCell>
-                  <TableCell>Entity ID</TableCell>
-                  <TableCell>Subject</TableCell>
-                  <TableCell>Service</TableCell>
+                  <SortableTableCell columnKey="occurredAt" sort={sort} onSort={onSort}>When</SortableTableCell>
+                  <SortableTableCell columnKey="actorId" sort={sort} onSort={onSort}>Actor</SortableTableCell>
+                  <SortableTableCell columnKey="actorRole" sort={sort} onSort={onSort}>Role</SortableTableCell>
+                  <SortableTableCell columnKey="action" sort={sort} onSort={onSort}>Action</SortableTableCell>
+                  <SortableTableCell columnKey="entityType" sort={sort} onSort={onSort}>Entity</SortableTableCell>
+                  <SortableTableCell columnKey="entityId" sort={sort} onSort={onSort}>Entity ID</SortableTableCell>
+                  <SortableTableCell columnKey="subjectUserId" sort={sort} onSort={onSort}>Subject</SortableTableCell>
+                  <SortableTableCell columnKey="sourceService" sort={sort} onSort={onSort}>Service</SortableTableCell>
                   <TableCell padding="none" />
                 </TableRow>
               </TableHead>
               <TableBody>
-                {events.data.data.map((event) => (
+                {sorted.map((event) => (
                   <EventRow key={event.id} event={event} />
                 ))}
                 {events.data.data.length === 0 && (

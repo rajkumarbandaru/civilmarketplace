@@ -2,7 +2,8 @@ import React, { useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Box, CircularProgress, Typography } from '@mui/material';
 import { useAppDispatch } from '../../hooks';
-import { setSocialCredentials } from '../../store/slices/authSlice';
+import { setSocialCredentials, setRememberMe } from '../../store/slices/authSlice';
+import { takeRememberIntent } from '../../services/authStorage';
 import { landingPathFor } from '../../components/AdminRoute';
 
 /**
@@ -47,6 +48,8 @@ const OAuth2RedirectPage: React.FC = () => {
     };
 
     dispatch(setSocialCredentials({ user, accessToken, refreshToken }));
+    // Applies the choice made before the provider redirect; the checkbox itself is long gone.
+    dispatch(setRememberMe(takeRememberIntent()));
     navigate(landingPathFor(user.role), { replace: true });
   }, [params, dispatch, navigate]);
 

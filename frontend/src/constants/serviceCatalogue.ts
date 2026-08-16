@@ -1,10 +1,11 @@
 /**
- * The service catalogue behind the Services page, its category filter and the booking route.
+ * The catalogue's *fallback* copy, plus the pure helpers that work over any catalogue.
  *
- * It lives here rather than inside the page because three surfaces need it: the page renders it,
- * the landing page links into it by category, and the footer links into individual services. When
- * it was a private array inside `ServicesPage`, those other surfaces could only link to the
- * unfiltered list — which is exactly why clicking a category showed everything.
+ * The live catalogue now comes from the API (`/api/v1/catalogue`, backed by booking-service and
+ * editable by admins under Admin → Services). What stays here is the list the site shipped with,
+ * used only when that call fails — a services page that renders nothing because one request timed
+ * out is worse than one showing a slightly stale list — and the search/filter helpers, which are
+ * plain functions over whichever list they are handed.
  *
  * Icons are Material-UI *names*, not elements, so this module stays plain data and can be imported
  * anywhere without pulling JSX along. `DynamicIcon` resolves them.
@@ -19,24 +20,21 @@ export interface ServiceEntry {
   price: string;
   rating: number;
   reviews: number;
+  /** Trade names people actually type ("rebar", "jcb"), fed into search. */
+  aliases?: string[];
+  /** Optional artwork shown on the card in place of the icon. */
+  mediaUrl?: string | null;
+  mediaType?: 'IMAGE' | 'VIDEO' | 'ANIMATION' | null;
 }
 
-export type ServiceCategory =
-  | 'Architecture'
-  | 'Engineering'
-  | 'Survey'
-  | 'Design'
-  | 'Construction'
-  | 'Services'
-  | 'Materials'
-  | 'Equipment'
-  | 'Vehicles'
-  | 'Logistics'
-  | 'Labour'
-  | 'Management'
-  | 'Training';
+/**
+ * Just a name. It was a closed union of the thirteen categories the site shipped with, which meant
+ * a category an admin adds could not be typed at all — the whole point of making the catalogue
+ * editable is that this list is not knowable at compile time.
+ */
+export type ServiceCategory = string;
 
-export const CATEGORIES: ServiceCategory[] = [
+export const FALLBACK_CATEGORIES: ServiceCategory[] = [
   'Architecture',
   'Engineering',
   'Survey',
@@ -210,56 +208,10 @@ const VEHICLE_SERVICES: Omit<ServiceEntry, 'slug'>[] = [
   { title: 'Truck (10-Wheeler)', category: 'Vehicles', icon: 'LocalShipping', price: '₹5400/day', rating: 4.4, reviews: 143 },
   { title: 'Water Tanker', category: 'Vehicles', icon: 'WaterDrop', price: '₹2400/trip', rating: 4.5, reviews: 396 },
 ];
+// Declared above FALLBACK_SERVICES because that list attaches these to its entries as it is
+// built: a `const` referenced before its own initialiser has run is a temporal-dead-zone
+// error at module load, which took the whole catalogue down rather than just the aliases.
 
-/**
- * The whole catalogue, A-Z by title.
- *
- * Sorted once here rather than at each call site: the page re-sorts by rating or popularity on
- * demand, and alphabetical is what it falls back to, so the order has to be right in the data.
- */
-export const ALL_SERVICES: ServiceEntry[] = [
-  ...PROFESSIONAL_SERVICES,
-  ...MATERIAL_SERVICES,
-  ...EQUIPMENT_SERVICES,
-  ...VEHICLE_SERVICES,
-]
-  .map((entry) => ({ ...entry, slug: slugify(entry.title) }))
-  .sort((a, b) => a.title.localeCompare(b.title));
-
-/** The numeric part of a price, or null for 'Quote'. Shared so the page and the slider agree. */
-export const numericPrice = (price: string): number | null => {
-  const match = price.match(/\d+/);
-  return match ? Number(match[0]) : null;
-};
-
-/**
- * Upper bound for the price filter, rounded up to a clean step above the dearest item.
- *
- * Derived rather than hard-coded: the slider used to cap at ₹5000, which was fine when the
- * catalogue topped out below that and silently hid the transit mixer, the 10-wheeler and every
- * piece of heavy plant the moment machinery was added. A filter the user never touched must not
- * be able to hide rows.
- */
-export const PRICE_CEILING = (() => {
-  const highest = ALL_SERVICES.reduce((max, service) => {
-    const price = numericPrice(service.price);
-    return price !== null && price > max ? price : max;
-  }, 0);
-  return Math.ceil(highest / 1000) * 1000;
-})();
-
-export const MATERIAL_SERVICE_COUNT = MATERIAL_SERVICES.length;
-export const EQUIPMENT_SERVICE_COUNT = EQUIPMENT_SERVICES.length;
-export const VEHICLE_SERVICE_COUNT = VEHICLE_SERVICES.length;
-
-/** Resolves a URL segment back to a category, case-insensitively. `null` means "show everything". */
-export const categoryFromSlug = (slug?: string): ServiceCategory | null => {
-  if (!slug) return null;
-  return CATEGORIES.find((category) => slugify(category) === slug.toLowerCase()) ?? null;
-};
-
-export const serviceBySlug = (slug?: string): ServiceEntry | undefined =>
-  slug ? ALL_SERVICES.find((service) => service.slug === slug.toLowerCase()) : undefined;
 
 /**
  * Trade names and abbreviations people actually type, mapped to catalogue slugs.
@@ -308,6 +260,63 @@ const ALIASES: Record<string, string[]> = {
   'mini-truck-tata-ace': ['chota hathi', 'tempo', 'ace', 'mini truck'],
 };
 
+
+/**
+ * The whole catalogue, A-Z by title.
+ *
+ * Sorted once here rather than at each call site: the page re-sorts by rating or popularity on
+ * demand, and alphabetical is what it falls back to, so the order has to be right in the data.
+ */
+export const FALLBACK_SERVICES: ServiceEntry[] = [
+  ...PROFESSIONAL_SERVICES,
+  ...MATERIAL_SERVICES,
+  ...EQUIPMENT_SERVICES,
+  ...VEHICLE_SERVICES,
+]
+  .map((entry) => {
+    const slug = slugify(entry.title);
+    return { ...entry, slug, aliases: ALIASES[slug] };
+  })
+  .sort((a, b) => a.title.localeCompare(b.title));
+
+/** The numeric part of a price, or null for 'Quote'. Shared so the page and the slider agree. */
+export const numericPrice = (price: string): number | null => {
+  const match = price.match(/\d+/);
+  return match ? Number(match[0]) : null;
+};
+
+/**
+ * Upper bound for the price filter, rounded up to a clean step above the dearest item.
+ *
+ * Derived from the list in hand rather than hard-coded: the slider used to cap at ₹5000, which was
+ * fine when the catalogue topped out below that and silently hid every piece of heavy plant the
+ * moment machinery was added. Now that admins can add items at any price, a fixed ceiling would go
+ * stale the first time one is created above it — a filter the user never touched must not be able
+ * to hide rows.
+ */
+export const priceCeiling = (services: ServiceEntry[]): number => {
+  const highest = services.reduce((max, service) => {
+    const price = numericPrice(service.price);
+    return price !== null && price > max ? price : max;
+  }, 0);
+  return Math.max(1000, Math.ceil(highest / 1000) * 1000);
+};
+
+/** Resolves a URL segment back to a category, case-insensitively. `null` means "show everything". */
+export const categoryFromSlug = (
+  slug: string | undefined,
+  categories: ServiceCategory[],
+): ServiceCategory | null => {
+  if (!slug) return null;
+  return categories.find((category) => slugify(category) === slug.toLowerCase()) ?? null;
+};
+
+export const serviceBySlug = (
+  slug: string | undefined,
+  services: ServiceEntry[],
+): ServiceEntry | undefined =>
+  slug ? services.find((service) => service.slug === slug.toLowerCase()) : undefined;
+
 /** Everything a service can be matched on, lowercased once at module load. */
 interface SearchIndexEntry {
   service: ServiceEntry;
@@ -315,13 +324,22 @@ interface SearchIndexEntry {
   haystack: string;
 }
 
-const SEARCH_INDEX: SearchIndexEntry[] = ALL_SERVICES.map((service) => ({
-  service,
-  title: service.title.toLowerCase(),
-  haystack: [service.title, service.category, ...(ALIASES[service.slug] ?? [])]
-    .join(' ')
-    .toLowerCase(),
-}));
+/**
+ * Builds the index for one catalogue.
+ *
+ * Rebuilt per call rather than computed once at module load: the catalogue now arrives from the API
+ * and changes whenever an admin edits it, so an index frozen at import time would keep answering
+ * for a list that is no longer on screen. Aliases come off the entry itself — for API rows they are
+ * whatever the admin typed, for the fallback rows the `ALIASES` map above.
+ */
+const buildIndex = (services: ServiceEntry[]): SearchIndexEntry[] =>
+  services.map((service) => ({
+    service,
+    title: service.title.toLowerCase(),
+    haystack: [service.title, service.category, ...(service.aliases ?? ALIASES[service.slug] ?? [])]
+      .join(' ')
+      .toLowerCase(),
+  }));
 
 /**
  * Substring search across the whole catalogue, materials and machinery included.
@@ -335,13 +353,17 @@ const SEARCH_INDEX: SearchIndexEntry[] = ALL_SERVICES.map((service) => ({
  * above one that contains it, above an alias-only hit. Without the ranking "cement" would surface
  * every row whose alias mentions concrete before Cement itself.
  */
-export const searchServices = (query: string, limit = 50): ServiceEntry[] => {
+export const searchServices = (
+  query: string,
+  services: ServiceEntry[],
+  limit = 50,
+): ServiceEntry[] => {
   const words = query.toLowerCase().trim().split(/\s+/).filter(Boolean);
   if (words.length === 0) return [];
 
   const scored: { service: ServiceEntry; score: number }[] = [];
 
-  for (const entry of SEARCH_INDEX) {
+  for (const entry of buildIndex(services)) {
     if (!words.every((word) => entry.haystack.includes(word))) continue;
 
     const whole = query.toLowerCase().trim();

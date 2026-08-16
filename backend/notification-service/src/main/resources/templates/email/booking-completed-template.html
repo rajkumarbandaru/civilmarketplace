@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<!--/*
+  The thank-you after the job, carrying two things at once.
+
+  Always: an ask for a rating, linked straight to the review form for this booking.
+
+  This is the version sent when nothing is left to pay. A pay-later booking gets
+  booking-invoice-template instead, which carries the bill — they are separate templates because a
+  subject line belongs to a template, and one template could only ever have one subject.
+*/-->
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{email/_layout :: page(~{::content})}">
+<body>
+<div th:fragment="content" th:remove="tag">
+    <h1 style="margin:0 0 12px; font-size:20px; color:#1f2933;">Thanks for using our service</h1>
+
+    <p style="margin:0 0 16px; font-size:14px; line-height:22px; color:#3e4c59;">
+        Hi <span th:text="${name}">there</span>, your <span th:text="${serviceName}">booking</span>
+        is complete. Thank you for booking with us — we hope it went well.
+    </p>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+           style="margin:0 0 16px; background-color:#f0f4f8; border-radius:6px;">
+        <tr>
+            <td style="padding:12px 18px; font-size:14px; color:#7b8794;">Service</td>
+            <td style="padding:12px 18px; font-size:14px; font-weight:bold; color:#1f2933;" align="right"
+                th:text="${serviceName}">Service</td>
+        </tr>
+        <tr th:if="${workerName != null and !workerName.isEmpty()}">
+            <td style="padding:12px 18px; font-size:14px; color:#7b8794;">Professional</td>
+            <td style="padding:12px 18px; font-size:14px; color:#1f2933;" align="right"
+                th:text="${workerName}">Professional</td>
+        </tr>
+        <tr>
+            <td style="padding:12px 18px; font-size:14px; color:#7b8794;">Booking reference</td>
+            <td style="padding:12px 18px; font-size:14px; font-weight:bold; color:#0b5394;" align="right"
+                th:text="${bookingCode}">BK-0000</td>
+        </tr>
+    </table>
+
+    <h2 style="margin:24px 0 8px; font-size:17px; color:#1f2933;">How did we do?</h2>
+    <p style="margin:0 0 12px; font-size:14px; line-height:22px; color:#3e4c59;">
+        Your rating helps other customers choose, and helps good professionals get more work.
+        It takes about a minute.
+    </p>
+    <p style="margin:0 0 8px; font-size:24px; letter-spacing:6px; color:#f0a500;">★★★★★</p>
+    <p style="margin:0;">
+        <a th:href="${reviewUrl}" href="#"
+           style="display:inline-block; background-color:#0b5394; color:#ffffff; text-decoration:none;
+                  padding:11px 22px; border-radius:6px; font-size:14px; font-weight:bold;">
+            Rate this service
+        </a>
+    </p>
+</div>
+</body>
+</html>

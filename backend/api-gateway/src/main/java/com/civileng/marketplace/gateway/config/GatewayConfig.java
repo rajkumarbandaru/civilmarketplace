@@ -38,6 +38,13 @@ public class GatewayConfig {
                         .path("/api/v1/auth/**", "/oauth2/**")
                         .filters(f -> f.stripPrefix(0))
                         .uri("lb://auth-service"))
+                // Country/state/city reference data for the address pickers. Public and
+                // unfiltered: it is a static list with no user data in it, and the register form
+                // needs it before anyone has a token.
+                .route("geo-public", r -> r
+                        .path("/api/v1/geo/**")
+                        .filters(f -> f.stripPrefix(0))
+                        .uri("lb://user-service"))
                 .route("user-service", r -> r
                         .path("/api/v1/users/**")
                         .filters(f -> f.stripPrefix(0)
@@ -60,6 +67,22 @@ public class GatewayConfig {
                         .filters(f -> f.stripPrefix(0)
                                 .filter(jwtAuthFilter.apply(new JwtAuthGatewayFilterFactory.Config())))
                         .uri("lb://messaging-service"))
+                // The public service catalogue. No JwtAuth filter and no rate limiter: it is what a
+                // signed-out visitor lands on, and behind the auth filter the home and services
+                // pages render nothing until someone logs in. Read-only, and exposes nothing beyond
+                // what the page itself prints.
+                .route("catalogue-public", r -> r
+                        .path("/api/v1/catalogue/**")
+                        .filters(f -> f.stripPrefix(0))
+                        .uri("lb://booking-service"))
+                // The site's editable copy and its images, on the same reasoning as the catalogue:
+                // the landing page and footer are rendered from it before anyone signs in. The
+                // matching writes live under /api/v1/admin/content/**, which stays behind the
+                // filter with the rest of the admin surface.
+                .route("content-public", r -> r
+                        .path("/api/v1/content/**")
+                        .filters(f -> f.stripPrefix(0))
+                        .uri("lb://admin-service"))
                 .route("booking-service", r -> r
                         .path("/api/v1/bookings/**")
                         .filters(f -> f.stripPrefix(0)
@@ -95,6 +118,14 @@ public class GatewayConfig {
                         .filters(f -> f.stripPrefix(0)
                                 .filter(jwtAuthFilter.apply(new JwtAuthGatewayFilterFactory.Config())))
                         .uri("lb://review-service"))
+                // Provider delivery callbacks. Unauthenticated because Brevo carries no JWT; the
+                // endpoint checks a shared secret in the query string instead. Must precede the
+                // notification-service route below, whose /api/v1/notifications/** would otherwise
+                // apply the JWT filter and reject every callback with a 401.
+                .route("notification-webhooks", r -> r
+                        .path("/api/v1/notifications/webhooks/**")
+                        .filters(f -> f.stripPrefix(0))
+                        .uri("lb://notification-service"))
                 // must precede admin-service — /api/v1/admin/** would otherwise swallow
                 // /api/v1/admin/announcements/**, which belongs to notification-service
                 .route("notification-service", r -> r

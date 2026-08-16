@@ -1,6 +1,8 @@
 package com.civileng.marketplace.notification.service;
 
 import com.civileng.marketplace.notification.dto.NotificationRequest;
+import com.civileng.marketplace.notification.model.EmailStatus;
+import com.civileng.marketplace.notification.model.NotificationChannel;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -28,6 +30,7 @@ public class NotificationDispatcher {
     private final EmailService emailService;
     private final SmsService smsService;
     private final WhatsAppService whatsAppService;
+    private final EmailLogService deliveryLog;
 
     public void dispatch(NotificationRequest request) {
         Set<String> channels = new LinkedHashSet<>(request.channels());
@@ -54,9 +57,17 @@ public class NotificationDispatcher {
             notificationService.createNotification(
                     request.userId(), request.type(), request.title(), request.message(),
                     "IN_APP", request.referenceType(), request.referenceId(), request.data());
+            // DELIVERED outright: writing the row is the delivery. There is no provider between us
+            // and the user, so there is no later confirmation to wait for.
+            deliveryLog.record(NotificationChannel.IN_APP, request.type(),
+                    "user:" + request.userId(), request.title(), request.message(),
+                    EmailStatus.DELIVERED, "in-app", null, null);
         } catch (Exception e) {
             log.error("Failed to persist IN_APP notification for user {}: {}",
                     request.userId(), e.getMessage());
+            deliveryLog.record(NotificationChannel.IN_APP, request.type(),
+                    "user:" + request.userId(), request.title(), request.message(),
+                    EmailStatus.FAILED, "in-app", null, e.getMessage());
         }
     }
 

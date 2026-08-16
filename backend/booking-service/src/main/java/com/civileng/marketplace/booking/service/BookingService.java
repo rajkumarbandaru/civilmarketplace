@@ -1,5 +1,6 @@
 package com.civileng.marketplace.booking.service;
 
+import com.civileng.marketplace.booking.event.BookingEventPublisher;
 import com.civileng.marketplace.booking.model.Booking;
 import com.civileng.marketplace.booking.model.BookingStatus;
 import com.civileng.marketplace.booking.model.BookingType;
@@ -25,6 +26,7 @@ import java.util.UUID;
 public class BookingService {
 
     private final BookingRepository bookingRepository;
+    private final BookingEventPublisher events;
 
     private static final BigDecimal PLATFORM_FEE_PERCENTAGE = new BigDecimal("5.00");
     private static final BigDecimal GST_PERCENTAGE = new BigDecimal("18.00");
@@ -103,6 +105,12 @@ public class BookingService {
 
         Booking saved = bookingRepository.save(booking);
         log.info("Booking {} status updated to {}", bookingId, newStatus);
+        // A job can be finished from here as well as through completeBooking, and a customer whose
+        // booking was closed by the second route is owed the same thank-you, rating request and
+        // (for pay-later) invoice as one closed by the first.
+        if (newStatus == BookingStatus.COMPLETED) {
+            events.publishCompleted(saved);
+        }
         return saved;
     }
 
@@ -170,6 +178,9 @@ public class BookingService {
 
         Booking saved = bookingRepository.save(booking);
         log.info("Booking {} completed with final cost: {}", bookingId, finalCost);
+        // Sends the thank-you and the rating request — and, on a pay-later booking, the invoice
+        // for the work that has just been done.
+        events.publishCompleted(saved);
         return saved;
     }
 

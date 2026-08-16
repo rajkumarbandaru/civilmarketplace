@@ -9,6 +9,8 @@ import {
   Search, MoreVert, Edit, Delete, Block, CheckCircle, FilterList, PersonAdd,
 } from '@mui/icons-material';
 import { userApi, AdminUser } from '../../services/adminApi';
+import { useDateTime } from '../../providers/UiConfigProvider';
+import { SortableTableCell, useTableSort } from '../../components/admin/SortableTable';
 
 const roleColors: Record<string, string> = {
   CUSTOMER: '#667eea', CIVIL_ENGINEER: '#10b981', ARCHITECT: '#f59e0b',
@@ -22,6 +24,7 @@ const statusColors: Record<string, string> = {
 };
 
 const UserManagement: React.FC = () => {
+  const { formatDate } = useDateTime();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
@@ -114,6 +117,17 @@ const UserManagement: React.FC = () => {
 
   const filteredUsers = users;
 
+  const { sorted, sort, onSort } = useTableSort(filteredUsers, {
+    name: (u) => u.name || u.email,
+    role: (u) => u.role,
+    status: (u) => u.status,
+    city: (u) => u.city,
+    bookings: (u) => u.bookings ?? 0,
+    rating: (u) => u.rating ?? 0,
+    // Newest sign-ups first on the first click, which is the question this column is asked.
+    joinedAt: (u) => (u.joinedAt ? new Date(u.joinedAt) : null),
+  }, { key: 'joinedAt', direction: 'desc' });
+
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
@@ -166,13 +180,13 @@ const UserManagement: React.FC = () => {
           <Table>
             <TableHead>
               <TableRow sx={{ bgcolor: 'action.hover' }}>
-                <TableCell sx={{ fontWeight: 700 }}>User</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Role</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>City</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Bookings</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Rating</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Joined</TableCell>
+                <SortableTableCell columnKey="name" sort={sort} onSort={onSort}>User</SortableTableCell>
+                <SortableTableCell columnKey="role" sort={sort} onSort={onSort}>Role</SortableTableCell>
+                <SortableTableCell columnKey="status" sort={sort} onSort={onSort}>Status</SortableTableCell>
+                <SortableTableCell columnKey="city" sort={sort} onSort={onSort}>City</SortableTableCell>
+                <SortableTableCell columnKey="bookings" sort={sort} onSort={onSort}>Bookings</SortableTableCell>
+                <SortableTableCell columnKey="rating" sort={sort} onSort={onSort}>Rating</SortableTableCell>
+                <SortableTableCell columnKey="joinedAt" sort={sort} onSort={onSort}>Joined</SortableTableCell>
                 <TableCell sx={{ fontWeight: 700 }} align="right">Actions</TableCell>
               </TableRow>
             </TableHead>
@@ -185,8 +199,8 @@ const UserManagement: React.FC = () => {
                     ))}
                   </TableRow>
                 ))
-              ) : filteredUsers.length > 0 ? (
-                filteredUsers.map((user) => (
+              ) : sorted.length > 0 ? (
+                sorted.map((user) => (
                   <TableRow key={user.id} hover sx={{ cursor: 'pointer' }}>
                     <TableCell>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -212,7 +226,7 @@ const UserManagement: React.FC = () => {
                     <TableCell><Typography variant="body2" sx={{ fontWeight: 600 }}>⭐ {user.rating || 'N/A'}</Typography></TableCell>
                     <TableCell>
                       <Typography variant="body2" sx={{ color: '#64748b' }}>
-                        {user.joinedAt ? new Date(user.joinedAt).toLocaleDateString() : 'N/A'}
+                        {formatDate(user.joinedAt, 'N/A')}
                       </Typography>
                     </TableCell>
                     <TableCell align="right">

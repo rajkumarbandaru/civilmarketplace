@@ -6,6 +6,7 @@ import com.civileng.marketplace.booking.model.ServiceCategory;
 import com.civileng.marketplace.booking.repository.BookingRepository;
 import com.civileng.marketplace.booking.repository.ServiceCategoryRepository;
 import com.civileng.marketplace.booking.service.BookingService;
+import com.civileng.marketplace.booking.service.CatalogueService;
 import com.civileng.marketplace.booking.service.UserNameResolver;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -35,6 +36,7 @@ public class AdminBookingController {
     private final BookingRepository bookingRepository;
     private final ServiceCategoryRepository serviceCategoryRepository;
     private final BookingService bookingService;
+    private final CatalogueService catalogueService;
     private final UserNameResolver userNameResolver;
 
     @GetMapping("/all")
@@ -147,7 +149,9 @@ public class AdminBookingController {
     @GetMapping("/categories")
     @Operation(summary = "Get all service categories")
     public ResponseEntity<Map<String, Object>> getAllCategories() {
-        List<ServiceCategory> categories = serviceCategoryRepository.findAll();
+        // Alphabetical rather than insertion order: the admin screen is a lookup table, and
+        // findAll() returned whatever order the database happened to hand back.
+        List<ServiceCategory> categories = serviceCategoryRepository.findAllByOrderByNameAsc();
         var categoryList = categories.stream().map(this::toCategoryMap).toList();
         return ResponseEntity.ok(Map.of("success", true, "data", categoryList));
     }
@@ -189,6 +193,7 @@ public class AdminBookingController {
         ServiceCategory category = serviceCategoryRepository.findById(categoryId)
                 .orElseThrow(() -> new IllegalArgumentException("Category not found with id: " + categoryId));
 
+        String previousName = category.getName();
         if (request.getName() != null) category.setName(request.getName());
         if (request.getSlug() != null) {
             if (!request.getSlug().equals(category.getSlug()) &&
@@ -212,6 +217,9 @@ public class AdminBookingController {
         if (request.getActive() != null) category.setIsActive(request.getActive());
 
         ServiceCategory saved = serviceCategoryRepository.save(category);
+        // The offerings file themselves under the category *name*, so a rename has to carry them
+        // across or everything under the old name drops off the public site.
+        catalogueService.renameCategory(previousName, saved.getName());
         log.info("Admin updated category: {}", saved.getId());
         return ResponseEntity.ok(Map.of("success", true, "message", "Category updated", "data", toCategoryMap(saved)));
     }
@@ -221,6 +229,14 @@ public class AdminBookingController {
     public ResponseEntity<Map<String, Object>> deleteCategory(@PathVariable Long categoryId) {
         ServiceCategory category = serviceCategoryRepository.findById(categoryId)
                 .orElseThrow(() -> new IllegalArgumentException("Category not found with id: " + categoryId));
+        // Refused rather than cascaded: the offerings underneath would survive as rows pointing at a
+        // category that no longer exists, vanish from the site with no trace, and be unreachable from
+        // the console. Disabling the category is the non-destructive way to take it off the site.
+        long inUse = catalogueService.totalCount(category.getName());
+        if (inUse > 0) {
+            throw new IllegalArgumentException(
+                    "Category has " + inUse + " service(s). Move or delete them first, or disable the category instead.");
+        }
         serviceCategoryRepository.delete(category);
         log.info("Admin deleted category: {}", categoryId);
         return ResponseEntity.ok(Map.of("success", true, "message", "Category deleted successfully"));
@@ -277,7 +293,9 @@ public class AdminBookingController {
         map.put("image", c.getImage());
         map.put("sortOrder", c.getSortOrder());
         map.put("active", c.getIsActive());
-        map.put("servicesCount", 0);
+        // What the site would show under this category right now, not a placeholder zero.
+        map.put("servicesCount", catalogueService.activeCount(c.getName()));
+        map.put("totalServicesCount", catalogueService.totalCount(c.getName()));
         if (c.getParent() != null) {
             map.put("parentId", c.getParent().getId());
             map.put("parentName", c.getParent().getName());

@@ -4,6 +4,7 @@ import { Provider } from 'react-redux';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter } from 'react-router-dom';
 import { store } from './store';
+import { restoreRememberedSession, shouldRestoreRemembered } from './store/slices/authSlice';
 import UiConfigProvider from './providers/UiConfigProvider';
 import App from './App';
 import './styles/index.css';
@@ -18,6 +19,13 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+// "Remember me": a brand-new tab with no session of its own trades the remembered refresh token
+// for a fresh one before the first render. Dispatched here rather than from a component so it
+// happens once per page load, not once per mount of whatever component owned it.
+if (shouldRestoreRemembered()) {
+  store.dispatch(restoreRememberedSession());
+}
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

@@ -17,4 +17,7 @@ public interface ServiceCategoryRepository extends JpaRepository<ServiceCategory
     List<ServiceCategory> findByParentIdAndIsActiveTrueOrderBySortOrder(Long parentId);
 
     boolean existsBySlug(String slug);
+
+    /** The admin list: alphabetical, so a category is found by name rather than by scanning. */
+    List<ServiceCategory> findAllByOrderByNameAsc();
 }

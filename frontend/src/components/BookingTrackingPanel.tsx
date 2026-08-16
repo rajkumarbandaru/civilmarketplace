@@ -18,6 +18,7 @@ import ShareMyLocationToggle from './ShareMyLocationToggle';
 import RouteDirections from './RouteDirections';
 import { RoadRoute, fetchRoute } from '../services/routingApi';
 import { TrackingSnapshot, directionsUrl, fetchTracking, mapUrl } from '../services/trackingApi';
+import { useDateTime } from '../providers/UiConfigProvider';
 
 /**
  * How often the page asks for a new fix.
@@ -142,6 +143,7 @@ const RelativeMap: React.FC<{
 
 /** The live view for one booking. Shared by the member page and the admin console. */
 export const BookingTrackingPanel: React.FC<{ bookingId: number }> = ({ bookingId }) => {
+  const { formatTime } = useDateTime();
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [route, setRoute] = useState<RoadRoute | null>(null);
   const [routeLoading, setRouteLoading] = useState(false);
@@ -303,7 +305,7 @@ export const BookingTrackingPanel: React.FC<{ bookingId: number }> = ({ bookingI
                   Last update
                 </Typography>
                 <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                  {new Date(position.updatedAt).toLocaleTimeString()}
+                  {formatTime(position.updatedAt)}
                 </Typography>
               </Grid>
             </Grid>
@@ -365,7 +367,7 @@ export const BookingTrackingPanel: React.FC<{ bookingId: number }> = ({ bookingI
         <Divider sx={{ my: 2 }} />
         <Typography variant="caption" sx={{ color: 'text.disabled' }}>
           {autoRefresh ? `Updating every ${POLL_MS / 1000}s · ` : 'Live updates paused · '}
-          checked {new Date(dataUpdatedAt).toLocaleTimeString()}
+          checked {formatTime(dataUpdatedAt)}
         </Typography>
       </CardContent>
     </Card>

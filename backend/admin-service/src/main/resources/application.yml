@@ -4,6 +4,13 @@ server:
 spring:
   application:
     name: admin-service
+  servlet:
+    multipart:
+      # Site-content images. ContentService caps an upload at 2 MB and rejects anything larger
+      # with a message; these are the container's own limits, set above that so the service's
+      # check is what an admin actually hits rather than a raw 500 from Tomcat.
+      max-file-size: 3MB
+      max-request-size: 4MB
   datasource:
     url: jdbc:mysql://mysql:3306/admin_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
     username: ${ADMIN_DB_USERNAME:civil_user}

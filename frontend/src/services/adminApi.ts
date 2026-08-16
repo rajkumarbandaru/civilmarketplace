@@ -185,6 +185,65 @@ export const categoryApi = {
 };
 
 // ============================================================================
+// Service catalogue (the items the public Services page lists)
+// ============================================================================
+
+export type ServiceMediaType = 'IMAGE' | 'VIDEO' | 'ANIMATION';
+
+export interface AdminServiceOffering {
+  id: number;
+  slug: string;
+  title: string;
+  category: string;
+  icon?: string | null;
+  price?: string | null;
+  /** Photo, video or animation shown on the card in place of the icon. */
+  mediaUrl?: string | null;
+  mediaType?: ServiceMediaType | null;
+  rating: number;
+  reviews: number;
+  /** Comma-separated search aliases ("rebar, tmt, sariya"). */
+  aliases?: string | null;
+  sortOrder: number;
+  active: boolean;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+}
+
+/** Create and update take the same body; on update an empty `slug` keeps the existing URL. */
+export interface ServiceOfferingRequest {
+  title: string;
+  category: string;
+  slug?: string;
+  icon?: string;
+  price?: string;
+  mediaUrl?: string;
+  mediaType?: ServiceMediaType | '';
+  rating?: number;
+  reviews?: number;
+  aliases?: string;
+  sortOrder?: number;
+  active?: boolean;
+}
+
+export const serviceCatalogueApi = {
+  getServices: () =>
+    api.get<ApiListResponse<AdminServiceOffering[]>>(`${ADMIN_BASE}/services`),
+
+  createService: (data: ServiceOfferingRequest) =>
+    api.post<ApiResponse<AdminServiceOffering>>(`${ADMIN_BASE}/services`, data),
+
+  updateService: (serviceId: number, data: ServiceOfferingRequest) =>
+    api.put<ApiResponse<AdminServiceOffering>>(`${ADMIN_BASE}/services/${serviceId}`, data),
+
+  deleteService: (serviceId: number) =>
+    api.delete<ApiResponse<null>>(`${ADMIN_BASE}/services/${serviceId}`),
+
+  toggleServiceStatus: (serviceId: number) =>
+    api.put<ApiResponse<AdminServiceOffering>>(`${ADMIN_BASE}/services/${serviceId}/status`, {}),
+};
+
+// ============================================================================
 // Bookings
 // ============================================================================
 

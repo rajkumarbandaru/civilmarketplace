@@ -54,6 +54,15 @@ public class BookingTracking {
     @Column(name = "note", length = 120)
     private String note;
 
+    /**
+     * When the customer was told the worker was nearly there, or null if they have not been.
+     *
+     * The device pings every few seconds, so the alert has to be latched somewhere; the tracking
+     * row is where, because it is already one-per-booking and is cleared with it.
+     */
+    @Column(name = "arrival_notified_at")
+    private LocalDateTime arrivalNotifiedAt;
+
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;

@@ -27,11 +27,49 @@ spring:
     enabled: true
     baseline-on-migrate: true
     locations: classpath:db/migration
+  cloud:
+    openfeign:
+      circuitbreaker:
+        # Without this the search-service client's fallback factory is never used and a failed
+        # rate-card lookup would throw instead of leaving the answer without site rates.
+        enabled: true
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
+# The Civil AI Assistant, the LLM-backed header assistant. The key stays here (read from the container env) and
+# never goes near a VITE_ variable — those are inlined into the browser bundle. With no key set the
+# endpoint stays up and reports itself unavailable, so the rest of support-service is unaffected.
+app:
+  ai:
+    enabled: ${AI_ASSISTANT_ENABLED:true}
+    gemini:
+      api-key: ${GEMINI_API_KEY:}
+      # Free tier as of writing. Config-driven so a retired model name is a restart, not a rebuild.
+      model: ${GEMINI_MODEL:gemini-3.6-flash}
+      # A 503 "high demand" on one model is common on a shared tier; the question falls through
+      # to the next name rather than failing.
+      fallback-models: ${GEMINI_FALLBACK_MODELS:gemini-3.5-flash,gemini-flash-latest}
+    # The estimator quotes this platform's own provider rates alongside market rates. The card is
+    # read from search-service and cached, because providers change rates far more slowly than
+    # people ask questions.
+    site-rates:
+      enabled: ${AI_SITE_RATES_ENABLED:true}
+      cache-seconds: ${AI_SITE_RATES_CACHE_SECONDS:600}
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      default:
+        register-health-indicator: true
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+        wait-duration-in-open-state: 5s
+        failure-rate-threshold: 50
 
 eureka:
   instance:

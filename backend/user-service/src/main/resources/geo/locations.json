@@ -1,0 +1,889 @@
+{
+ "countries": [
+  {
+   "code": "IN",
+   "name": "India",
+   "dialCode": "+91",
+   "states": [
+    {
+     "code": "AANI",
+     "name": "Andaman and Nicobar Islands",
+     "cities": [
+      "Car Nicobar",
+      "Diglipur",
+      "Mayabunder",
+      "Port Blair"
+     ]
+    },
+    {
+     "code": "AP",
+     "name": "Andhra Pradesh",
+     "cities": [
+      "Anantapur",
+      "Chittoor",
+      "Eluru",
+      "Guntur",
+      "Kadapa",
+      "Kakinada",
+      "Kurnool",
+      "Nellore",
+      "Ongole",
+      "Rajahmundry",
+      "Srikakulam",
+      "Tirupati",
+      "Vijayawada",
+      "Visakhapatnam",
+      "Vizianagaram"
+     ]
+    },
+    {
+     "code": "AR",
+     "name": "Arunachal Pradesh",
+     "cities": [
+      "Along",
+      "Bomdila",
+      "Itanagar",
+      "Naharlagun",
+      "Pasighat",
+      "Tawang",
+      "Tezu",
+      "Ziro"
+     ]
+    },
+    {
+     "code": "AS",
+     "name": "Assam",
+     "cities": [
+      "Bongaigaon",
+      "Dibrugarh",
+      "Diphu",
+      "Guwahati",
+      "Jorhat",
+      "Nagaon",
+      "Silchar",
+      "Sivasagar",
+      "Tezpur",
+      "Tinsukia"
+     ]
+    },
+    {
+     "code": "BI",
+     "name": "Bihar",
+     "cities": [
+      "Arrah",
+      "Begusarai",
+      "Bhagalpur",
+      "Bihar Sharif",
+      "Chapra",
+      "Darbhanga",
+      "Gaya",
+      "Katihar",
+      "Munger",
+      "Muzaffarpur",
+      "Patna",
+      "Purnia"
+     ]
+    },
+    {
+     "code": "CH",
+     "name": "Chandigarh",
+     "cities": [
+      "Chandigarh"
+     ]
+    },
+    {
+     "code": "CHH",
+     "name": "Chhattisgarh",
+     "cities": [
+      "Ambikapur",
+      "Bhilai",
+      "Bilaspur",
+      "Durg",
+      "Jagdalpur",
+      "Korba",
+      "Raigarh",
+      "Raipur",
+      "Rajnandgaon"
+     ]
+    },
+    {
+     "code": "DANHADAD",
+     "name": "Dadra and Nagar Haveli and Daman and Diu",
+     "cities": [
+      "Daman",
+      "Diu",
+      "Silvassa"
+     ]
+    },
+    {
+     "code": "DE",
+     "name": "Delhi",
+     "cities": [
+      "Dwarka",
+      "Janakpuri",
+      "Karol Bagh",
+      "New Delhi",
+      "Pitampura",
+      "Rohini",
+      "Saket",
+      "Shahdara"
+     ]
+    },
+    {
+     "code": "GO",
+     "name": "Goa",
+     "cities": [
+      "Bicholim",
+      "Mapusa",
+      "Margao",
+      "Panaji",
+      "Ponda",
+      "Vasco da Gama"
+     ]
+    },
+    {
+     "code": "GU",
+     "name": "Gujarat",
+     "cities": [
+      "Ahmedabad",
+      "Anand",
+      "Bharuch",
+      "Bhavnagar",
+      "Gandhinagar",
+      "Jamnagar",
+      "Junagadh",
+      "Mehsana",
+      "Nadiad",
+      "Navsari",
+      "Rajkot",
+      "Surat",
+      "Vadodara",
+      "Vapi"
+     ]
+    },
+    {
+     "code": "HA",
+     "name": "Haryana",
+     "cities": [
+      "Ambala",
+      "Bhiwani",
+      "Faridabad",
+      "Gurugram",
+      "Hisar",
+      "Karnal",
+      "Panchkula",
+      "Panipat",
+      "Rohtak",
+      "Sirsa",
+      "Sonipat",
+      "Yamunanagar"
+     ]
+    },
+    {
+     "code": "HP",
+     "name": "Himachal Pradesh",
+     "cities": [
+      "Bilaspur",
+      "Chamba",
+      "Dharamshala",
+      "Hamirpur",
+      "Kullu",
+      "Manali",
+      "Mandi",
+      "Shimla",
+      "Solan",
+      "Una"
+     ]
+    },
+    {
+     "code": "JAK",
+     "name": "Jammu and Kashmir",
+     "cities": [
+      "Anantnag",
+      "Baramulla",
+      "Jammu",
+      "Kathua",
+      "Srinagar",
+      "Udhampur"
+     ]
+    },
+    {
+     "code": "JH",
+     "name": "Jharkhand",
+     "cities": [
+      "Bokaro Steel City",
+      "Deoghar",
+      "Dhanbad",
+      "Giridih",
+      "Hazaribagh",
+      "Jamshedpur",
+      "Ramgarh",
+      "Ranchi"
+     ]
+    },
+    {
+     "code": "KA",
+     "name": "Karnataka",
+     "cities": [
+      "Ballari",
+      "Belagavi",
+      "Bengaluru",
+      "Davanagere",
+      "Hassan",
+      "Hubballi",
+      "Kalaburagi",
+      "Mangaluru",
+      "Mysuru",
+      "Shivamogga",
+      "Tumakuru",
+      "Udupi",
+      "Vijayapura"
+     ]
+    },
+    {
+     "code": "KE",
+     "name": "Kerala",
+     "cities": [
+      "Alappuzha",
+      "Kannur",
+      "Kochi",
+      "Kollam",
+      "Kottayam",
+      "Kozhikode",
+      "Malappuram",
+      "Palakkad",
+      "Thiruvananthapuram",
+      "Thrissur"
+     ]
+    },
+    {
+     "code": "LA",
+     "name": "Ladakh",
+     "cities": [
+      "Kargil",
+      "Leh"
+     ]
+    },
+    {
+     "code": "LAK",
+     "name": "Lakshadweep",
+     "cities": [
+      "Agatti",
+      "Kavaratti",
+      "Minicoy"
+     ]
+    },
+    {
+     "code": "MP",
+     "name": "Madhya Pradesh",
+     "cities": [
+      "Bhopal",
+      "Dewas",
+      "Gwalior",
+      "Indore",
+      "Jabalpur",
+      "Katni",
+      "Ratlam",
+      "Rewa",
+      "Sagar",
+      "Satna",
+      "Singrauli",
+      "Ujjain"
+     ]
+    },
+    {
+     "code": "MA",
+     "name": "Maharashtra",
+     "cities": [
+      "Akola",
+      "Amravati",
+      "Aurangabad",
+      "Jalgaon",
+      "Kolhapur",
+      "Latur",
+      "Mumbai",
+      "Nagpur",
+      "Nanded",
+      "Nashik",
+      "Navi Mumbai",
+      "Pune",
+      "Sangli",
+      "Solapur",
+      "Thane"
+     ]
+    },
+    {
+     "code": "MAN",
+     "name": "Manipur",
+     "cities": [
+      "Bishnupur",
+      "Churachandpur",
+      "Imphal",
+      "Thoubal",
+      "Ukhrul"
+     ]
+    },
+    {
+     "code": "ME",
+     "name": "Meghalaya",
+     "cities": [
+      "Baghmara",
+      "Jowai",
+      "Nongstoin",
+      "Shillong",
+      "Tura"
+     ]
+    },
+    {
+     "code": "MI",
+     "name": "Mizoram",
+     "cities": [
+      "Aizawl",
+      "Champhai",
+      "Kolasib",
+      "Lunglei",
+      "Serchhip"
+     ]
+    },
+    {
+     "code": "NA",
+     "name": "Nagaland",
+     "cities": [
+      "Dimapur",
+      "Kohima",
+      "Mokokchung",
+      "Tuensang",
+      "Wokha"
+     ]
+    },
+    {
+     "code": "OD",
+     "name": "Odisha",
+     "cities": [
+      "Balasore",
+      "Baripada",
+      "Berhampur",
+      "Bhadrak",
+      "Bhubaneswar",
+      "Cuttack",
+      "Puri",
+      "Rourkela",
+      "Sambalpur"
+     ]
+    },
+    {
+     "code": "PU",
+     "name": "Puducherry",
+     "cities": [
+      "Karaikal",
+      "Mahe",
+      "Puducherry",
+      "Yanam"
+     ]
+    },
+    {
+     "code": "PUN",
+     "name": "Punjab",
+     "cities": [
+      "Amritsar",
+      "Bathinda",
+      "Firozpur",
+      "Hoshiarpur",
+      "Jalandhar",
+      "Ludhiana",
+      "Moga",
+      "Mohali",
+      "Pathankot",
+      "Patiala"
+     ]
+    },
+    {
+     "code": "RA",
+     "name": "Rajasthan",
+     "cities": [
+      "Ajmer",
+      "Alwar",
+      "Bhilwara",
+      "Bikaner",
+      "Jaipur",
+      "Jodhpur",
+      "Kota",
+      "Pali",
+      "Sikar",
+      "Sri Ganganagar",
+      "Udaipur"
+     ]
+    },
+    {
+     "code": "SI",
+     "name": "Sikkim",
+     "cities": [
+      "Gangtok",
+      "Gyalshing",
+      "Mangan",
+      "Namchi",
+      "Rangpo"
+     ]
+    },
+    {
+     "code": "TN",
+     "name": "Tamil Nadu",
+     "cities": [
+      "Chennai",
+      "Coimbatore",
+      "Dindigul",
+      "Erode",
+      "Hosur",
+      "Madurai",
+      "Salem",
+      "Thanjavur",
+      "Thoothukudi",
+      "Tiruchirappalli",
+      "Tirunelveli",
+      "Tiruppur",
+      "Vellore"
+     ]
+    },
+    {
+     "code": "TE",
+     "name": "Telangana",
+     "cities": [
+      "Hyderabad",
+      "Karimnagar",
+      "Khammam",
+      "Mahbubnagar",
+      "Nalgonda",
+      "Nizamabad",
+      "Ramagundam",
+      "Secunderabad",
+      "Siddipet",
+      "Suryapet",
+      "Warangal"
+     ]
+    },
+    {
+     "code": "TR",
+     "name": "Tripura",
+     "cities": [
+      "Agartala",
+      "Belonia",
+      "Dharmanagar",
+      "Kailashahar",
+      "Udaipur"
+     ]
+    },
+    {
+     "code": "UP",
+     "name": "Uttar Pradesh",
+     "cities": [
+      "Agra",
+      "Aligarh",
+      "Bareilly",
+      "Ghaziabad",
+      "Gorakhpur",
+      "Jhansi",
+      "Kanpur",
+      "Lucknow",
+      "Mathura",
+      "Meerut",
+      "Moradabad",
+      "Noida",
+      "Prayagraj",
+      "Saharanpur",
+      "Varanasi"
+     ]
+    },
+    {
+     "code": "UT",
+     "name": "Uttarakhand",
+     "cities": [
+      "Dehradun",
+      "Haldwani",
+      "Haridwar",
+      "Kashipur",
+      "Nainital",
+      "Rishikesh",
+      "Roorkee",
+      "Rudrapur"
+     ]
+    },
+    {
+     "code": "WB",
+     "name": "West Bengal",
+     "cities": [
+      "Asansol",
+      "Bardhaman",
+      "Darjeeling",
+      "Durgapur",
+      "Haldia",
+      "Howrah",
+      "Kharagpur",
+      "Kolkata",
+      "Malda",
+      "Siliguri"
+     ]
+    }
+   ]
+  },
+  {
+   "code": "AE",
+   "name": "United Arab Emirates",
+   "dialCode": "+971",
+   "states": [
+    {
+     "code": "AD",
+     "name": "Abu Dhabi",
+     "cities": [
+      "Abu Dhabi",
+      "Al Ain",
+      "Madinat Zayed"
+     ]
+    },
+    {
+     "code": "AJ",
+     "name": "Ajman",
+     "cities": [
+      "Ajman"
+     ]
+    },
+    {
+     "code": "DU",
+     "name": "Dubai",
+     "cities": [
+      "Dubai",
+      "Hatta",
+      "Jebel Ali"
+     ]
+    },
+    {
+     "code": "FU",
+     "name": "Fujairah",
+     "cities": [
+      "Dibba",
+      "Fujairah"
+     ]
+    },
+    {
+     "code": "RAK",
+     "name": "Ras Al Khaimah",
+     "cities": [
+      "Ras Al Khaimah"
+     ]
+    },
+    {
+     "code": "SH",
+     "name": "Sharjah",
+     "cities": [
+      "Kalba",
+      "Khor Fakkan",
+      "Sharjah"
+     ]
+    },
+    {
+     "code": "UAQ",
+     "name": "Umm Al Quwain",
+     "cities": [
+      "Umm Al Quwain"
+     ]
+    }
+   ]
+  },
+  {
+   "code": "SA",
+   "name": "Saudi Arabia",
+   "dialCode": "+966",
+   "states": [
+    {
+     "code": "AS",
+     "name": "Asir",
+     "cities": [
+      "Abha",
+      "Khamis Mushait"
+     ]
+    },
+    {
+     "code": "EP",
+     "name": "Eastern Province",
+     "cities": [
+      "Dammam",
+      "Dhahran",
+      "Jubail",
+      "Khobar"
+     ]
+    },
+    {
+     "code": "MA",
+     "name": "Madinah",
+     "cities": [
+      "Medina",
+      "Yanbu"
+     ]
+    },
+    {
+     "code": "MAK",
+     "name": "Makkah",
+     "cities": [
+      "Jeddah",
+      "Mecca",
+      "Taif"
+     ]
+    },
+    {
+     "code": "RI",
+     "name": "Riyadh",
+     "cities": [
+      "Al Kharj",
+      "Diriyah",
+      "Riyadh"
+     ]
+    }
+   ]
+  },
+  {
+   "code": "QA",
+   "name": "Qatar",
+   "dialCode": "+974",
+   "states": [
+    {
+     "code": "AK",
+     "name": "Al Khor",
+     "cities": [
+      "Al Khor"
+     ]
+    },
+    {
+     "code": "AR",
+     "name": "Al Rayyan",
+     "cities": [
+      "Al Rayyan",
+      "Umm Bab"
+     ]
+    },
+    {
+     "code": "AW",
+     "name": "Al Wakrah",
+     "cities": [
+      "Al Wakrah",
+      "Mesaieed"
+     ]
+    },
+    {
+     "code": "DO",
+     "name": "Doha",
+     "cities": [
+      "Doha"
+     ]
+    }
+   ]
+  },
+  {
+   "code": "SG",
+   "name": "Singapore",
+   "dialCode": "+65",
+   "states": [
+    {
+     "code": "SI",
+     "name": "Singapore",
+     "cities": [
+      "Jurong",
+      "Singapore",
+      "Tampines",
+      "Woodlands"
+     ]
+    }
+   ]
+  },
+  {
+   "code": "US",
+   "name": "United States",
+   "dialCode": "+1",
+   "states": [
+    {
+     "code": "CA",
+     "name": "California",
+     "cities": [
+      "Los Angeles",
+      "Sacramento",
+      "San Diego",
+      "San Francisco",
+      "San Jose"
+     ]
+    },
+    {
+     "code": "IL",
+     "name": "Illinois",
+     "cities": [
+      "Chicago",
+      "Naperville",
+      "Springfield"
+     ]
+    },
+    {
+     "code": "NJ",
+     "name": "New Jersey",
+     "cities": [
+      "Edison",
+      "Jersey City",
+      "Newark"
+     ]
+    },
+    {
+     "code": "NY",
+     "name": "New York",
+     "cities": [
+      "Albany",
+      "Buffalo",
+      "New York City",
+      "Rochester"
+     ]
+    },
+    {
+     "code": "TE",
+     "name": "Texas",
+     "cities": [
+      "Austin",
+      "Dallas",
+      "Houston",
+      "San Antonio"
+     ]
+    },
+    {
+     "code": "WA",
+     "name": "Washington",
+     "cities": [
+      "Bellevue",
+      "Redmond",
+      "Seattle"
+     ]
+    }
+   ]
+  },
+  {
+   "code": "GB",
+   "name": "United Kingdom",
+   "dialCode": "+44",
+   "states": [
+    {
+     "code": "EN",
+     "name": "England",
+     "cities": [
+      "Birmingham",
+      "Bristol",
+      "Leeds",
+      "Liverpool",
+      "London",
+      "Manchester"
+     ]
+    },
+    {
+     "code": "NI",
+     "name": "Northern Ireland",
+     "cities": [
+      "Belfast",
+      "Derry"
+     ]
+    },
+    {
+     "code": "SC",
+     "name": "Scotland",
+     "cities": [
+      "Aberdeen",
+      "Edinburgh",
+      "Glasgow"
+     ]
+    },
+    {
+     "code": "WA",
+     "name": "Wales",
+     "cities": [
+      "Cardiff",
+      "Swansea"
+     ]
+    }
+   ]
+  },
+  {
+   "code": "CA",
+   "name": "Canada",
+   "dialCode": "+1",
+   "states": [
+    {
+     "code": "AL",
+     "name": "Alberta",
+     "cities": [
+      "Calgary",
+      "Edmonton"
+     ]
+    },
+    {
+     "code": "BC",
+     "name": "British Columbia",
+     "cities": [
+      "Surrey",
+      "Vancouver",
+      "Victoria"
+     ]
+    },
+    {
+     "code": "ON",
+     "name": "Ontario",
+     "cities": [
+      "Hamilton",
+      "Mississauga",
+      "Ottawa",
+      "Toronto"
+     ]
+    },
+    {
+     "code": "QU",
+     "name": "Quebec",
+     "cities": [
+      "Montreal",
+      "Quebec City"
+     ]
+    }
+   ]
+  },
+  {
+   "code": "AU",
+   "name": "Australia",
+   "dialCode": "+61",
+   "states": [
+    {
+     "code": "NSW",
+     "name": "New South Wales",
+     "cities": [
+      "Newcastle",
+      "Sydney",
+      "Wollongong"
+     ]
+    },
+    {
+     "code": "QU",
+     "name": "Queensland",
+     "cities": [
+      "Brisbane",
+      "Cairns",
+      "Gold Coast"
+     ]
+    },
+    {
+     "code": "VI",
+     "name": "Victoria",
+     "cities": [
+      "Geelong",
+      "Melbourne"
+     ]
+    },
+    {
+     "code": "WA",
+     "name": "Western Australia",
+     "cities": [
+      "Fremantle",
+      "Perth"
+     ]
+    }
+   ]
+  }
+ ]
+}

@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link as RouterLink } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Alert,
@@ -9,6 +10,7 @@ import {
   CircularProgress,
   Container,
   Divider,
+  Link as MuiLink,
   MenuItem,
   Stack,
   TextField,
@@ -22,6 +24,7 @@ import {
   resetMyAppearance,
   updateMyAppearance,
 } from '../../services/uiConfigApi';
+
 
 const QUERY_KEY = ['ui-config', 'my-appearance'];
 
@@ -62,8 +65,12 @@ const AppearancePage: React.FC = () => {
   };
 
   const save = useMutation({
-    mutationFn: (command: { colorMode: string | null; density: string | null }) =>
-      updateMyAppearance(command),
+    mutationFn: (command: {
+      colorMode: string | null;
+      density: string | null;
+      timezone: string | null;
+      dateFormat: string | null;
+    }) => updateMyAppearance(command),
     onSuccess: applySaved,
   });
 
@@ -84,10 +91,15 @@ const AppearancePage: React.FC = () => {
 
   // An empty string is sent as null, which means "follow the workspace" — deliberately not the
   // same as picking the value the workspace happens to use today.
-  const change = (field: 'colorMode' | 'density', value: string) =>
+  const change = (
+    field: 'colorMode' | 'density' | 'timezone' | 'dateFormat',
+    value: string,
+  ) =>
     save.mutate({
       colorMode: field === 'colorMode' ? value || null : data.myColorMode,
       density: field === 'density' ? value || null : data.myDensity,
+      timezone: field === 'timezone' ? value || null : data.myTimezone,
+      dateFormat: field === 'dateFormat' ? value || null : data.myDateFormat,
     });
 
   return (
@@ -130,12 +142,26 @@ const AppearancePage: React.FC = () => {
               ))}
             </TextField>
 
+            <Divider />
+
+            {/* Timezone and date format moved to Settings — they decide how dates read across the
+                whole site, which is not a question about how this workspace looks. The link keeps
+                the trail for anyone who remembers them being here. */}
+            <Box>
+              <Typography variant="subtitle2">Date and time</Typography>
+              <Typography variant="body2" color="text.secondary">
+                Your timezone and date format now live under{' '}
+                <MuiLink component={RouterLink} to="/admin/settings">Settings</MuiLink>.
+              </Typography>
+            </Box>
+
             <Button
               color="inherit"
-              disabled={busy || (!data.myColorMode && !data.myDensity)}
+              disabled={busy || (!data.myColorMode && !data.myDensity
+                && !data.myTimezone && !data.myDateFormat)}
               onClick={() => reset.mutate()}
             >
-              Follow the workspace on both
+              Reset all of these to the defaults
             </Button>
           </Stack>
 

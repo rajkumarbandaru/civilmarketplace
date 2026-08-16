@@ -1,5 +1,7 @@
 package com.civileng.marketplace.notification.service;
 
+import com.civileng.marketplace.notification.model.EmailStatus;
+import com.civileng.marketplace.notification.model.NotificationChannel;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -24,8 +26,12 @@ public class WhatsAppService {
 
     private static final String CHANNEL_PREFIX = "whatsapp:";
 
+    /** What the Notifications screen files these under; see the note in {@link SmsService}. */
+    private static final String SOURCE_KEY = "whatsapp";
+
     private final TwilioGateway twilioGateway;
     private final PhoneNumbers phoneNumbers;
+    private final EmailLogService deliveryLog;
 
     @Value("${app.whatsapp.provider:log}")
     private String provider;
@@ -64,14 +70,21 @@ public class WhatsAppService {
 
         if (!"twilio".equalsIgnoreCase(provider) || !twilioGateway.isConfigured()) {
             log.info("[WhatsApp:log] to={} message={}", PhoneNumbers.mask(to), message);
+            deliveryLog.record(NotificationChannel.WHATSAPP, SOURCE_KEY, to, message, message,
+                    EmailStatus.SKIPPED, "log", null,
+                    "No WhatsApp provider configured - message was logged, not sent");
             return;
         }
 
         try {
             String sid = twilioGateway.send(prefixed(twilioFrom), prefixed(to), message);
             log.info("[WhatsApp:twilio] sent to={} sid={}", PhoneNumbers.mask(to), sid);
+            deliveryLog.record(NotificationChannel.WHATSAPP, SOURCE_KEY, to, message, message,
+                    EmailStatus.SENT, "twilio", sid, null);
         } catch (Exception e) {
             log.error("[WhatsApp:twilio] failed to send to {}: {}", PhoneNumbers.mask(to), e.getMessage());
+            deliveryLog.record(NotificationChannel.WHATSAPP, SOURCE_KEY, to, message, message,
+                    EmailStatus.FAILED, "twilio", null, e.getMessage());
         }
     }
 

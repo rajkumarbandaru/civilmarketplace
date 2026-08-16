@@ -77,7 +77,10 @@ public class UiConfigService {
                         row.sortOrder(), catalogue.get(row.itemKey()).isExactMatch()))
                 .toList();
 
-        return new Snapshot(userId, role, menu, effectiveTheme(userId, role));
+        UserAppearance mine = userAppearanceRepository.findById(userId).orElse(null);
+        return new Snapshot(userId, role, menu, effectiveTheme(userId, role),
+                mine == null ? null : mine.getTimezone(),
+                mine == null ? null : mine.getDateFormat());
     }
 
     /**
@@ -516,8 +519,11 @@ public class UiConfigService {
                 effectiveTheme(userId, role),
                 mine == null ? null : mine.getColorMode(),
                 mine == null ? null : mine.getDensity(),
+                mine == null ? null : mine.getTimezone(),
+                mine == null ? null : mine.getDateFormat(),
                 AppearanceSettings.COLOR_MODES,
                 AppearanceSettings.DENSITIES,
+                AppearanceSettings.DATE_FORMATS,
                 AppearanceSettings.MEMBER_EDITABLE,
                 AppearanceSettings.ADMIN_CONTROLLED);
     }
@@ -526,13 +532,18 @@ public class UiConfigService {
     public AppearanceSettings updateMyAppearance(Long userId, String role, AppearanceUpdateCommand command) {
         String colorMode = requireOneOf("colorMode", command.colorMode(), AppearanceSettings.COLOR_MODES, null);
         String density = requireOneOf("density", command.density(), AppearanceSettings.DENSITIES, null);
+        String dateFormat = requireOneOf("dateFormat", command.dateFormat(),
+                AppearanceSettings.DATE_FORMATS, null);
+        String timezone = requireKnownZone(command.timezone());
 
         UserAppearance mine = userAppearanceRepository.findById(userId)
                 .orElseGet(() -> new UserAppearance(userId));
         mine.setColorMode(colorMode);
         mine.setDensity(density);
+        mine.setTimezone(timezone);
+        mine.setDateFormat(dateFormat);
 
-        // Both cleared means "follow the workspace on everything", which is the absence of a row
+        // All cleared means "follow the workspace on everything", which is the absence of a row
         // rather than a row full of nulls — otherwise every member who ever opened the screen
         // would leave one behind.
         if (mine.isEmpty()) {
@@ -558,6 +569,20 @@ public class UiConfigService {
      * rather than silently ignoring an unknown value matters here because these strings are
      * written straight into the theme the client paints from.
      */
+    /**
+     * Validated against the JVM's own zone table rather than a hand-kept list, which would go stale
+     * every time a country changes its rules. Null stays null: that means "use the browser's zone",
+     * which is the right default for someone who has never opened this screen.
+     */
+    private static String requireKnownZone(String value) {
+        String trimmed = blankToNull(value);
+        if (trimmed == null) return null;
+        if (!java.time.ZoneId.getAvailableZoneIds().contains(trimmed)) {
+            throw new IllegalArgumentException("timezone must be a known IANA zone id, e.g. Asia/Kolkata");
+        }
+        return trimmed;
+    }
+
     private static String requireOneOf(String field, String value, List<String> allowed, String fallback) {
         String trimmed = blankToNull(value);
         if (trimmed == null) return fallback;

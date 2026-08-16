@@ -79,6 +79,7 @@ const SupportChatWidget: React.FC = () => {
   const navigate = useNavigate();
   const open = useAppSelector((state) => state.ui.supportChatOpen);
   const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
+  const role = useAppSelector((state) => state.auth.user?.role);
   const theme = useTheme();
   const fullWidth = useMediaQuery(theme.breakpoints.down('sm'));
 
@@ -193,6 +194,11 @@ const SupportChatWidget: React.FC = () => {
     // store and the form picks it up once they are through.
     navigate(isAuthenticated ? '/support' : '/login');
   }, [messages, dispatch, navigate, isAuthenticated]);
+
+  // Super admins run the support desk rather than write to it: a bubble offering them canned FAQ
+  // answers and a "raise a ticket" button is noise on every admin screen. Placed after the hooks
+  // so the early return never changes the hook order.
+  if (role === 'SUPER_ADMIN') return null;
 
   return (
     <>

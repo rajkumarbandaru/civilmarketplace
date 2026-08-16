@@ -79,3 +79,83 @@ export const persistSession = (user: unknown, accessToken: string, refreshToken:
 export const clearSession = (): void => {
   KEYS.forEach((key) => sessionStorage.removeItem(key));
 };
+
+// ---------------------------------------------------------------------------- remember me
+
+/**
+ * "Remember me" — the only thing that outlives the tab.
+ *
+ * This is deliberately *not* a return to storing the session in localStorage. What is kept there
+ * is a single refresh token and nothing else: no access token, no user object. A fresh tab
+ * exchanges it for its own short-lived session, which then lives in sessionStorage like any other.
+ *
+ * That distinction is what keeps the earlier bug fixed. The live session stays per-tab, so two
+ * accounts can still be open side by side and neither can overwrite the other's identity. The
+ * remembered token only ever answers one question — "who should a brand-new tab sign in as" —
+ * and is read exactly once, at boot, before any tab has a session of its own.
+ */
+const REMEMBERED_TOKEN = 'civeng.rememberedSession';
+
+/** Namespaced unlike the session keys, which are bare, so the two can never be confused. */
+export const rememberSession = (refreshToken: string): void => {
+  try {
+    localStorage.setItem(REMEMBERED_TOKEN, refreshToken);
+  } catch {
+    // Private browsing refuses writes. The tab session still works; only the "stay signed in"
+    // promise is quietly not kept, which is better than failing the sign-in itself.
+  }
+};
+
+export const readRememberedToken = (): string | null => {
+  try {
+    return localStorage.getItem(REMEMBERED_TOKEN);
+  } catch {
+    return null;
+  }
+};
+
+export const forgetSession = (): void => {
+  try {
+    localStorage.removeItem(REMEMBERED_TOKEN);
+  } catch {
+    // Nothing to clean up if storage is unavailable.
+  }
+};
+
+/**
+ * True when this tab has no session of its own but a remembered token exists.
+ *
+ * Both halves matter: a tab that is already signed in must not be re-bootstrapped into whichever
+ * account was remembered, which is how the second tab would lose its own identity again.
+ */
+export const canRestoreRemembered = (): boolean =>
+  !sessionStorage.getItem(ACCESS_TOKEN) && !!readRememberedToken();
+
+/**
+ * Carries the "remember me" choice across a social sign-in redirect.
+ *
+ * The OAuth round trip leaves the page entirely and comes back as a fresh load, so component state
+ * holding the checkbox is gone by the time the tokens arrive. sessionStorage survives that within
+ * the same tab, which is exactly the scope the choice was made in — and it is cleared on read so a
+ * later social login does not inherit a decision from an earlier one.
+ */
+const REMEMBER_INTENT = 'civeng.rememberIntent';
+
+export const stashRememberIntent = (remember: boolean): void => {
+  try {
+    if (remember) sessionStorage.setItem(REMEMBER_INTENT, '1');
+    else sessionStorage.removeItem(REMEMBER_INTENT);
+  } catch {
+    // Falls back to not remembering, which is the safer default of the two.
+  }
+};
+
+export const takeRememberIntent = (): boolean => {
+  try {
+    const intent = sessionStorage.getItem(REMEMBER_INTENT) === '1';
+    sessionStorage.removeItem(REMEMBER_INTENT);
+    return intent;
+  } catch {
+    return false;
+  }
+};

@@ -95,14 +95,19 @@ public class AdminUserController {
                     "exists", false
             ));
         }
-        return ResponseEntity.ok(Map.of(
-                "success", true,
-                "userId", userId,
-                "name", user.getName(),
-                "email", user.getEmail(),
-                "role", user.getRole().getName(),
-                "exists", true
-        ));
+        // Phone is included alongside email because the services that resolve a user here go on to
+        // notify them, and the dispatcher's SMS and WhatsApp channels are silently skipped without
+        // a number — an "arriving in 5 minutes" alert that only reaches email is the one channel
+        // the customer is least likely to read in five minutes.
+        Map<String, Object> body = new java.util.LinkedHashMap<>();
+        body.put("success", true);
+        body.put("userId", userId);
+        body.put("name", user.getName());
+        body.put("email", user.getEmail());
+        body.put("phone", user.getPhone() == null ? "" : user.getPhone());
+        body.put("role", user.getRole().getName());
+        body.put("exists", true);
+        return ResponseEntity.ok(body);
     }
 
     @PutMapping("/users/{userId}")

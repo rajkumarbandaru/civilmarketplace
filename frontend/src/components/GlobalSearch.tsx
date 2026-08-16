@@ -15,12 +15,19 @@ import { Search as SearchIcon } from '@mui/icons-material';
 import { styled, alpha } from '@mui/material/styles';
 import DynamicIcon from './DynamicIcon';
 import { searchServices, slugify } from '../constants/serviceCatalogue';
+import { useCatalogue } from '../hooks/useCatalogue';
 
+/**
+ * The field is tinted from `text.primary` rather than from white. Both app bars that host this
+ * component paint themselves `background.paper`, so a white-on-white fill left the box invisible
+ * in light mode — you had to already know the search was there to find it.
+ */
 const SearchRoot = styled('div')(({ theme }) => ({
   position: 'relative',
   borderRadius: 12,
-  backgroundColor: alpha(theme.palette.common.white, 0.15),
-  '&:hover': { backgroundColor: alpha(theme.palette.common.white, 0.25) },
+  border: `1px solid ${theme.palette.divider}`,
+  backgroundColor: alpha(theme.palette.text.primary, 0.04),
+  '&:hover': { backgroundColor: alpha(theme.palette.text.primary, 0.08) },
   marginRight: theme.spacing(2),
   marginLeft: 0,
   width: '100%',
@@ -66,7 +73,11 @@ const GlobalSearch: React.FC = () => {
   const [open, setOpen] = useState(false);
   const anchorRef = useRef<HTMLDivElement | null>(null);
 
-  const results = useMemo(() => searchServices(query, MAX_SUGGESTIONS), [query]);
+  const { services } = useCatalogue();
+  const results = useMemo(
+    () => searchServices(query, services, MAX_SUGGESTIONS),
+    [query, services]
+  );
   // The dropdown reports "nothing found" too — silently showing an empty box reads as the search
   // being broken again, which is the exact impression this component exists to undo.
   const showDropdown = open && query.trim().length > 0;

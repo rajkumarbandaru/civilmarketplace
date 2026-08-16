@@ -53,6 +53,7 @@ import {
   WorkspaceMenuRow,
   WorkspaceSummary,
 } from '../../services/uiConfigApi';
+import { SortableTableCell, useTableSort } from '../../components/admin/SortableTable';
 
 /**
  * Super Admin's view over every workspace — one role is one workspace. Picking a workspace opens
@@ -148,6 +149,13 @@ const WorkspaceList: React.FC<{ onOpen: (role: string) => void }> = ({ onOpen })
     queryFn: fetchWorkspaces,
   });
 
+  const { sorted, sort, onSort } = useTableSort(data || [], {
+    label: (w) => w.label,
+    userCount: (w) => w.userCount,
+    visibleMenuCount: (w) => w.visibleMenuCount,
+    customised: (w) => Number(w.menuCustomised) + Number(w.themeCustomised),
+  }, { key: 'label' });
+
   if (isLoading) {
     return <Box sx={{ display: 'flex', justifyContent: 'center', p: 6 }}><CircularProgress /></Box>;
   }
@@ -158,15 +166,15 @@ const WorkspaceList: React.FC<{ onOpen: (role: string) => void }> = ({ onOpen })
       <Table>
         <TableHead>
           <TableRow>
-            <TableCell>Workspace</TableCell>
-            <TableCell align="right">Members</TableCell>
-            <TableCell align="right">Menu items</TableCell>
-            <TableCell>Customised</TableCell>
+            <SortableTableCell columnKey="label" sort={sort} onSort={onSort}>Workspace</SortableTableCell>
+            <SortableTableCell columnKey="userCount" sort={sort} onSort={onSort} align="right">Members</SortableTableCell>
+            <SortableTableCell columnKey="visibleMenuCount" sort={sort} onSort={onSort} align="right">Menu items</SortableTableCell>
+            <SortableTableCell columnKey="customised" sort={sort} onSort={onSort}>Customised</SortableTableCell>
             <TableCell />
           </TableRow>
         </TableHead>
         <TableBody>
-          {(data || []).map((workspace) => (
+          {sorted.map((workspace) => (
             <TableRow key={workspace.role} hover>
               <TableCell>
                 <Typography variant="body2" fontWeight={600}>{workspace.label}</Typography>

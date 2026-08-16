@@ -12,14 +12,13 @@ import {
   invoiceApi, AdminInvoice, InvoiceSummary, InvoiceStatus,
 } from '../../services/adminApi';
 import { apiErrorMessage } from '../../services/apiError';
+import { useDateTime } from '../../providers/UiConfigProvider';
+import { SortableTableCell, useTableSort } from '../../components/admin/SortableTable';
 
 /** Kept as strings so a half-typed number is not coerced to 0 while the admin is still typing. */
 const EMPTY_RAISE_FORM = { bookingId: '', customerId: '', amount: '', description: '' };
 
 const formatCurrency = (amount: number) => `₹${amount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
-
-const formatDate = (value: string | null) =>
-  value ? new Date(value).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 
 /** The badge colours are per status, not per theme, because they carry meaning of their own. */
 const STATUS_STYLE: Record<InvoiceStatus, { bg: string; color: string }> = {
@@ -44,6 +43,7 @@ const STATUS_FILTERS: Array<{ value: string; label: string }> = [
  * amounts on this screen cannot drift from the money that actually moved.
  */
 const InvoicesPage: React.FC = () => {
+  const { formatDate } = useDateTime();
   const [invoices, setInvoices] = useState<AdminInvoice[]>([]);
   const [summary, setSummary] = useState<InvoiceSummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -197,6 +197,15 @@ const InvoicesPage: React.FC = () => {
     { label: 'Refunded', value: formatCurrency(summary.totalRefunded), caption: `${summary.refundedCount} refunds`, icon: <Undo />, color: '#3b82f6' },
   ] : [];
 
+  const { sorted, sort, onSort } = useTableSort(invoices, {
+    invoiceNumber: (i) => i.invoiceNumber,
+    bookingCode: (i) => i.bookingCode,
+    customerName: (i) => i.customerName,
+    total: (i) => i.total ?? 0,
+    status: (i) => i.status,
+    issuedAt: (i) => (i.issuedAt ? new Date(i.issuedAt) : null),
+  }, { key: 'issuedAt', direction: 'desc' });
+
   return (
     <Box>
       <Box sx={{ mb: 3, display: 'flex', flexWrap: 'wrap', gap: 2, justifyContent: 'space-between', alignItems: 'center' }}>
@@ -269,12 +278,12 @@ const InvoicesPage: React.FC = () => {
           <Table>
             <TableHead>
               <TableRow sx={{ bgcolor: 'action.hover' }}>
-                <TableCell sx={{ fontWeight: 700 }}>Invoice</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Booking</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Customer</TableCell>
-                <TableCell sx={{ fontWeight: 700 }} align="right">Total</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Issued</TableCell>
+                <SortableTableCell columnKey="invoiceNumber" sort={sort} onSort={onSort}>Invoice</SortableTableCell>
+                <SortableTableCell columnKey="bookingCode" sort={sort} onSort={onSort}>Booking</SortableTableCell>
+                <SortableTableCell columnKey="customerName" sort={sort} onSort={onSort}>Customer</SortableTableCell>
+                <SortableTableCell columnKey="total" sort={sort} onSort={onSort} align="right">Total</SortableTableCell>
+                <SortableTableCell columnKey="status" sort={sort} onSort={onSort}>Status</SortableTableCell>
+                <SortableTableCell columnKey="issuedAt" sort={sort} onSort={onSort}>Issued</SortableTableCell>
                 <TableCell sx={{ fontWeight: 700 }} align="right">Actions</TableCell>
               </TableRow>
             </TableHead>
@@ -294,7 +303,7 @@ const InvoicesPage: React.FC = () => {
                   </TableCell>
                 </TableRow>
               ) : (
-                invoices.map((invoice) => (
+                sorted.map((invoice) => (
                   <TableRow key={invoice.invoiceNumber} hover>
                     <TableCell>
                       <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 600 }}>

@@ -1,10 +1,12 @@
 package com.civileng.marketplace.booking.controller;
 
 import com.civileng.marketplace.booking.dto.TrackingPingRequest;
+import com.civileng.marketplace.booking.event.BookingEventPublisher;
 import com.civileng.marketplace.booking.model.Booking;
 import com.civileng.marketplace.booking.model.BookingTracking;
 import com.civileng.marketplace.booking.repository.BookingRepository;
 import com.civileng.marketplace.booking.repository.BookingTrackingRepository;
+import com.civileng.marketplace.booking.service.EtaService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -44,8 +46,23 @@ public class BookingTrackingController {
      */
     private static final Duration FIX_FRESHNESS = Duration.ofMinutes(2);
 
+    /** Close enough to tell the customer, whatever the traffic says. */
+    private static final double ARRIVAL_RADIUS_KM = 1.0;
+
+    /** Or far enough away in kilometres but minutes out in practice. */
+    private static final int ARRIVAL_ETA_MINUTES = 5;
+
+    /**
+     * Only pings inside this radius are worth a routing lookup. Five kilometres is comfortably
+     * further than five minutes of city driving, so nothing that could qualify is missed, while a
+     * worker still crossing town costs nothing.
+     */
+    private static final double ARRIVAL_LOOKUP_RADIUS_KM = 5.0;
+
     private final BookingRepository bookingRepository;
     private final BookingTrackingRepository trackingRepository;
+    private final EtaService etaService;
+    private final BookingEventPublisher events;
 
     @PutMapping
     @Operation(summary = "Report the worker's current position (worker or admin only)")
@@ -76,7 +93,44 @@ public class BookingTrackingController {
         tracking.setSpeedKph(request.getSpeedKph());
         tracking.setNote(request.getNote());
 
-        return ResponseEntity.ok(trackingRepository.save(tracking));
+        BookingTracking saved = trackingRepository.save(tracking);
+        maybeAnnounceArrival(booking, saved);
+        return ResponseEntity.ok(saved);
+    }
+
+    /**
+     * Tells the customer once when the worker is nearly there.
+     *
+     * <p>"Nearly there" is within {@value #ARRIVAL_RADIUS_KM} km <em>or</em> an ETA at or under
+     * {@value #ARRIVAL_ETA_MINUTES} minutes — either alone is misleading: a kilometre through
+     * traffic can be fifteen minutes, and five minutes on a clear road can be three kilometres.
+     *
+     * <p>Latched on the tracking row, because the device pings every few seconds and the customer
+     * should be told once, not for the whole final approach.
+     */
+    private void maybeAnnounceArrival(Booking booking, BookingTracking tracking) {
+        if (tracking.getArrivalNotifiedAt() != null) return;
+        if (booking.getLocationLat() == null || booking.getLocationLng() == null) return;
+
+        Double distanceKm = distanceKm(tracking.getWorkerLat(), tracking.getWorkerLng(),
+                booking.getLocationLat(), booking.getLocationLng());
+        if (distanceKm == null) return;
+
+        // Only routes worth asking a routing service about: beyond this the answer cannot be
+        // "nearly there", and every ping would spend a Distance Matrix call to learn that.
+        if (distanceKm > ARRIVAL_LOOKUP_RADIUS_KM) return;
+
+        EtaService.Eta eta = etaService.estimate(
+                tracking.getWorkerLat(), tracking.getWorkerLng(),
+                booking.getLocationLat(), booking.getLocationLng(),
+                distanceKm, tracking.getSpeedKph());
+
+        boolean nearlyThere = distanceKm <= ARRIVAL_RADIUS_KM || eta.minutes() <= ARRIVAL_ETA_MINUTES;
+        if (!nearlyThere) return;
+
+        tracking.setArrivalNotifiedAt(LocalDateTime.now());
+        trackingRepository.save(tracking);
+        events.publishArriving(booking, eta.minutes(), distanceKm, eta.trafficAware());
     }
 
     @GetMapping

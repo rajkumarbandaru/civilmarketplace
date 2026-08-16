@@ -48,4 +48,11 @@ public class CreateBookingRequest {
     private Boolean isRecurring;
 
     private String recurringFrequency;
+
+    /**
+     * PREPAID (pay now, confirmed only once payment succeeds) or POSTPAID (pay after the work).
+     * Absent means PREPAID — the entity's default, and the safer reading of a client that has
+     * not been updated to offer the choice.
+     */
+    private String paymentPreference;
 }

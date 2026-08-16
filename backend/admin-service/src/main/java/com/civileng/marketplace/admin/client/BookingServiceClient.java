@@ -2,6 +2,7 @@ package com.civileng.marketplace.admin.client;
 
 import com.civileng.marketplace.admin.dto.BookingDTO;
 import com.civileng.marketplace.admin.dto.CategoryDTO;
+import com.civileng.marketplace.admin.dto.ServiceOfferingDTO;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -59,4 +60,22 @@ public interface BookingServiceClient {
 
     @PutMapping("/admin/categories/{categoryId}/status")
     ResponseEntity<Map<String, Object>> toggleCategoryStatus(@PathVariable Long categoryId);
+
+    // ===== Catalogue items (the rows the public Services page shows) =====
+
+    @GetMapping("/admin/services")
+    ResponseEntity<Map<String, Object>> getAllServices();
+
+    @PostMapping("/admin/services")
+    ResponseEntity<Map<String, Object>> createService(@RequestBody ServiceOfferingDTO.OfferingRequest request);
+
+    @PutMapping("/admin/services/{serviceId}")
+    ResponseEntity<Map<String, Object>> updateService(@PathVariable Long serviceId,
+                                                      @RequestBody ServiceOfferingDTO.OfferingRequest request);
+
+    @DeleteMapping("/admin/services/{serviceId}")
+    ResponseEntity<Map<String, Object>> deleteService(@PathVariable Long serviceId);
+
+    @PutMapping("/admin/services/{serviceId}/status")
+    ResponseEntity<Map<String, Object>> toggleServiceStatus(@PathVariable Long serviceId);
 }

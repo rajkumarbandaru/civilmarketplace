@@ -52,6 +52,10 @@ public class BookingController {
                 .isEmergency(request.getIsEmergency() != null && request.getIsEmergency())
                 .isRecurring(request.getIsRecurring() != null && request.getIsRecurring())
                 .recurringFrequency(request.getRecurringFrequency())
+                // Normalised here so an unrecognised value cannot quietly create a booking nobody
+                // will ever invoice: anything that is not POSTPAID is treated as pay-now.
+                .paymentPreference("POSTPAID".equalsIgnoreCase(
+                        String.valueOf(request.getPaymentPreference())) ? "POSTPAID" : "PREPAID")
                 .build();
 
         return ResponseEntity.status(HttpStatus.CREATED)

@@ -1,0 +1,49 @@
+# Heap caps for local dev. Without these each Spring Boot JVM defaults to
+# 25% of host RAM as max heap, which starves the machine once ~10 are up.
+# Usage: docker compose -f docker-compose.yml -f docker-compose.lean.yml up -d <services>
+
+x-jvm: &jvm
+  - JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=50 -Xss512k -XX:+UseSerialGC
+
+services:
+  config-server:
+    environment: *jvm
+    mem_limit: 512m
+  service-registry:
+    environment: *jvm
+    mem_limit: 512m
+  api-gateway:
+    environment: *jvm
+    mem_limit: 768m
+  auth-service:
+    environment: *jvm
+    mem_limit: 768m
+  user-service:
+    environment: *jvm
+    mem_limit: 768m
+  booking-service:
+    environment: *jvm
+    mem_limit: 768m
+  admin-service:
+    environment: *jvm
+    mem_limit: 768m
+  support-service:
+    environment: *jvm
+    mem_limit: 768m
+  project-service:
+    environment: *jvm
+    mem_limit: 768m
+  payment-service:
+    environment: *jvm
+    mem_limit: 768m
+  notification-service:
+    environment: *jvm
+    mem_limit: 768m
+  kafka:
+    environment:
+      - KAFKA_HEAP_OPTS=-Xmx512m -Xms256m
+    mem_limit: 1g
+  zookeeper:
+    environment:
+      - KAFKA_HEAP_OPTS=-Xmx256m -Xms128m
+    mem_limit: 512m

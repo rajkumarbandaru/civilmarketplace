@@ -8,6 +8,9 @@ import { landingPathFor } from './components/AdminRoute';
 // Eagerly imported, unlike the routes: it renders on every page including the first paint, so
 // lazy-loading it would only add a second chunk request for something never absent.
 import SupportChatWidget from './components/SupportChatWidget';
+// Same reasoning as the widget above: opened from a header icon in every portal, so it belongs to
+// the shell rather than to any one layout.
+import AskAiDrawer from './components/AskAiDrawer';
 
 // Layout components
 const MainLayout = lazy(() => import('./layouts/MainLayout'));
@@ -22,7 +25,10 @@ const OAuth2RedirectPage = lazy(() => import('./pages/auth/OAuth2RedirectPage'))
 const DashboardPage = lazy(() => import('./pages/dashboard/DashboardPage'));
 const ServicesPage = lazy(() => import('./pages/services/ServicesPage'));
 const BookingPage = lazy(() => import('./pages/booking/BookingPage'));
+const BookingReviewPage = lazy(() => import('./pages/booking/BookingReviewPage'));
+const BookingInvoicePage = lazy(() => import('./pages/booking/BookingInvoicePage'));
 const ProfilePage = lazy(() => import('./pages/profile/ProfilePage'));
+const MaterialPricesPage = lazy(() => import('./pages/profile/MaterialPricesPage'));
 const AppearancePage = lazy(() => import('./pages/settings/AppearancePage'));
 const SupportTicketsPage = lazy(() => import('./pages/support/SupportTicketsPage'));
 const LiveTrackingPage = lazy(() => import('./pages/tracking/LiveTrackingPage'));
@@ -31,10 +37,15 @@ const LiveTrackingPage = lazy(() => import('./pages/tracking/LiveTrackingPage'))
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
 const UserManagement = lazy(() => import('./pages/admin/UserManagement'));
 const CategoryManagement = lazy(() => import('./pages/admin/CategoryManagement'));
+const ServiceCatalogueManagement = lazy(() => import('./pages/admin/ServiceCatalogueManagement'));
 const BookingManagement = lazy(() => import('./pages/admin/BookingManagement'));
 const AnalyticsPage = lazy(() => import('./pages/admin/AnalyticsPage'));
 const RevenuePage = lazy(() => import('./pages/admin/RevenuePage'));
 const ThemeSettings = lazy(() => import('./pages/admin/ThemeSettings'));
+const SiteContentManagement = lazy(() => import('./pages/admin/SiteContentManagement'));
+const AlertsPage = lazy(() => import('./pages/admin/AlertsPage'));
+const EmailTemplateManagement = lazy(() => import('./pages/admin/EmailTemplateManagement'));
+const EmailLogPage = lazy(() => import('./pages/admin/EmailLogPage'));
 const WorkspaceManagement = lazy(() => import('./pages/admin/WorkspaceManagement'));
 const ReportsPage = lazy(() => import('./pages/admin/ReportsPage'));
 const InvoicesPage = lazy(() => import('./pages/admin/InvoicesPage'));
@@ -95,11 +106,24 @@ const App: React.FC = () => {
             <Route path="book/:serviceId" element={
               <ProtectedRoute><BookingPage /></ProtectedRoute>
             } />
+            {/* Where the completion email's two calls to action land. Protected, so a forwarded
+                link cannot let a stranger rate someone else's job or read their invoice. */}
+            <Route path="bookings/:bookingId/review" element={
+              <ProtectedRoute><BookingReviewPage /></ProtectedRoute>
+            } />
+            <Route path="bookings/:bookingId/pay" element={
+              <ProtectedRoute><BookingInvoicePage /></ProtectedRoute>
+            } />
             <Route path="dashboard" element={
               <ProtectedRoute><DashboardPage /></ProtectedRoute>
             } />
             <Route path="profile" element={
               <ProtectedRoute><ProfilePage /></ProtectedRoute>
+            } />
+            {/* A supplier's own price list. Protected rather than public: the page shows and edits
+                the signed-in supplier's rates, and the aggregate ranges are what customers see. */}
+            <Route path="material-prices" element={
+              <ProtectedRoute><MaterialPricesPage /></ProtectedRoute>
             } />
             <Route path="appearance" element={
               <ProtectedRoute><AppearancePage /></ProtectedRoute>
@@ -135,11 +159,16 @@ const App: React.FC = () => {
             <Route path="users" element={<UserManagement />} />
             <Route path="activity" element={<UserActivityPage />} />
             <Route path="categories" element={<CategoryManagement />} />
+            <Route path="services" element={<ServiceCatalogueManagement />} />
             <Route path="bookings" element={<BookingManagement />} />
             <Route path="analytics" element={<AnalyticsPage />} />
             <Route path="revenue" element={<RevenuePage />} />
             <Route path="workspaces" element={<WorkspaceManagement />} />
             <Route path="theme" element={<ThemeSettings />} />
+            <Route path="content" element={<SiteContentManagement />} />
+            <Route path="alerts" element={<AlertsPage />} />
+            <Route path="email-templates" element={<EmailTemplateManagement />} />
+            <Route path="emails" element={<EmailLogPage />} />
             <Route path="reports" element={<ReportsPage />} />
             <Route path="invoices" element={<InvoicesPage />} />
             <Route path="support" element={<SupportQueuePage />} />
@@ -159,6 +188,7 @@ const App: React.FC = () => {
       never takes the assistant off screen with it.
     */}
     <SupportChatWidget />
+    <AskAiDrawer />
     </>
   );
 };

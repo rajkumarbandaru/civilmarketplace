@@ -8,6 +8,7 @@ import {
   AccountBalanceWallet, TrendingUp, Receipt, Download, Payment, MoneyOff,
 } from '@mui/icons-material';
 import { revenueApi, RevenueData, RevenueSummary, MonthlyRevenue, BreakdownItem, Transaction } from '../../services/adminApi';
+import { SortableTableCell, useTableSort } from '../../components/admin/SortableTable';
 
 const formatCurrency = (amount: number) => {
   if (amount >= 10000000) return `₹${(amount / 10000000).toFixed(2)}Cr`;
@@ -42,6 +43,16 @@ const RevenuePage: React.FC = () => {
   const monthlyRevenue: MonthlyRevenue[] = data?.monthlyRevenue || [];
   const breakdown: BreakdownItem[] = data?.breakdown?.items || [];
   const transactions: Transaction[] = data?.recentTransactions || [];
+
+  const { sorted, sort, onSort } = useTableSort(transactions, {
+    transactionId: (t) => t.transactionId,
+    bookingCode: (t) => t.bookingCode,
+    customerName: (t) => t.customerName,
+    amount: (t) => t.amount ?? 0,
+    type: (t) => t.type,
+    status: (t) => t.status,
+    date: (t) => (t.date ? new Date(t.date) : null),
+  }, { key: 'date', direction: 'desc' });
 
   const maxMonthlyRevenue = Math.max(...monthlyRevenue.map(m => m.revenue), 1);
 
@@ -167,13 +178,13 @@ const RevenuePage: React.FC = () => {
               <Table>
                 <TableHead>
                   <TableRow sx={{ bgcolor: 'action.hover' }}>
-                    <TableCell sx={{ fontWeight: 700 }}>Transaction ID</TableCell>
-                    <TableCell sx={{ fontWeight: 700 }}>Booking</TableCell>
-                    <TableCell sx={{ fontWeight: 700 }}>Customer</TableCell>
-                    <TableCell sx={{ fontWeight: 700 }}>Amount</TableCell>
-                    <TableCell sx={{ fontWeight: 700 }}>Type</TableCell>
-                    <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
-                    <TableCell sx={{ fontWeight: 700 }}>Date</TableCell>
+                    <SortableTableCell columnKey="transactionId" sort={sort} onSort={onSort}>Transaction ID</SortableTableCell>
+                    <SortableTableCell columnKey="bookingCode" sort={sort} onSort={onSort}>Booking</SortableTableCell>
+                    <SortableTableCell columnKey="customerName" sort={sort} onSort={onSort}>Customer</SortableTableCell>
+                    <SortableTableCell columnKey="amount" sort={sort} onSort={onSort}>Amount</SortableTableCell>
+                    <SortableTableCell columnKey="type" sort={sort} onSort={onSort}>Type</SortableTableCell>
+                    <SortableTableCell columnKey="status" sort={sort} onSort={onSort}>Status</SortableTableCell>
+                    <SortableTableCell columnKey="date" sort={sort} onSort={onSort}>Date</SortableTableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -186,7 +197,7 @@ const RevenuePage: React.FC = () => {
                       </TableRow>
                     ))
                   ) : transactions.length > 0 ? (
-                    transactions.map((txn, idx) => (
+                    sorted.map((txn, idx) => (
                       <TableRow key={idx} hover>
                         <TableCell><Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 600 }}>{txn.transactionId}</Typography></TableCell>
                         <TableCell><Typography variant="body2" sx={{ fontFamily: 'monospace', color: 'primary.main' }}>{txn.bookingCode}</Typography></TableCell>

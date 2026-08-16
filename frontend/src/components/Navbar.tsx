@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useSection } from '../hooks/useSiteContent';
+import NotificationBell from './NotificationBell';
+import { resolveMediaUrl } from '../services/siteContentApi';
 import {
   AppBar,
   Toolbar,
@@ -29,6 +32,7 @@ import {
   Logout,
   Home,
   Engineering,
+  RequestQuote as PriceIcon,
 } from '@mui/icons-material';
 import { styled, alpha, useTheme } from '@mui/material/styles';
 import { useAppSelector, useAppDispatch } from '../hooks';
@@ -38,7 +42,11 @@ import { motion } from 'framer-motion';
 import { useMenuSection, useUiConfig } from '../providers/UiConfigProvider';
 import DynamicIcon from './DynamicIcon';
 import ColorModeToggle from './ColorModeToggle';
+import AskAiButton from './AskAiButton';
 import GlobalSearch from './GlobalSearch';
+
+/** Roles that can publish material rates; mirrors the check in user-service. */
+const SUPPLIER_ROLES = ['MATERIAL_SUPPLIER', 'EQUIPMENT_RENTAL', 'ADMIN', 'SUPER_ADMIN'];
 
 // A visitor who is not signed in holds no role, so there is no workspace to resolve a menu from.
 // This is that public site's own navigation — not a fallback for a signed-in member, whose menu
@@ -68,7 +76,11 @@ const Navbar: React.FC<{ navInDrawer?: boolean }> = ({ navInDrawer = false }) =>
   // palette — a re-themed platform that still says CivEngMarket in violet is not re-themed.
   const { theme: uiTheme } = useUiConfig();
   const muiTheme = useTheme();
-  const brandName = uiTheme?.brandName || 'CivEngMarket';
+  // The Site Content screen owns the wordmark and logo; the theme's older fields stay as the
+  // fallback so a platform that set them there before this screen existed still shows them.
+  const brand = useSection('global.brand');
+  const brandName = brand?.title || uiTheme?.brandName || 'CivEngMarket';
+  const brandLogo = resolveMediaUrl(brand?.imageUrl) || uiTheme?.logoUrl || null;
   const brandGradient =
     `linear-gradient(135deg, ${muiTheme.palette.primary.main} 0%, ${muiTheme.palette.secondary.main} 100%)`;
   const accountMenuItems = useMenuSection('Account');
@@ -144,10 +156,10 @@ const Navbar: React.FC<{ navInDrawer?: boolean }> = ({ navInDrawer = false }) =>
                   gap: 1,
                 }}
               >
-                {uiTheme?.logoUrl && (
+                {brandLogo && (
                   <Box
                     component="img"
-                    src={uiTheme.logoUrl}
+                    src={brandLogo}
                     alt=""
                     onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
                     sx={{ height: 26, objectFit: 'contain' }}
@@ -182,13 +194,11 @@ const Navbar: React.FC<{ navInDrawer?: boolean }> = ({ navInDrawer = false }) =>
 
               {isAuthenticated ? (
                 <>
+                  <AskAiButton />
+
                   <ColorModeToggle />
 
-                  <IconButton sx={{ color: 'text.secondary' }}>
-                    <Badge badgeContent={unreadCount} color="error">
-                      <NotificationsIcon />
-                    </Badge>
-                  </IconButton>
+                  <NotificationBell />
 
                   <IconButton onClick={handleProfileMenu} sx={{ p: 0 }}>
                     <Avatar
@@ -232,6 +242,14 @@ const Navbar: React.FC<{ navInDrawer?: boolean }> = ({ navInDrawer = false }) =>
                       <ListItemIcon><AccountCircle fontSize="small" /></ListItemIcon>
                       Profile
                     </MenuItem>
+                    {/* Suppliers only: everyone else has no rates to publish, and an empty page
+                        reachable from the menu reads as something being broken. */}
+                    {SUPPLIER_ROLES.includes((user?.role ?? '').toUpperCase()) && (
+                      <MenuItem onClick={() => { navigate('/material-prices'); handleClose(); }}>
+                        <ListItemIcon><PriceIcon fontSize="small" /></ListItemIcon>
+                        Material prices
+                      </MenuItem>
+                    )}
                     {accountMenuItems
                       .filter((item) => item.path !== '/profile')
                       .map((item) => (
@@ -329,6 +347,14 @@ const Navbar: React.FC<{ navInDrawer?: boolean }> = ({ navInDrawer = false }) =>
             <ColorModeToggle />
             <Typography variant="body2" color="text.secondary">Colour mode</Typography>
           </Box>
+          {/* Same reason as the toggle above: the toolbar it normally sits in is hidden below md.
+              The button renders nothing when signed out, so the label is tied to it. */}
+          {isAuthenticated && (
+            <Box sx={{ px: 2, py: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+              <AskAiButton />
+              <Typography variant="body2" color="text.secondary">Civil AI Assistant</Typography>
+            </Box>
+          )}
         </Box>
       </Drawer>
     </>

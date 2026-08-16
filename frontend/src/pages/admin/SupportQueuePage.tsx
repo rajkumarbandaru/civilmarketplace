@@ -41,6 +41,8 @@ import {
   replyToTicket,
   statusColor,
 } from '../../services/supportApi';
+import { useDateTime } from '../../providers/UiConfigProvider';
+import { SortableTableCell, useTableSort } from '../../components/admin/SortableTable';
 
 const FILTERS: { label: string; value: TicketStatus | null }[] = [
   { label: 'All', value: null },
@@ -52,11 +54,6 @@ const FILTERS: { label: string; value: TicketStatus | null }[] = [
 
 const QUEUE_KEY = ['support', 'tickets', 'queue'];
 
-const formatWhen = (iso: string): string => {
-  const date = new Date(iso);
-  return Number.isNaN(date.getTime()) ? '' : date.toLocaleString();
-};
-
 /** The staff view of one ticket: the thread, a reply box, status transitions and assignment. */
 const QueueDetail: React.FC<{ ticket: SupportTicket; onBack: () => void }> = ({
   ticket,
@@ -65,6 +62,7 @@ const QueueDetail: React.FC<{ ticket: SupportTicket; onBack: () => void }> = ({
   const dispatch = useAppDispatch();
   const queryClient = useQueryClient();
   const me = useAppSelector((state) => state.auth.user);
+  const { formatDateTime: formatWhen } = useDateTime();
   const [body, setBody] = useState('');
 
   const messagesKey = useMemo(() => ['support', 'tickets', ticket.id, 'messages'], [ticket.id]);
@@ -237,6 +235,7 @@ const QueueDetail: React.FC<{ ticket: SupportTicket; onBack: () => void }> = ({
 
 /** Every ticket on the platform, for staff. Backed by `AdminSupportController`. */
 const SupportQueuePage: React.FC = () => {
+  const { formatDateTime: formatWhen } = useDateTime();
   const [filter, setFilter] = useState<TicketStatus | null>(null);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(20);
@@ -246,6 +245,16 @@ const SupportQueuePage: React.FC = () => {
     queryKey: [...QUEUE_KEY, filter, page, size],
     queryFn: () => fetchAllTickets(filter, page, size),
   });
+
+  const { sorted, sort, onSort } = useTableSort(data?.content ?? [], {
+    id: (t) => t.id,
+    subject: (t) => t.subject,
+    status: (t) => t.status,
+    priority: (t) => t.priority,
+    reporterId: (t) => t.reporterId ?? 0,
+    assigneeId: (t) => t.assigneeId ?? null,
+    updatedAt: (t) => (t.updatedAt ? new Date(t.updatedAt) : null),
+  }, { key: 'updatedAt', direction: 'desc' });
 
   const selected = data?.content.find((ticket) => ticket.id === selectedId) ?? null;
 
@@ -290,17 +299,17 @@ const SupportQueuePage: React.FC = () => {
           <Table size="small">
             <TableHead>
               <TableRow>
-                <TableCell>#</TableCell>
-                <TableCell>Subject</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Priority</TableCell>
-                <TableCell>Reporter</TableCell>
-                <TableCell>Assignee</TableCell>
-                <TableCell>Updated</TableCell>
+                <SortableTableCell columnKey="id" sort={sort} onSort={onSort}>#</SortableTableCell>
+                <SortableTableCell columnKey="subject" sort={sort} onSort={onSort}>Subject</SortableTableCell>
+                <SortableTableCell columnKey="status" sort={sort} onSort={onSort}>Status</SortableTableCell>
+                <SortableTableCell columnKey="priority" sort={sort} onSort={onSort}>Priority</SortableTableCell>
+                <SortableTableCell columnKey="reporterId" sort={sort} onSort={onSort}>Reporter</SortableTableCell>
+                <SortableTableCell columnKey="assigneeId" sort={sort} onSort={onSort}>Assignee</SortableTableCell>
+                <SortableTableCell columnKey="updatedAt" sort={sort} onSort={onSort}>Updated</SortableTableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {data.content.map((ticket) => (
+              {sorted.map((ticket) => (
                 <TableRow
                   key={ticket.id}
                   hover

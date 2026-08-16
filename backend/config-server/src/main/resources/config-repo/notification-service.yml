@@ -47,9 +47,17 @@ spring:
     consumer:
       group-id: notification-service-group
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      # Wrapped in ErrorHandlingDeserializer so one unreadable record cannot wedge the partition.
+      # Without it a single malformed message fails deserialization forever, and every genuine
+      # event queued behind it — a payment confirmation included — is never delivered.
+      value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
       properties:
+        spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
         spring.json.trusted.packages: com.civileng.marketplace.*
+        # These events are plain maps, so the payload is read by shape rather than by a __TypeId__
+        # header naming a producer-side class the consumer does not share.
+        spring.json.use.type.headers: false
+        spring.json.value.default.type: java.util.LinkedHashMap
   data:
     redis:
       host: ${REDIS_HOST:redis}
@@ -117,6 +125,13 @@ management:
   endpoint:
     health:
       show-details: always
+  health:
+    # The mail indicator authenticates against the SMTP relay on every health poll, so a
+    # relay we never send through still reports the service DOWN. With app.email.provider
+    # set to brevo the HTTP API carries the mail and the relay is unused — enable this only
+    # when actually running provider=smtp with a working SMTP_USERNAME/SMTP_PASSWORD pair.
+    mail:
+      enabled: ${SMTP_HEALTHCHECK_ENABLED:false}
 
 springdoc:
   api-docs:

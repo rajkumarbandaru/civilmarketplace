@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -13,79 +13,87 @@ import {
   TextField,
   InputAdornment,
 } from '@mui/material';
-import {
-  Search,
-  Engineering,
-  Home,
-  Architecture,
-  Map,
-  DesignServices,
-  Construction,
-  Router,
-  ElectricalServices,
-  AcUnit,
-  WaterDrop,
-  Inventory,
-  Agriculture,
-  LocalShipping,
-  HandymanOutlined,
-  Groups,
-  AssignmentTurnedIn,
-  SupervisorAccount,
-  School,
-  Work,
-  Star,
-  Verified,
-  Speed,
-  Security,
-  People,
-} from '@mui/icons-material';
+import { Search } from '@mui/icons-material';
 import { motion } from 'framer-motion';
+import DynamicIcon from '../components/DynamicIcon';
+import ServiceMedia from '../components/ServiceMedia';
+import { useCatalogue } from '../hooks/useCatalogue';
+import { useSection } from '../hooks/useSiteContent';
+import { resolveMediaUrl } from '../services/siteContentApi';
 
 const MotionBox = motion(Box);
 const MotionCard = motion(Card);
 
-const services = [
-  { icon: <Home />, title: 'House Planning', desc: 'Custom home design', color: '#667eea', category: 'architecture' },
-  { icon: <Architecture />, title: 'Architecture', desc: 'Architectural design', color: '#764ba2', category: 'architecture' },
-  { icon: <Engineering />, title: 'Structural Eng.', desc: 'Structural analysis', color: '#10b981', category: 'engineering' },
-  { icon: <Map />, title: 'Survey Services', desc: 'Land surveying', color: '#f59e0b', category: 'survey' },
-  { icon: <DesignServices />, title: 'Interior Design', desc: 'Interior decoration', color: '#ef4444', category: 'design' },
-  { icon: <Construction />, title: 'Construction', desc: 'Building services', color: '#8b5cf6', category: 'construction' },
-  { icon: <ElectricalServices />, title: 'Electrical', desc: 'Electrical work', color: '#06b6d4', category: 'services' },
-  { icon: <WaterDrop />, title: 'Plumbing', desc: 'Plumbing services', color: '#3b82f6', category: 'services' },
-  { icon: <Home />, title: 'Villa Planning', desc: 'Luxury villa design', color: '#0ea5e9', category: 'architecture' },
-  { icon: <Architecture />, title: 'Elevation Design', desc: 'Facade & elevation', color: '#a855f7', category: 'architecture' },
-  { icon: <Engineering />, title: 'BIM Modeling', desc: 'Building information modeling', color: '#14b8a6', category: 'engineering' },
-  { icon: <Engineering />, title: 'Earthquake Design', desc: 'Seismic-resistant design', color: '#f97316', category: 'engineering' },
-  { icon: <Map />, title: 'Drone Survey', desc: 'Aerial site survey', color: '#eab308', category: 'survey' },
-  { icon: <Map />, title: 'GIS Mapping', desc: 'Geospatial mapping', color: '#84cc16', category: 'survey' },
-  { icon: <DesignServices />, title: '3D Modeling', desc: '3D visualization', color: '#ec4899', category: 'design' },
-  { icon: <Construction />, title: 'Renovation', desc: 'Remodeling & repairs', color: '#6366f1', category: 'construction' },
-  { icon: <Inventory />, title: 'Material Supply', desc: 'Cement, steel & aggregates', color: '#d97706', category: 'materials' },
-  { icon: <Agriculture />, title: 'Equipment Rental', desc: 'Machinery with operator', color: '#65a30d', category: 'equipment' },
-  { icon: <LocalShipping />, title: 'Transport & Logistics', desc: 'Material & worker transport', color: '#0891b2', category: 'logistics' },
-  { icon: <HandymanOutlined />, title: 'Skilled Labour', desc: 'Masons, carpenters & fitters', color: '#b45309', category: 'labour' },
-  { icon: <Groups />, title: 'Daily Wage Labour', desc: 'Muster-roll site labour', color: '#7c3aed', category: 'labour' },
-  { icon: <AssignmentTurnedIn />, title: 'Contractor Services', desc: 'End-to-end execution', color: '#dc2626', category: 'construction' },
-  { icon: <SupervisorAccount />, title: 'Site Supervision', desc: 'On-site QA/QC & sign-off', color: '#059669', category: 'engineering' },
-  { icon: <Work />, title: 'Project Management', desc: 'Scope, budget & milestones', color: '#4f46e5', category: 'management' },
-  { icon: <School />, title: 'Skill & Safety Training', desc: 'Certified worker upskilling', color: '#db2777', category: 'training' },
+/** How many catalogue items the landing grid shows before sending people to the full list. */
+const HOME_SERVICE_LIMIT = 24;
+
+/**
+ * The tile palette, cycled by position.
+ *
+ * The grid used to be a hand-written list of twenty-five tiles, each with its own colour, which is
+ * why the landing page could advertise services the catalogue no longer had (and never showed ones
+ * an admin added). The tiles now come from the catalogue, so the colour has to come from somewhere
+ * other than the data — cycling keeps the row-to-row variety the hand-picked colours gave it.
+ */
+const TILE_COLORS = [
+  '#667eea', '#764ba2', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
+  '#06b6d4', '#3b82f6', '#0ea5e9', '#a855f7', '#14b8a6', '#f97316',
 ];
 
-const stats = [
-  { icon: <People />, value: '10,000+', label: 'Professionals' },
-  { icon: <Verified />, value: '50,000+', label: 'Projects Completed' },
-  { icon: <Star />, value: '4.8/5', label: 'Average Rating' },
-  { icon: <Speed />, value: '100+', label: 'Cities Covered' },
-];
+/**
+ * Renders a headline, painting the segment an admin wrapped in `**asterisks**` in the accent
+ * colour. The highlight used to be a hardcoded `<Box component="span">` around one word, so
+ * moving it — or removing it — was a code change.
+ */
+const Headline: React.FC<{ text: string }> = ({ text }) => (
+  <>
+    {text.split(/(\*\*[^*]+\*\*)/g).map((part, idx) =>
+      part.startsWith('**') && part.endsWith('**') ? (
+        <Box component="span" key={idx} sx={{ color: '#fbbf24' }}>
+          {part.slice(2, -2)}
+        </Box>
+      ) : (
+        <React.Fragment key={idx}>{part}</React.Fragment>
+      )
+    )}
+  </>
+);
 
 const HomePage: React.FC = () => {
   const navigate = useNavigate();
+  const { services: catalogue } = useCatalogue();
+
+  // Every heading, paragraph, badge and button below is a row a Super Admin edits in the console.
+  // A section switched off there returns null here and its block is skipped entirely.
+  const hero = useSection('home.hero');
+  const statsSection = useSection('home.stats');
+  const howItWorks = useSection('home.how_it_works');
+  const servicesSection = useSection('home.services');
+  const cta = useSection('home.cta');
+
+  /**
+   * The same order the services page opens in — its "Top Rated" default — truncated.
+   *
+   * The two used to sort differently (most-reviewed here, top-rated there), so "Our Services" and
+   * the services list read as two unrelated catalogues even though both came from the same data:
+   * nothing a visitor saw on the landing page was near the top of the page it linked to. A landing
+   * grid is a preview of that list, so it has to be the front of it.
+   */
+  const featured = useMemo(
+    () =>
+      [...catalogue]
+        .sort((a, b) => b.rating - a.rating || b.reviews - a.reviews || a.title.localeCompare(b.title))
+        .slice(0, HOME_SERVICE_LIMIT),
+    [catalogue]
+  );
+
+  /** The hero panel's shortlist: the head of the same ordering, so the two never contradict. */
+  const topRated = useMemo(() => featured.slice(0, 6), [featured]);
 
   return (
     <Box>
       {/* Hero Section */}
+      {hero && (
       <Box
         sx={{
           minHeight: '90vh',
@@ -93,7 +101,16 @@ const HomePage: React.FC = () => {
           alignItems: 'center',
           position: 'relative',
           overflow: 'hidden',
+          // An uploaded hero image sits over the theme gradient, which stays as the backdrop for
+          // the (usual) case of no image and as the fallback while the image loads.
           background: (t) => `linear-gradient(135deg, ${t.palette.primary.main} 0%, ${t.palette.secondary.main} 100%)`,
+          ...(resolveMediaUrl(hero.imageUrl)
+            ? {
+                backgroundImage: `linear-gradient(135deg, rgba(15,23,42,0.75), rgba(15,23,42,0.55)), url(${resolveMediaUrl(hero.imageUrl)})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+              }
+            : {}),
         }}
       >
         {/* Animated background shapes */}
@@ -123,8 +140,9 @@ const HomePage: React.FC = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6 }}
               >
+                {hero.body && (
                 <Chip
-                  label="India's #1 Civil Engineering Platform"
+                  label={hero.body}
                   sx={{
                     bgcolor: 'rgba(255,255,255,0.15)',
                     color: '#fff',
@@ -133,6 +151,7 @@ const HomePage: React.FC = () => {
                     backdropFilter: 'blur(10px)',
                   }}
                 />
+                )}
                 <Typography
                   variant="h1"
                   sx={{
@@ -142,12 +161,9 @@ const HomePage: React.FC = () => {
                     lineHeight: 1.1,
                   }}
                 >
-                  Book Civil Engineering{' '}
-                  <Box component="span" sx={{ color: '#fbbf24' }}>
-                    Professionals
-                  </Box>{' '}
-                  Instantly
+                  <Headline text={hero.title ?? ''} />
                 </Typography>
+                {hero.subtitle && (
                 <Typography
                   variant="h5"
                   sx={{
@@ -158,9 +174,9 @@ const HomePage: React.FC = () => {
                     lineHeight: 1.6,
                   }}
                 >
-                  From architects and structural engineers to surveyors and contractors
-                  — find and book trusted civil engineering experts near you, on demand.
+                  {hero.subtitle}
                 </Typography>
+                )}
 
                 {/* Search bar */}
                 <Box sx={{ display: 'flex', gap: 2, mb: 4, flexWrap: 'wrap' }}>
@@ -188,7 +204,7 @@ const HomePage: React.FC = () => {
                   <Button
                     variant="contained"
                     size="large"
-                    onClick={() => navigate('/services')}
+                    onClick={() => navigate(hero.linkUrl || '/services')}
                     sx={{
                       px: 5,
                       py: 1.5,
@@ -199,17 +215,17 @@ const HomePage: React.FC = () => {
                       '&:hover': { bgcolor: '#f59e0b' },
                     }}
                   >
-                    Search
+                    {hero.linkLabel || 'Search'}
                   </Button>
                 </Box>
 
                 {/* Trust badges */}
                 <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
-                  {['Verified Professionals', 'Secure Payments', '24/7 Support'].map((text) => (
-                    <Box key={text} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Security sx={{ color: '#34d399', fontSize: 20 }} />
+                  {hero.items.map((badge) => (
+                    <Box key={badge.id} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <DynamicIcon name={badge.icon ?? 'Security'} sx={{ color: '#34d399', fontSize: 20 }} />
                       <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
-                        {text}
+                        {badge.title}
                       </Typography>
                     </Box>
                   ))}
@@ -236,8 +252,8 @@ const HomePage: React.FC = () => {
                     Top Rated Services
                   </Typography>
                   <Grid container spacing={2}>
-                    {services.slice(0, 6).map((service, idx) => (
-                      <Grid item xs={6} key={idx}>
+                    {topRated.map((service, idx) => (
+                      <Grid item xs={6} key={service.slug}>
                         <Box
                           sx={{
                             display: 'flex',
@@ -250,17 +266,23 @@ const HomePage: React.FC = () => {
                             transition: 'all 0.2s',
                             '&:hover': { bgcolor: 'rgba(255,255,255,0.15)', transform: 'translateX(4px)' },
                           }}
-                          onClick={() => navigate(`/services`)}
+                          onClick={() => navigate(`/book/${service.slug}`)}
                         >
-                          <Avatar sx={{ bgcolor: service.color, width: 36, height: 36 }}>
-                            {service.icon}
+                          <Avatar
+                            sx={{
+                              bgcolor: TILE_COLORS[idx % TILE_COLORS.length],
+                              width: 36,
+                              height: 36,
+                            }}
+                          >
+                            <DynamicIcon name={service.icon} />
                           </Avatar>
                           <Box>
                             <Typography variant="body2" sx={{ color: '#fff', fontWeight: 600 }}>
                               {service.title}
                             </Typography>
                             <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)' }}>
-                              {service.desc}
+                              {service.category}
                             </Typography>
                           </Box>
                         </Box>
@@ -273,12 +295,14 @@ const HomePage: React.FC = () => {
           </Grid>
         </Container>
       </Box>
+      )}
 
       {/* Stats Section */}
+      {statsSection && (
       <Container maxWidth="xl" sx={{ py: 8 }}>
         <Grid container spacing={3}>
-          {stats.map((stat, idx) => (
-            <Grid item xs={6} md={3} key={idx}>
+          {statsSection.items.map((stat, idx) => (
+            <Grid item xs={6} md={3} key={stat.id}>
               <MotionCard
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -299,43 +323,52 @@ const HomePage: React.FC = () => {
                     mb: 2,
                   }}
                 >
-                  {stat.icon}
+                  <DynamicIcon name={stat.icon ?? 'Insights'} />
                 </Avatar>
                 <Typography variant="h4" sx={{ fontWeight: 800, color: '#1e293b' }}>
-                  {stat.value}
+                  {stat.title}
                 </Typography>
                 <Typography variant="body2" sx={{ color: '#64748b', mt: 1 }}>
-                  {stat.label}
+                  {stat.subtitle}
                 </Typography>
               </MotionCard>
             </Grid>
           ))}
         </Grid>
       </Container>
+      )}
 
       {/* How It Works */}
+      {howItWorks && (
       <Box sx={{ bgcolor: 'action.hover', py: 10 }}>
         <Container maxWidth="xl">
           <Typography variant="h2" sx={{ textAlign: 'center', mb: 2 }}>
-            How It Works
+            {howItWorks.title}
           </Typography>
-          <Typography variant="body1" sx={{ textAlign: 'center', color: '#64748b', mb: 8, maxWidth: 600, mx: 'auto' }}>
-            Get your civil engineering work done in three simple steps
-          </Typography>
+          {howItWorks.subtitle && (
+            <Typography variant="body1" sx={{ textAlign: 'center', color: '#64748b', mb: 8, maxWidth: 600, mx: 'auto' }}>
+              {howItWorks.subtitle}
+            </Typography>
+          )}
 
           <Grid container spacing={4}>
-            {[
-              { step: '01', title: 'Describe Your Project', desc: 'Tell us what you need — from house plans to structural analysis' },
-              { step: '02', title: 'Get Matched with Experts', desc: 'We connect you with verified professionals in your area' },
-              { step: '03', title: 'Book & Track', desc: 'Book instantly and track progress in real-time' },
-            ].map((item, idx) => (
-              <Grid item xs={12} md={4} key={idx}>
+            {howItWorks.items.map((item, idx) => (
+              <Grid item xs={12} md={4} key={item.id}>
                 <MotionBox
                   initial={{ opacity: 0, y: 30 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: idx * 0.15 }}
                   sx={{ textAlign: 'center', px: 3 }}
                 >
+                  {/* An uploaded illustration replaces the numbered circle when there is one. */}
+                  {resolveMediaUrl(item.imageUrl) ? (
+                    <Box
+                      component="img"
+                      src={resolveMediaUrl(item.imageUrl)}
+                      alt={item.title ?? ''}
+                      sx={{ width: 120, height: 120, objectFit: 'cover', borderRadius: '50%', mx: 'auto', mb: 3, display: 'block' }}
+                    />
+                  ) : (
                   <Box
                     sx={{
                       width: 80,
@@ -352,13 +385,14 @@ const HomePage: React.FC = () => {
                       fontWeight: 800,
                     }}
                   >
-                    {item.step}
+                    {item.badge}
                   </Box>
+                  )}
                   <Typography variant="h5" sx={{ fontWeight: 700, mb: 2 }}>
                     {item.title}
                   </Typography>
                   <Typography variant="body1" sx={{ color: '#64748b' }}>
-                    {item.desc}
+                    {item.body}
                   </Typography>
                 </MotionBox>
               </Grid>
@@ -366,58 +400,94 @@ const HomePage: React.FC = () => {
           </Grid>
         </Container>
       </Box>
+      )}
 
       {/* Services Grid */}
+      {servicesSection && (
       <Container maxWidth="xl" sx={{ py: 10 }}>
         <Typography variant="h2" sx={{ textAlign: 'center', mb: 2 }}>
-          Our Services
+          {servicesSection.title}
         </Typography>
         <Typography variant="body1" sx={{ textAlign: 'center', color: '#64748b', mb: 8, maxWidth: 600, mx: 'auto' }}>
-          Comprehensive civil engineering services for all your construction needs
+          {/* Says outright that this is the top of a longer list, so a visitor who does not find
+              what they need here knows there is more rather than assuming this is everything. The
+              admin's subtitle is what shows when the whole catalogue already fits on the page. */}
+          {catalogue.length > HOME_SERVICE_LIMIT
+            ? `The top ${HOME_SERVICE_LIMIT} of ${catalogue.length} services, materials, machines and vehicles`
+            : servicesSection.subtitle}
         </Typography>
 
         <Grid container spacing={3}>
-          {services.map((service, idx) => (
-            <Grid item xs={6} md={3} key={idx}>
+          {featured.map((service, idx) => (
+            <Grid item xs={6} md={3} key={service.slug}>
               <MotionCard
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.3, delay: idx * 0.05 }}
                 className="card-hover"
                 sx={{ p: 3, cursor: 'pointer', borderRadius: 4, textAlign: 'center' }}
-                // The tile names a category, so it must land on that category rather than the full list.
-                onClick={() => navigate(`/services/${service.category}`)}
+                // The tile names one service, so it opens that service's booking page; the chip-level
+                // "browse the category" route is still a click away on the services page itself.
+                onClick={() => navigate(`/book/${service.slug}`)}
               >
+                <ServiceMedia
+                  mediaUrl={service.mediaUrl}
+                  mediaType={service.mediaType}
+                  title={service.title}
+                  height={120}
+                />
                 <Avatar
                   sx={{
-                    bgcolor: `${service.color}15`,
-                    color: service.color,
+                    bgcolor: `${TILE_COLORS[idx % TILE_COLORS.length]}15`,
+                    color: TILE_COLORS[idx % TILE_COLORS.length],
                     width: 56,
                     height: 56,
                     mx: 'auto',
                     mb: 2,
                   }}
                 >
-                  {service.icon}
+                  <DynamicIcon name={service.icon} />
                 </Avatar>
                 <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
                   {service.title}
                 </Typography>
                 <Typography variant="body2" sx={{ color: '#64748b' }}>
-                  {service.desc}
+                  {service.category}{service.price ? ` · ${service.price}` : ''}
                 </Typography>
               </MotionCard>
             </Grid>
           ))}
         </Grid>
+
+        {catalogue.length > HOME_SERVICE_LIMIT && (
+          <Box sx={{ textAlign: 'center', mt: 5 }}>
+            <Button
+              variant="outlined"
+              size="large"
+              onClick={() => navigate('/services')}
+              sx={{ borderRadius: 3, px: 4, textTransform: 'none', fontWeight: 600 }}
+            >
+              Browse all {catalogue.length} services
+            </Button>
+          </Box>
+        )}
       </Container>
+      )}
 
       {/* CTA Section */}
+      {cta && (
       <Box
         sx={{
           background: (t) => `linear-gradient(135deg, ${t.palette.primary.main} 0%, ${t.palette.secondary.main} 100%)`,
           py: 10,
           textAlign: 'center',
+          ...(resolveMediaUrl(cta.imageUrl)
+            ? {
+                backgroundImage: `linear-gradient(135deg, rgba(15,23,42,0.75), rgba(15,23,42,0.55)), url(${resolveMediaUrl(cta.imageUrl)})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+              }
+            : {}),
         }}
       >
         <Container maxWidth="md">
@@ -427,50 +497,62 @@ const HomePage: React.FC = () => {
             transition={{ duration: 0.5 }}
           >
             <Typography variant="h2" sx={{ color: '#fff', mb: 3, fontWeight: 800 }}>
-              Ready to Start Your Project?
+              <Headline text={cta.title ?? ''} />
             </Typography>
-            <Typography variant="h6" sx={{ color: 'rgba(255,255,255,0.8)', mb: 5, fontWeight: 400 }}>
-              Join thousands of satisfied customers who found the perfect civil engineering professional
-            </Typography>
+            {cta.subtitle && (
+              <Typography variant="h6" sx={{ color: 'rgba(255,255,255,0.8)', mb: 5, fontWeight: 400 }}>
+                {cta.subtitle}
+              </Typography>
+            )}
+            {/* The first button is the filled one and the rest are outlined, so an admin sets the
+                primary action by ordering rather than by picking a style. */}
             <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
-              <Button
-                variant="contained"
-                size="large"
-                onClick={() => navigate('/register')}
-                sx={{
-                  px: 6,
-                  py: 1.5,
-                  borderRadius: 3,
-                  bgcolor: '#fff',
-                  color: 'primary.main',
-                  fontSize: '1.1rem',
-                  fontWeight: 700,
-                  '&:hover': { bgcolor: '#f1f5f9', boxShadow: '0 8px 25px rgba(0,0,0,0.2)' },
-                }}
-              >
-                Get Started Free
-              </Button>
-              <Button
-                variant="outlined"
-                size="large"
-                onClick={() => navigate('/services')}
-                sx={{
-                  px: 6,
-                  py: 1.5,
-                  borderRadius: 3,
-                  borderColor: '#fff',
-                  color: '#fff',
-                  fontSize: '1.1rem',
-                  fontWeight: 600,
-                  '&:hover': { borderColor: '#fff', bgcolor: 'rgba(255,255,255,0.1)' },
-                }}
-              >
-                Browse Services
-              </Button>
+              {cta.items.map((button, idx) =>
+                idx === 0 ? (
+                  <Button
+                    key={button.id}
+                    variant="contained"
+                    size="large"
+                    onClick={() => navigate(button.linkUrl || '/register')}
+                    sx={{
+                      px: 6,
+                      py: 1.5,
+                      borderRadius: 3,
+                      bgcolor: '#fff',
+                      color: 'primary.main',
+                      fontSize: '1.1rem',
+                      fontWeight: 700,
+                      '&:hover': { bgcolor: '#f1f5f9', boxShadow: '0 8px 25px rgba(0,0,0,0.2)' },
+                    }}
+                  >
+                    {button.title}
+                  </Button>
+                ) : (
+                  <Button
+                    key={button.id}
+                    variant="outlined"
+                    size="large"
+                    onClick={() => navigate(button.linkUrl || '/services')}
+                    sx={{
+                      px: 6,
+                      py: 1.5,
+                      borderRadius: 3,
+                      borderColor: '#fff',
+                      color: '#fff',
+                      fontSize: '1.1rem',
+                      fontWeight: 600,
+                      '&:hover': { borderColor: '#fff', bgcolor: 'rgba(255,255,255,0.1)' },
+                    }}
+                  >
+                    {button.title}
+                  </Button>
+                )
+              )}
             </Box>
           </MotionBox>
         </Container>
       </Box>
+      )}
     </Box>
   );
 };

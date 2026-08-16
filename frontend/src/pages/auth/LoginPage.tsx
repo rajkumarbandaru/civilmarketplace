@@ -11,6 +11,7 @@ import {
   Alert,
   ToggleButtonGroup,
   ToggleButton,
+  Checkbox,
   IconButton,
   InputAdornment,
 } from '@mui/material';
@@ -19,6 +20,7 @@ import {
   Visibility,
   VisibilityOff,
   Send,
+  StorefrontOutlined,
 } from '@mui/icons-material';
 import { useForm, Controller, Resolver } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
@@ -31,11 +33,13 @@ import {
   sendOtp,
   verifyOtp,
   clearError,
+  setRememberMe as setRememberMeAction,
   OtpIdentifier,
 } from '../../store/slices/authSlice';
 import PhoneNumberField from '../../components/form/PhoneNumberField';
 import { landingPathFor } from '../../components/AdminRoute';
 import { SOCIAL_PROVIDERS, startSocialLogin } from '../../services/socialAuth';
+import { stashRememberIntent } from '../../services/authStorage';
 
 const emailField = yup.string().email('Invalid email').required('Email is required');
 
@@ -69,6 +73,20 @@ type OtpChannel = 'email' | 'sms' | 'whatsapp';
 
 const usesPhone = (channel: OtpChannel) => channel !== 'email';
 
+/** How each channel is described to the user. One source so notices cannot word it differently. */
+const CHANNEL_PHRASE: Record<OtpChannel, string> = {
+  email: 'by email',
+  sms: 'by SMS',
+  whatsapp: 'on WhatsApp',
+};
+
+/** Human label for the channel buttons. */
+const CHANNEL_LABEL: Record<OtpChannel, string> = {
+  email: 'Email',
+  sms: 'SMS',
+  whatsapp: 'WhatsApp',
+};
+
 /** Wire value the backend's OtpRequest.channel expects. */
 const channelParam = (channel: OtpChannel) =>
   channel.toUpperCase() as 'EMAIL' | 'SMS' | 'WHATSAPP';
@@ -93,6 +111,8 @@ const LoginPage: React.FC = () => {
   const { loading, error } = useAppSelector((state) => state.auth);
   const [loginMode, setLoginMode] = useState<'password' | 'otp'>('password');
   const [showPassword, setShowPassword] = useState(false);
+  // Applies to every route in: password, OTP and social all end in the same place.
+  const [rememberMe, setRememberMe] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
   const [otpChannel, setOtpChannel] = useState<OtpChannel>('email');
   const [country, setCountry] = useState<CountryCode>(DEFAULT_COUNTRY);
@@ -110,15 +130,20 @@ const LoginPage: React.FC = () => {
     setSearchParams({}, { replace: true });
   }, [searchParams, setSearchParams]);
 
-  // Drop any stale auth error left over from a previous attempt or page,
-  // and reset the OTP flow whenever the tab changes.
+  // Drop any stale auth error left over from a previous attempt or page, and reset the OTP flow
+  // when the tab changes.
+  //
+  // Deliberately not keyed on otpChannel any more: switching delivery method after a code has been
+  // sent is now a supported action that keeps the user on the code step, and resetting here would
+  // wipe `otpSent` out from under it the moment the channel state changed. Channel changes do
+  // their own resetting, where the two cases (same number vs new identifier) can be told apart.
   useEffect(() => {
     dispatch(clearError());
     setOtpSent(false);
     setNotice(null);
     setCooldown(0);
     setSocialError(null);
-  }, [dispatch, loginMode, otpChannel]);
+  }, [dispatch, loginMode]);
 
   // Tick the resend cooldown down to zero.
   useEffect(() => {
@@ -140,6 +165,7 @@ const LoginPage: React.FC = () => {
     control,
     handleSubmit,
     getValues,
+    setValue,
     setFocus,
     formState: { errors },
   } = useForm<LoginFormValues>({
@@ -173,9 +199,8 @@ const LoginPage: React.FC = () => {
     if (result.meta.requestStatus === 'fulfilled') {
       setOtpSent(true);
       setCooldown(RESEND_COOLDOWN_SECONDS);
-      const via = otpChannel === 'whatsapp' ? 'on WhatsApp' : otpChannel === 'sms' ? 'by SMS' : 'by email';
       setNotice(
-        `We sent a 6-digit code ${via} to ${identifier.phone || identifier.email}. ` +
+        `We sent a 6-digit code ${CHANNEL_PHRASE[otpChannel]} to ${identifier.phone || identifier.email}. ` +
           'It expires in 5 minutes.'
       );
     }
@@ -185,6 +210,8 @@ const LoginPage: React.FC = () => {
     if (loginMode === 'password') {
       const result = await dispatch(login(data));
       if (result.meta.requestStatus === 'fulfilled') {
+        // After the tokens are in the store, so the reducer has a refresh token to remember.
+        dispatch(setRememberMeAction(rememberMe));
         navigate(landingPathFor((result.payload as any)?.user?.role));
       }
       return;
@@ -195,6 +222,7 @@ const LoginPage: React.FC = () => {
     } else {
       const result = await dispatch(verifyOtp({ ...otpIdentifier(data), otp: data.otp }));
       if (result.meta.requestStatus === 'fulfilled') {
+        dispatch(setRememberMeAction(rememberMe));
         navigate(landingPathFor((result.payload as any)?.user?.role));
       }
     }
@@ -210,6 +238,56 @@ const LoginPage: React.FC = () => {
     setOtpSent(false);
     setNotice(null);
     setCooldown(0);
+  };
+
+  /**
+   * Switches how the code is delivered after one has already been sent.
+   *
+   * Two different journeys behind one control, because the identifier decides which:
+   *
+   * - SMS ↔ WhatsApp keep the same mobile number, so the code can go straight back out and the
+   *   user stays on the code step. Sending them back to re-type a number they just entered would
+   *   be pure friction — nothing about it changed.
+   * - Anything involving email changes the identifier itself, so it returns to the request step
+   *   with the field editable. Silently reusing the phone number as an email address is not
+   *   possible, and guessing an address the user never gave is worse.
+   *
+   * The resend cooldown deliberately does *not* gate this. It exists to stop repeat sends to the
+   * same destination; a user switching channel is telling us the first one is not reaching them,
+   * and making them wait on a channel that is not working is the opposite of helpful.
+   */
+  const handleChangeChannel = async (next: OtpChannel) => {
+    if (next === otpChannel) return;
+
+    dispatch(clearError());
+    setNotice(null);
+    setValue('otp', '');
+    setOtpChannel(next);
+
+    const sameMedium = usesPhone(next) === usesPhone(otpChannel);
+    if (!sameMedium) {
+      setOtpSent(false);
+      setCooldown(0);
+      return;
+    }
+
+    // Send on the new channel straight away. requestOtp reads `otpChannel` from state, which has
+    // not re-rendered yet, so the channel is passed explicitly rather than read back.
+    const values = getValues();
+    const identifier = otpIdentifier(values);
+    const result = await dispatch(sendOtp({ ...identifier, channel: channelParam(next) }));
+    if (result.meta.requestStatus === 'fulfilled') {
+      setOtpSent(true);
+      setCooldown(RESEND_COOLDOWN_SECONDS);
+      setNotice(
+        `We sent a new 6-digit code ${CHANNEL_PHRASE[next]} to ${identifier.phone}. ` +
+          'It expires in 5 minutes.'
+      );
+    } else {
+      // The switch failed, so the user is still waiting on the original code — say so rather than
+      // leaving them on a screen that claims a channel nothing was sent through.
+      setOtpChannel(otpChannel);
+    }
   };
 
   return (
@@ -263,9 +341,11 @@ const LoginPage: React.FC = () => {
                 disabled={otpSent}
                 sx={{ mb: 2 }}
               >
-                <ToggleButton value="email">Email</ToggleButton>
-                <ToggleButton value="sms">SMS</ToggleButton>
-                <ToggleButton value="whatsapp">WhatsApp</ToggleButton>
+                {(['email', 'sms', 'whatsapp'] as OtpChannel[]).map((channel) => (
+                  <ToggleButton key={channel} value={channel}>
+                    {CHANNEL_LABEL[channel]}
+                  </ToggleButton>
+                ))}
               </ToggleButtonGroup>
             )}
 
@@ -342,22 +422,79 @@ const LoginPage: React.FC = () => {
               />
             )}
             {loginMode === 'otp' && otpSent && (
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
-                <Button
+              <>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                  <Button
+                    size="small"
+                    onClick={handleChangeIdentifier}
+                    sx={{ textTransform: 'none' }}
+                  >
+                    {usesPhone(otpChannel) ? 'Change number' : 'Change email'}
+                  </Button>
+                  <Button
+                    size="small"
+                    onClick={handleResend}
+                    disabled={cooldown > 0 || loading}
+                    sx={{ textTransform: 'none' }}
+                  >
+                    {cooldown > 0 ? `Resend in ${cooldown}s` : 'Resend code'}
+                  </Button>
+                </Box>
+
+                {/*
+                  Changing the delivery method, alongside changing the destination. Resending on a
+                  channel that is not arriving just repeats the failure — an SMS that never lands
+                  because the number is roaming or the operator is dropping it will not land on the
+                  second attempt either, and until now the only way out was to abandon the flow.
+                */}
+                <Box sx={{ mb: 3 }}>
+                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                    Not arriving? Get the code another way:
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 1, mt: 0.5, flexWrap: 'wrap' }}>
+                    {(['sms', 'whatsapp', 'email'] as OtpChannel[])
+                      .filter((channel) => channel !== otpChannel)
+                      .map((channel) => (
+                        <Button
+                          key={channel}
+                          size="small"
+                          variant="outlined"
+                          disabled={loading}
+                          onClick={() => handleChangeChannel(channel)}
+                          sx={{ textTransform: 'none' }}
+                        >
+                          {/* Names what will happen: the same number needs no re-entry, a switch
+                              between phone and email does. */}
+                          {usesPhone(channel) === usesPhone(otpChannel)
+                            ? `Send ${CHANNEL_PHRASE[channel]}`
+                            : `Use ${CHANNEL_LABEL[channel].toLowerCase()} instead`}
+                        </Button>
+                      ))}
+                  </Box>
+                </Box>
+              </>
+            )}
+
+            {/*
+              Shown on the password step and on the OTP entry step — the two points where a sign-in
+              is about to complete. Hidden while an OTP is merely being requested, where there is
+              no session yet for the choice to apply to.
+            */}
+            {(loginMode === 'password' || otpSent) && (
+              // Laid out by hand rather than with FormControlLabel: the box and its text sit on one
+              // baseline, and only the box itself toggles — clicking the wording does nothing, so a
+              // stray click near the text cannot silently change how long the session is kept.
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                <Checkbox
+                  checked={rememberMe}
+                  onChange={(event) => setRememberMe(event.target.checked)}
                   size="small"
-                  onClick={handleChangeIdentifier}
-                  sx={{ textTransform: 'none' }}
-                >
-                  {usesPhone(otpChannel) ? 'Change number' : 'Change email'}
-                </Button>
-                <Button
-                  size="small"
-                  onClick={handleResend}
-                  disabled={cooldown > 0 || loading}
-                  sx={{ textTransform: 'none' }}
-                >
-                  {cooldown > 0 ? `Resend in ${cooldown}s` : 'Resend code'}
-                </Button>
+                  inputProps={{ 'aria-label': 'Keep me signed in on this device' }}
+                  sx={{ p: 0.5 }}
+                />
+                <Typography variant="body2">
+                  Keep me signed in on this device
+                </Typography>
               </Box>
             )}
 
@@ -383,7 +520,11 @@ const LoginPage: React.FC = () => {
                 key={id}
                 variant="outlined"
                 fullWidth
-                onClick={() => startSocialLogin(id)}
+                onClick={() => {
+                  // Stashed before leaving the page — the redirect destroys component state.
+                  stashRememberIntent(rememberMe);
+                  startSocialLogin(id);
+                }}
                 startIcon={<Icon sx={{ color }} />}
                 sx={{ py: 1.5, borderColor: '#e2e8f0', color: '#475569' }}
               >
@@ -398,6 +539,21 @@ const LoginPage: React.FC = () => {
               Register
             </Link>
           </Typography>
+
+          {/*
+            An escape hatch for visitors who landed here but only want to look around: most of the
+            marketplace is browsable signed-out, so make that reachable instead of dead-ending them
+            at a form they have no credentials for.
+          */}
+          <Button
+            component={Link}
+            to="/"
+            fullWidth
+            startIcon={<StorefrontOutlined />}
+            sx={{ mt: 1.5, textTransform: 'none', color: 'text.secondary' }}
+          >
+            Continue browsing without signing in
+          </Button>
         </CardContent>
       </Card>
     </motion.div>

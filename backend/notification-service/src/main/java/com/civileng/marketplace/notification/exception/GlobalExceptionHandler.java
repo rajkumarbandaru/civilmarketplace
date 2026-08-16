@@ -21,6 +21,12 @@ public class GlobalExceptionHandler {
         return buildError(HttpStatus.BAD_REQUEST, ex.getMessage());
     }
 
+    @ExceptionHandler(java.util.NoSuchElementException.class)
+    public ResponseEntity<Map<String, Object>> handleNotFound(java.util.NoSuchElementException ex) {
+        log.warn("Not found: {}", ex.getMessage());
+        return buildError(HttpStatus.NOT_FOUND, ex.getMessage());
+    }
+
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<Map<String, Object>> handleForbidden(AccessDeniedException ex) {
         log.warn("Forbidden: {}", ex.getMessage());

@@ -111,6 +111,17 @@ public class Booking {
     @Builder.Default
     private String paymentStatus = "PENDING";
 
+    /**
+     * When the customer chose to pay: PREPAID up front, POSTPAID after the work is done.
+     *
+     * <p>PREPAID is the default because it is the safer of the two for the platform, and because a
+     * booking that predates this column was one nothing could pay for later — there was no invoice
+     * to send. A POSTPAID booking is confirmed without money, and is invoiced when it completes.
+     */
+    @Column(name = "payment_preference", length = 20)
+    @Builder.Default
+    private String paymentPreference = "PREPAID";
+
     @Column(name = "cancellation_reason", length = 500)
     private String cancellationReason;
 

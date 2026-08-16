@@ -27,6 +27,7 @@ import {
   Notifications,
   Settings,
   Logout,
+  Palette,
   ChevronLeft,
   ChevronRight,
   Engineering,
@@ -38,6 +39,9 @@ import { useUiConfig } from '../providers/UiConfigProvider';
 import { sidebarPalette } from '../theme';
 import DynamicIcon from '../components/DynamicIcon';
 import ColorModeToggle from '../components/ColorModeToggle';
+import GlobalSearch from '../components/GlobalSearch';
+import NotificationBell from '../components/NotificationBell';
+import AskAiButton from '../components/AskAiButton';
 
 const DRAWER_WIDTH = 280;
 
@@ -50,6 +54,7 @@ const FALLBACK_NAV = [
   { key: 'admin-overview', label: 'Dashboard', path: '/admin', icon: 'Dashboard', menuGroup: 'Overview', exactMatch: true },
   { key: 'admin-users', label: 'Users', path: '/admin/users', icon: 'People', menuGroup: 'People', exactMatch: false },
   { key: 'admin-categories', label: 'Categories', path: '/admin/categories', icon: 'Category', menuGroup: 'Operations', exactMatch: false },
+  { key: 'admin-services', label: 'Services', path: '/admin/services', icon: 'Handyman', menuGroup: 'Operations', exactMatch: false },
   { key: 'admin-bookings', label: 'Bookings', path: '/admin/bookings', icon: 'BookOnline', menuGroup: 'Operations', exactMatch: false },
   { key: 'admin-analytics', label: 'Analytics', path: '/admin/analytics', icon: 'Analytics', menuGroup: 'Operations', exactMatch: false },
   { key: 'admin-revenue', label: 'Revenue', path: '/admin/revenue', icon: 'AccountBalanceWallet', menuGroup: 'Finance', exactMatch: false },
@@ -345,13 +350,19 @@ const AdminLayout: React.FC = () => {
               {navOnTop ? '' : navItems.find(isItemActive)?.label || 'Admin Panel'}
             </Typography>
 
+            {/* Same catalogue search as the member header — the assistant is on every page and
+                this should be too, rather than dropping out the moment an admin crosses into
+                /admin. Shared component, so the two headers cannot drift apart. */}
+            <GlobalSearch />
+
+            <AskAiButton color="#64748b" />
+
             <ColorModeToggle color="#64748b" />
 
-            <IconButton sx={{ color: '#64748b', mr: 1 }}>
-              <Badge badgeContent={3} color="error">
-                <Notifications />
-              </Badge>
-            </IconButton>
+            {/* Was a hardcoded badgeContent={3} over a button that did nothing. */}
+            <Box sx={{ mr: 1 }}>
+              <NotificationBell color="#64748b" />
+            </Box>
 
             <IconButton onClick={(e) => setAnchorEl(e.currentTarget)} sx={{ p: 0 }}>
               <Avatar sx={{ width: 36, height: 36, background: (t) => `linear-gradient(135deg, ${t.palette.primary.main}, ${t.palette.secondary.main})` }}>
@@ -368,6 +379,13 @@ const AdminLayout: React.FC = () => {
               <MenuItem onClick={() => { navigate('/admin/settings'); setAnchorEl(null); }}>
                 <ListItemIcon><Settings fontSize="small" /></ListItemIcon>
                 Settings
+              </MenuItem>
+              {/* The admin shell has its own account menu rather than the site Navbar's, so this
+                  entry has to be repeated here — without it an admin has no route to their own
+                  timezone, date format, colour mode or density. */}
+              <MenuItem onClick={() => { navigate('/appearance'); setAnchorEl(null); }}>
+                <ListItemIcon><Palette fontSize="small" /></ListItemIcon>
+                Appearance &amp; date format
               </MenuItem>
               <MenuItem onClick={() => { navigate('/'); setAnchorEl(null); }}>
                 <ListItemIcon><Engineering fontSize="small" /></ListItemIcon>

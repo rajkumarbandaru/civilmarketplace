@@ -5,6 +5,7 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import DynamicIcon from '../components/DynamicIcon';
 import { useMenuSection, useUiConfig } from '../providers/UiConfigProvider';
+import { useAppSelector } from '../hooks';
 import { motion } from 'framer-motion';
 
 const DRAWER_WIDTH = 240;
@@ -13,6 +14,9 @@ const MainLayout: React.FC = () => {
   const { theme: uiTheme } = useUiConfig();
   const workItems = useMenuSection('Work');
   const location = useLocation();
+  // The footer is a public-site element: once someone is signed in — any role, any workspace —
+  // the shell is an app shell, so it goes away entirely.
+  const { isAuthenticated } = useAppSelector((state) => state.auth);
 
   // Navigation position is Super Admin's to set, and it applied only to the admin console until
   // now — the member shell ignored it entirely, so moving the navigation appeared to do nothing
@@ -43,7 +47,7 @@ const MainLayout: React.FC = () => {
       <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
         <Navbar />
         {content}
-        <Footer />
+        {!isAuthenticated && <Footer />}
       </Box>
     );
   }
@@ -85,7 +89,7 @@ const MainLayout: React.FC = () => {
       <Box sx={{ display: 'flex', flexDirection: 'column', flexGrow: 1, minWidth: 0 }}>
         <Navbar navInDrawer />
         {content}
-        <Footer />
+        {!isAuthenticated && <Footer />}
       </Box>
       {navOnRight && drawer}
     </Box>

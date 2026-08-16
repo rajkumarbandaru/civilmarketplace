@@ -6,6 +6,7 @@ import {
 import { Assessment, Download, Refresh, TableChart } from '@mui/icons-material';
 import { reportApi, ReportDefinition, ReportPreview } from '../../services/adminApi';
 import { normalizeApiError } from '../../services/apiError';
+import { SortableTableCell, useTableSort } from '../../components/admin/SortableTable';
 
 /**
  * The reports an admin can take off the platform.
@@ -19,6 +20,18 @@ const ReportsPage: React.FC = () => {
   const [loadingCatalogue, setLoadingCatalogue] = useState(true);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [preview, setPreview] = useState<ReportPreview | null>(null);
+
+  // The columns differ per report, so the accessors are built from whatever this preview returned
+  // rather than declared up front. Values arrive as strings; the shared comparator sorts them
+  // numerically when they look like numbers, so an "Amount" column still orders sensibly.
+  const previewRows = preview?.rows ?? [];
+  const sortAccessors = useMemo(
+    () => Object.fromEntries(
+      (preview?.columns ?? []).map((column) => [column, (row: Record<string, string>) => row[column]])
+    ) as Record<string, (row: Record<string, string>) => string>,
+    [preview?.columns]
+  );
+  const { sorted, sort, onSort } = useTableSort(previewRows, sortAccessors);
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [downloading, setDownloading] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; severity: 'success' | 'error' } | null>(null);
@@ -216,12 +229,14 @@ const ReportsPage: React.FC = () => {
                   <TableHead>
                     <TableRow>
                       {preview.columns.map((column) => (
-                        <TableCell key={column} sx={{ fontWeight: 700, whiteSpace: 'nowrap' }}>{column}</TableCell>
+                        <SortableTableCell key={column} columnKey={column} sort={sort} onSort={onSort}>
+                          {column}
+                        </SortableTableCell>
                       ))}
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {preview.rows.map((row, idx) => (
+                    {sorted.map((row, idx) => (
                       <TableRow key={idx} hover>
                         {preview.columns.map((column) => (
                           <TableCell key={column} sx={{ whiteSpace: 'nowrap' }}>

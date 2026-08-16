@@ -23,7 +23,34 @@ interface UiState {
    * behind an unrelated later visit to /support.
    */
   supportTicketDraft: { subject: string; description: string } | null;
+  /**
+   * The Civil AI Assistant drawer. Separate from `supportChatOpen`: the floating bubble answers from a fixed
+   * FAQ and can hand over to a ticket, this one is open-ended and LLM-backed. Both can be reached
+   * from anywhere, so both live here rather than inside their own components.
+   */
+  askAiOpen: boolean;
+  askAiSize: AskAiSize;
 }
+
+/**
+ * How wide the Civil AI Assistant drawer sits. Persisted, because it is a working preference rather than a
+ * per-visit choice — someone who wants the large panel wants it every time, and re-picking it on
+ * each page load is the kind of small friction that stops people using a feature at all.
+ */
+export type AskAiSize = 'small' | 'medium' | 'large' | 'full';
+
+export const ASK_AI_SIZE_KEY = 'civeng.askAiSize';
+
+const storedAskAiSize = (): AskAiSize => {
+  try {
+    const saved = localStorage.getItem(ASK_AI_SIZE_KEY);
+    return saved === 'small' || saved === 'medium' || saved === 'large' || saved === 'full'
+      ? saved
+      : 'medium';
+  } catch {
+    return 'medium';
+  }
+};
 
 /**
  * The colour mode for signed-out visitors, who have no server-side appearance record to save one
@@ -54,6 +81,8 @@ const initialState: UiState = {
   selectedCity: '',
   supportChatOpen: false,
   supportTicketDraft: null,
+  askAiOpen: false,
+  askAiSize: storedAskAiSize(),
 };
 
 const uiSlice = createSlice({
@@ -107,6 +136,23 @@ const uiSlice = createSlice({
     clearSupportTicketDraft(state) {
       state.supportTicketDraft = null;
     },
+    openAskAi(state) {
+      state.askAiOpen = true;
+    },
+    closeAskAi(state) {
+      state.askAiOpen = false;
+    },
+    toggleAskAi(state) {
+      state.askAiOpen = !state.askAiOpen;
+    },
+    setAskAiSize(state, action: PayloadAction<AskAiSize>) {
+      state.askAiSize = action.payload;
+      try {
+        localStorage.setItem(ASK_AI_SIZE_KEY, action.payload);
+      } catch {
+        // Not persisting is survivable — the size still holds for this page view.
+      }
+    },
   },
 });
 
@@ -122,5 +168,9 @@ export const {
   toggleSupportChat,
   startSupportTicket,
   clearSupportTicketDraft,
+  openAskAi,
+  closeAskAi,
+  toggleAskAi,
+  setAskAiSize,
 } = uiSlice.actions;
 export default uiSlice.reducer;

@@ -10,6 +10,13 @@ import {
   ResolvedTheme,
   UiConfigSnapshot,
 } from '../services/uiConfigApi';
+import {
+  DateInput,
+  DateTimePreferences,
+  formatDate as formatDateWith,
+  formatDateTime as formatDateTimeWith,
+  formatTime as formatTimeWith,
+} from '../utils/datetime';
 
 interface UiConfigContextValue {
   menu: ResolvedMenuItem[];
@@ -20,6 +27,11 @@ interface UiConfigContextValue {
   failed: boolean;
   /** Re-reads the snapshot; call after saving a theme so the change shows without a reload. */
   refresh: () => void;
+  /**
+   * The member's timezone and date layout. Held here because the provider already wraps every
+   * workspace, so one saved preference reaches every screen at once.
+   */
+  dateTime: DateTimePreferences;
 }
 
 const UiConfigContext = createContext<UiConfigContextValue>({
@@ -28,6 +40,9 @@ const UiConfigContext = createContext<UiConfigContextValue>({
   loading: false,
   failed: false,
   refresh: () => undefined,
+  // Signed out, and before the first fetch resolves: the browser's own zone and the site default,
+  // which is what a visitor saw before this preference existed.
+  dateTime: { timezone: null, dateFormat: null },
 });
 
 export const useUiConfig = () => useContext(UiConfigContext);
@@ -99,6 +114,10 @@ export const UiConfigProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       loading: isAuthenticated && isLoading,
       failed: isError,
       refresh: () => queryClient.invalidateQueries({ queryKey }),
+      dateTime: {
+        timezone: data?.timezone ?? null,
+        dateFormat: data?.dateFormat ?? null,
+      },
     }),
     [data, isAuthenticated, isLoading, isError, queryClient, queryKey]
   );
@@ -110,6 +129,28 @@ export const UiConfigProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         {children}
       </ThemeProvider>
     </UiConfigContext.Provider>
+  );
+};
+
+/**
+ * The formatters, already bound to the signed-in member's timezone and date layout.
+ *
+ * Components call these instead of `toLocaleDateString`, which silently uses the browser's zone
+ * and locale and so ignores the setting entirely.
+ */
+export const useDateTime = () => {
+  const { dateTime } = useUiConfig();
+  return useMemo(
+    () => ({
+      formatDate: (value: DateInput, fallback?: string) =>
+        formatDateWith(value, dateTime, fallback),
+      formatTime: (value: DateInput, fallback?: string) =>
+        formatTimeWith(value, dateTime, fallback),
+      formatDateTime: (value: DateInput, fallback?: string) =>
+        formatDateTimeWith(value, dateTime, fallback),
+      preferences: dateTime,
+    }),
+    [dateTime],
   );
 };
 

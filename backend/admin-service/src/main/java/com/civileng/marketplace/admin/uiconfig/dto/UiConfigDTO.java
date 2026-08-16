@@ -21,7 +21,17 @@ public final class UiConfigDTO {
             Long userId,
             String role,
             List<ResolvedMenuItem> menu,
-            ResolvedTheme theme) {
+            ResolvedTheme theme,
+            /**
+             * The member's regional preferences, carried on the shell snapshot rather than left to
+             * the appearance screen: every page renders dates, so the whole app needs these on
+             * first paint, and a second request would mean timestamps visibly re-rendering after
+             * the page had settled.
+             *
+             * <p>Null means "use the browser's own zone / locale default".
+             */
+            String timezone,
+            String dateFormat) {
     }
 
     /** One side-menu entry as the client should render it, after every overlay is applied. */
@@ -164,16 +174,29 @@ public final class UiConfigDTO {
             ResolvedTheme effective,
             String myColorMode,
             String myDensity,
+            String myTimezone,
+            String myDateFormat,
             List<String> colorModeOptions,
             List<String> densityOptions,
+            List<String> dateFormatOptions,
             List<String> memberEditable,
             List<String> adminControlled) {
 
         public static final List<String> COLOR_MODES = List.of("light", "dark", "system");
         public static final List<String> DENSITIES = List.of("compact", "comfortable", "spacious");
 
-        /** The two settings a member may change. Everything else in a theme is not. */
-        public static final List<String> MEMBER_EDITABLE = List.of("colorMode", "density");
+        /**
+         * The date layouts a member may pick, as keys the browser turns into real formats.
+         *
+         * <p>Deliberately a closed list rather than a free-text pattern: a pattern typed by hand is
+         * a pattern that can be invalid, and every date on the site would render as the error.
+         */
+        public static final List<String> DATE_FORMATS =
+                List.of("DD/MM/YYYY", "MM/DD/YYYY", "YYYY-MM-DD", "D MMM YYYY", "MMM D, YYYY");
+
+        /** The settings a member may change. Everything else in a theme is not. */
+        public static final List<String> MEMBER_EDITABLE =
+                List.of("colorMode", "density", "timezone", "dateFormat");
 
         /**
          * Super Admin's fields, in the order a settings screen should list them: the navigation's
@@ -236,6 +259,7 @@ public final class UiConfigDTO {
      * whatever Super Admin sets next, instead of being frozen at the value that was current when
      * they cleared it.
      */
-    public record AppearanceUpdateCommand(String colorMode, String density) {
+    public record AppearanceUpdateCommand(String colorMode, String density,
+                                          String timezone, String dateFormat) {
     }
 }

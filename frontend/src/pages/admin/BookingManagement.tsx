@@ -9,6 +9,8 @@ import {
   Search, MoreVert, Visibility, CheckCircle, Cancel, FilterList, Receipt,
 } from '@mui/icons-material';
 import { bookingApi, AdminBooking } from '../../services/adminApi';
+import { useDateTime } from '../../providers/UiConfigProvider';
+import { SortableTableCell, useTableSort } from '../../components/admin/SortableTable';
 
 const statusColors: Record<string, string> = {
   PENDING: '#f59e0b', QUOTATION_PENDING: '#f59e0b', QUOTATION_SENT: '#3b82f6',
@@ -22,6 +24,7 @@ const paymentColors: Record<string, string> = {
 };
 
 const BookingManagement: React.FC = () => {
+  const { formatDate } = useDateTime();
   const [bookings, setBookings] = useState<AdminBooking[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
@@ -98,6 +101,17 @@ const BookingManagement: React.FC = () => {
     { label: 'Disputed', value: bookingStats.disputedCount || 0, color: '#f97316' },
   ];
 
+  const { sorted, sort, onSort } = useTableSort(bookings, {
+    bookingCode: (b) => b.bookingCode,
+    customerName: (b) => b.customerName,
+    workerName: (b) => b.workerName,
+    serviceName: (b) => b.serviceName,
+    status: (b) => b.status,
+    amount: (b) => b.amount ?? 0,
+    paymentStatus: (b) => b.paymentStatus,
+    createdAt: (b) => (b.createdAt ? new Date(b.createdAt) : null),
+  }, { key: 'createdAt', direction: 'desc' });
+
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
@@ -164,14 +178,14 @@ const BookingManagement: React.FC = () => {
           <Table>
             <TableHead>
               <TableRow sx={{ bgcolor: 'action.hover' }}>
-                <TableCell sx={{ fontWeight: 700 }}>Booking Code</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Customer</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Worker</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Service</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Amount</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Payment</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Date</TableCell>
+                <SortableTableCell columnKey="bookingCode" sort={sort} onSort={onSort}>Booking Code</SortableTableCell>
+                <SortableTableCell columnKey="customerName" sort={sort} onSort={onSort}>Customer</SortableTableCell>
+                <SortableTableCell columnKey="workerName" sort={sort} onSort={onSort}>Worker</SortableTableCell>
+                <SortableTableCell columnKey="serviceName" sort={sort} onSort={onSort}>Service</SortableTableCell>
+                <SortableTableCell columnKey="status" sort={sort} onSort={onSort}>Status</SortableTableCell>
+                <SortableTableCell columnKey="amount" sort={sort} onSort={onSort}>Amount</SortableTableCell>
+                <SortableTableCell columnKey="paymentStatus" sort={sort} onSort={onSort}>Payment</SortableTableCell>
+                <SortableTableCell columnKey="createdAt" sort={sort} onSort={onSort}>Date</SortableTableCell>
                 <TableCell sx={{ fontWeight: 700 }} align="right">Actions</TableCell>
               </TableRow>
             </TableHead>
@@ -184,8 +198,8 @@ const BookingManagement: React.FC = () => {
                     ))}
                   </TableRow>
                 ))
-              ) : bookings.length > 0 ? (
-                bookings.map((booking) => (
+              ) : sorted.length > 0 ? (
+                sorted.map((booking) => (
                   <TableRow key={booking.id} hover>
                     <TableCell>
                       <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 600, color: 'primary.main' }}>
@@ -212,7 +226,7 @@ const BookingManagement: React.FC = () => {
                         sx={{ bgcolor: `${paymentColors[booking.paymentStatus] || '#94a3b8'}15`, color: paymentColors[booking.paymentStatus] || '#94a3b8', fontWeight: 600, fontSize: '0.7rem' }} />
                     </TableCell>
                     <TableCell><Typography variant="body2" sx={{ color: '#64748b' }}>
-                      {booking.createdAt ? new Date(booking.createdAt).toLocaleDateString() : 'N/A'}
+                      {formatDate(booking.createdAt, 'N/A')}
                     </Typography></TableCell>
                     <TableCell align="right">
                       <IconButton size="small" onClick={(e) => { setSelectedBooking(booking); setAnchorEl(e.currentTarget); }}>
@@ -273,7 +287,7 @@ const BookingManagement: React.FC = () => {
               <Grid item xs={6}>
                 <Typography variant="caption" sx={{ color: '#94a3b8' }}>Date</Typography>
                 <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                  {selectedBooking.createdAt ? new Date(selectedBooking.createdAt).toLocaleDateString() : 'N/A'}
+                  {formatDate(selectedBooking.createdAt, 'N/A')}
                 </Typography>
               </Grid>
               <Grid item xs={6}>

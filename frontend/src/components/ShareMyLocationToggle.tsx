@@ -13,6 +13,7 @@ import {
 } from '@mui/material';
 import { GpsFixed, GpsOff } from '@mui/icons-material';
 import { reportPosition } from '../services/trackingApi';
+import { useDateTime } from '../providers/UiConfigProvider';
 
 /**
  * Smallest gap between pings sent to the server.
@@ -42,6 +43,7 @@ const ShareMyLocationToggle: React.FC<{ bookingId: number; onPing?: () => void }
   bookingId,
   onPing,
 }) => {
+  const { formatTime } = useDateTime();
   const [sharing, setSharing] = useState(false);
   const [status, setStatus] = useState<Status>('idle');
   const [message, setMessage] = useState<string | null>(null);
@@ -155,7 +157,7 @@ const ShareMyLocationToggle: React.FC<{ bookingId: number; onPing?: () => void }
         {status === 'sharing' && <Chip size="small" color="success" label="Live" />}
         {lastSent && (
           <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-            last sent {lastSent.toLocaleTimeString()}
+            last sent {formatTime(lastSent)}
           </Typography>
         )}
       </Stack>

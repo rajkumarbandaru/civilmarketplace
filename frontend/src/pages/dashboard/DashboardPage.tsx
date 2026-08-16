@@ -30,6 +30,8 @@ import {
 import { motion } from 'framer-motion';
 import { useAppSelector, useAppDispatch } from '../../hooks';
 import { fetchCustomerBookings } from '../../store/slices/bookingSlice';
+import { useDateTime } from '../../providers/UiConfigProvider';
+import { SortableTableCell, useTableSort } from '../../components/admin/SortableTable';
 
 const statCards = [
   { label: 'Active Bookings', value: '3', icon: <Assignment />, color: '#667eea', bg: '#eef2ff' },
@@ -50,6 +52,7 @@ const getStatusColor = (status: string) => {
 };
 
 const DashboardPage: React.FC = () => {
+  const { formatDate } = useDateTime();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const { user } = useAppSelector((state) => state.auth);
@@ -58,6 +61,14 @@ const DashboardPage: React.FC = () => {
   useEffect(() => {
     dispatch(fetchCustomerBookings({}));
   }, [dispatch]);
+
+  const { sorted, sort, onSort } = useTableSort(bookings as any[], {
+    bookingCode: (b: any) => b.bookingCode,
+    serviceName: (b: any) => b.serviceName,
+    status: (b: any) => b.status,
+    totalAmount: (b: any) => Number(b.totalAmount) || 0,
+    createdAt: (b: any) => (b.createdAt ? new Date(b.createdAt) : null),
+  }, { key: 'createdAt', direction: 'desc' });
 
   return (
     <Container maxWidth="xl" sx={{ py: 4 }}>
@@ -152,15 +163,15 @@ const DashboardPage: React.FC = () => {
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{ fontWeight: 600 }}>Booking Code</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Service</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Amount</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Date</TableCell>
+                  <SortableTableCell columnKey="bookingCode" sort={sort} onSort={onSort} sx={{ fontWeight: 600 }}>Booking Code</SortableTableCell>
+                  <SortableTableCell columnKey="serviceName" sort={sort} onSort={onSort} sx={{ fontWeight: 600 }}>Service</SortableTableCell>
+                  <SortableTableCell columnKey="status" sort={sort} onSort={onSort} sx={{ fontWeight: 600 }}>Status</SortableTableCell>
+                  <SortableTableCell columnKey="totalAmount" sort={sort} onSort={onSort} sx={{ fontWeight: 600 }}>Amount</SortableTableCell>
+                  <SortableTableCell columnKey="createdAt" sort={sort} onSort={onSort} sx={{ fontWeight: 600 }}>Date</SortableTableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {bookings.map((booking: any) => (
+                {sorted.map((booking: any) => (
                   <TableRow
                     key={booking.id}
                     hover
@@ -186,7 +197,7 @@ const DashboardPage: React.FC = () => {
                     </TableCell>
                     <TableCell>₹{booking.totalAmount}</TableCell>
                     <TableCell>
-                      {new Date(booking.createdAt).toLocaleDateString()}
+                      {formatDate(booking.createdAt)}
                     </TableCell>
                   </TableRow>
                 ))}

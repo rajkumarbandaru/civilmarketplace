@@ -425,6 +425,14 @@ services:
       - SUPPORT_DB_USERNAME=${SUPPORT_DB_USERNAME:-civil_user}
       - SUPPORT_DB_PASSWORD=${SUPPORT_DB_PASSWORD:-civil_pass}
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      # Ask AI. Unset is a supported state: the assistant reports itself unavailable and
+      # ticketing carries on as normal.
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-3.6-flash}
+      - GEMINI_FALLBACK_MODELS=${GEMINI_FALLBACK_MODELS:-gemini-3.5-flash,gemini-flash-latest}
+      - AI_SITE_RATES_ENABLED=${AI_SITE_RATES_ENABLED:-true}
+      - AI_SITE_RATES_CACHE_SECONDS=${AI_SITE_RATES_CACHE_SECONDS:-600}
+      - AI_ASSISTANT_ENABLED=${AI_ASSISTANT_ENABLED:-true}
     networks:
       - civil-network
     depends_on:

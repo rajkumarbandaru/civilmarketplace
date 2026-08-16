@@ -4,6 +4,10 @@ server:
 spring:
   application:
     name: api-gateway
+  codec:
+    # Raised from the 256 KB default for the site-content image uploads that pass through here on
+    # their way to admin-service; the service caps the file itself at 2 MB.
+    max-in-memory-size: 8MB
   data:
     redis:
       host: ${REDIS_HOST:redis}
@@ -27,6 +31,16 @@ spring:
           filters:
             - StripPrefix=0
             - name: JwtAuth
+        # The public service catalogue, served by booking-service but deliberately outside its
+        # /api/v1/bookings/** prefix so it can skip JwtAuth: the services list is what a signed-out
+        # visitor lands on, and behind the auth filter the home and services pages would be empty
+        # until someone logged in. Read-only, and exposes nothing beyond what the page prints.
+        - id: catalogue-public
+          uri: lb://booking-service
+          predicates:
+            - Path=/api/v1/catalogue/**
+          filters:
+            - StripPrefix=0
         - id: booking-service
           uri: lb://booking-service
           predicates:

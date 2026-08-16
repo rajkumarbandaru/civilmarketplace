@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<!--/*
+  The bill for a pay-later booking, sent when the work is finished.
+
+  Split from booking-completed-template rather than branching inside it, because the subject line
+  cannot branch: subjects are per-template rows an admin edits, so one template meant one subject —
+  and an invoice that arrives titled "Thanks for using our service" does not read as a bill. Two
+  templates give each message its own wording on both the subject and the body.
+
+  It still asks for a rating: the job is done either way, and a customer who is already opening the
+  mail to pay is the likeliest to leave one.
+*/-->
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{email/_layout :: page(~{::content})}">
+<body>
+<div th:fragment="content" th:remove="tag">
+    <h1 style="margin:0 0 12px; font-size:20px; color:#1f2933;">Your invoice</h1>
+
+    <p style="margin:0 0 16px; font-size:14px; line-height:22px; color:#3e4c59;">
+        Hi <span th:text="${name}">there</span>, your <span th:text="${serviceName}">booking</span>
+        is complete — thank you. You chose to pay after the work, so here is what is due.
+    </p>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+           style="margin:0 0 16px; background-color:#f0f4f8; border-radius:6px;">
+        <tr>
+            <td style="padding:12px 18px; font-size:14px; color:#7b8794;">Service</td>
+            <td style="padding:12px 18px; font-size:14px; font-weight:bold; color:#1f2933;" align="right"
+                th:text="${serviceName}">Service</td>
+        </tr>
+        <tr th:if="${workerName != null and !workerName.isEmpty()}">
+            <td style="padding:12px 18px; font-size:14px; color:#7b8794;">Professional</td>
+            <td style="padding:12px 18px; font-size:14px; color:#1f2933;" align="right"
+                th:text="${workerName}">Professional</td>
+        </tr>
+        <tr>
+            <td style="padding:12px 18px; font-size:14px; color:#7b8794;">Booking reference</td>
+            <td style="padding:12px 18px; font-size:14px; font-weight:bold; color:#0b5394;" align="right"
+                th:text="${bookingCode}">BK-0000</td>
+        </tr>
+    </table>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+           style="margin:0 0 16px; border:1px solid #e4e7eb; border-radius:6px;">
+        <tr th:if="${finalCost != null and !finalCost.isEmpty()}">
+            <td style="padding:10px 18px; font-size:14px; color:#7b8794;">Work done</td>
+            <td style="padding:10px 18px; font-size:14px; color:#1f2933;" align="right"
+                th:text="'₹' + ${finalCost}">₹0</td>
+        </tr>
+        <tr th:if="${platformFee != null and !platformFee.isEmpty()}">
+            <td style="padding:10px 18px; font-size:14px; color:#7b8794;">Platform fee</td>
+            <td style="padding:10px 18px; font-size:14px; color:#1f2933;" align="right"
+                th:text="'₹' + ${platformFee}">₹0</td>
+        </tr>
+        <tr th:if="${gstAmount != null and !gstAmount.isEmpty()}">
+            <td style="padding:10px 18px; font-size:14px; color:#7b8794;">GST</td>
+            <td style="padding:10px 18px; font-size:14px; color:#1f2933;" align="right"
+                th:text="'₹' + ${gstAmount}">₹0</td>
+        </tr>
+        <tr>
+            <td style="padding:12px 18px; font-size:15px; font-weight:bold; color:#1f2933; border-top:1px solid #e4e7eb;">
+                Amount due
+            </td>
+            <td style="padding:12px 18px; font-size:15px; font-weight:bold; color:#b33; border-top:1px solid #e4e7eb;"
+                align="right" th:text="'₹' + ${amountDue}">₹0</td>
+        </tr>
+    </table>
+
+    <p style="margin:0 0 8px; font-size:14px; line-height:22px; color:#3e4c59;">
+        Pay by card, UPI, net banking or wallet.
+    </p>
+    <p style="margin:0 0 24px;">
+        <a th:href="${payUrl}" href="#"
+           style="display:inline-block; background-color:#b33; color:#ffffff; text-decoration:none;
+                  padding:12px 24px; border-radius:6px; font-size:15px; font-weight:bold;">
+            Pay now
+        </a>
+    </p>
+
+    <h2 style="margin:24px 0 8px; font-size:17px; color:#1f2933;">How did we do?</h2>
+    <p style="margin:0 0 12px; font-size:14px; line-height:22px; color:#3e4c59;">
+        Your rating helps other customers choose, and helps good professionals get more work.
+    </p>
+    <p style="margin:0 0 8px; font-size:24px; letter-spacing:6px; color:#f0a500;">★★★★★</p>
+    <p style="margin:0;">
+        <a th:href="${reviewUrl}" href="#"
+           style="display:inline-block; background-color:#0b5394; color:#ffffff; text-decoration:none;
+                  padding:11px 22px; border-radius:6px; font-size:14px; font-weight:bold;">
+            Rate this service
+        </a>
+    </p>
+</div>
+</body>
+</html>

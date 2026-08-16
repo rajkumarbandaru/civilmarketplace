@@ -20,6 +20,7 @@ import {
 import { ArrowBack, DirectionsCar, Search } from '@mui/icons-material';
 import BookingTrackingPanel from '../../components/BookingTrackingPanel';
 import { AdminBooking, bookingApi } from '../../services/adminApi';
+import { SortableTableCell, useTableSort } from '../../components/admin/SortableTable';
 
 /**
  * Statuses worth tracking. Anything earlier has nobody travelling yet, anything later has already
@@ -67,6 +68,15 @@ const AdminTrackingPage: React.FC = () => {
             .some((field) => String(field).toLowerCase().includes(query))
       );
   }, [data, search]);
+
+  const { sorted, sort, onSort } = useTableSort(rows, {
+    bookingCode: (b: AdminBooking) => b.bookingCode,
+    serviceName: (b: AdminBooking) => b.serviceName,
+    customerName: (b: AdminBooking) => b.customerName,
+    workerName: (b: AdminBooking) => b.workerName,
+    city: (b: AdminBooking) => b.city,
+    status: (b: AdminBooking) => b.status,
+  }, { key: 'bookingCode' });
 
   if (selectedId !== null) {
     return (
@@ -129,17 +139,17 @@ const AdminTrackingPage: React.FC = () => {
             <Table size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell>Booking</TableCell>
-                  <TableCell>Service</TableCell>
-                  <TableCell>Customer</TableCell>
-                  <TableCell>Worker</TableCell>
-                  <TableCell>City</TableCell>
-                  <TableCell>Status</TableCell>
+                  <SortableTableCell columnKey="bookingCode" sort={sort} onSort={onSort}>Booking</SortableTableCell>
+                  <SortableTableCell columnKey="serviceName" sort={sort} onSort={onSort}>Service</SortableTableCell>
+                  <SortableTableCell columnKey="customerName" sort={sort} onSort={onSort}>Customer</SortableTableCell>
+                  <SortableTableCell columnKey="workerName" sort={sort} onSort={onSort}>Worker</SortableTableCell>
+                  <SortableTableCell columnKey="city" sort={sort} onSort={onSort}>City</SortableTableCell>
+                  <SortableTableCell columnKey="status" sort={sort} onSort={onSort}>Status</SortableTableCell>
                   <TableCell />
                 </TableRow>
               </TableHead>
               <TableBody>
-                {rows.map((booking: AdminBooking) => (
+                {sorted.map((booking: AdminBooking) => (
                   <TableRow key={booking.id} hover>
                     <TableCell>{booking.bookingCode}</TableCell>
                     <TableCell>{booking.serviceName}</TableCell>

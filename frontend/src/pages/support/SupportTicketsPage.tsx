@@ -43,6 +43,7 @@ import {
   replyToTicket,
   statusColor,
 } from '../../services/supportApi';
+import { useDateTime } from '../../providers/UiConfigProvider';
 
 /**
  * The tabs the customer filters by. `null` is "everything" rather than a fifth status, so the
@@ -56,11 +57,6 @@ const FILTERS: { label: string; value: TicketStatus | null }[] = [
   { label: 'Closed', value: 'CLOSED' },
 ];
 
-const formatWhen = (iso: string): string => {
-  const date = new Date(iso);
-  return Number.isNaN(date.getTime()) ? '' : date.toLocaleString();
-};
-
 const MY_TICKETS_KEY = ['support', 'tickets', 'mine'];
 
 /** The reply thread for one ticket, plus the box to add to it. */
@@ -71,6 +67,7 @@ const TicketThread: React.FC<{ ticket: SupportTicket; onBack: () => void }> = ({
   const dispatch = useAppDispatch();
   const queryClient = useQueryClient();
   const me = useAppSelector((state) => state.auth.user);
+  const { formatDateTime: formatWhen } = useDateTime();
   const [body, setBody] = useState('');
 
   const messagesKey = useMemo(() => ['support', 'tickets', ticket.id, 'messages'], [ticket.id]);
@@ -210,6 +207,7 @@ const SupportTicketsPage: React.FC = () => {
   const dispatch = useAppDispatch();
   const queryClient = useQueryClient();
   const draft = useAppSelector((state) => state.ui.supportTicketDraft);
+  const { formatDateTime: formatWhen } = useDateTime();
 
   const [filter, setFilter] = useState<TicketStatus | null>(null);
   const [selectedId, setSelectedId] = useState<number | null>(null);

@@ -43,6 +43,20 @@ public class UserAppearance {
     @Column(length = 20)
     private String density;
 
+    /**
+     * IANA zone id — "Asia/Kolkata", "Europe/London" — or null to use the browser's own zone.
+     *
+     * <p>Unlike colour and density this is not about taste: a booking timestamp shown in the wrong
+     * zone is wrong information, not an unpleasant one. It is stored per member rather than per
+     * workspace because two people in one workspace can genuinely sit in different zones.
+     */
+    @Column(length = 64)
+    private String timezone;
+
+    /** A key from {@code AppearanceSettings.DATE_FORMATS}, or null to follow the workspace. */
+    @Column(name = "date_format", length = 20)
+    private String dateFormat;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
@@ -57,6 +71,6 @@ public class UserAppearance {
 
     /** True once both fields are back to "follow the workspace", so the row can be deleted. */
     public boolean isEmpty() {
-        return colorMode == null && density == null;
+        return colorMode == null && density == null && timezone == null && dateFormat == null;
     }
 }

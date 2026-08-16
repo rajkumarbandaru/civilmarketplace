@@ -23,22 +23,29 @@ import { Search, Verified, Clear } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import DynamicIcon from '../../components/DynamicIcon';
 import {
-  ALL_SERVICES,
-  CATEGORIES,
-  PRICE_CEILING,
   ServiceCategory,
   categoryFromSlug,
   numericPrice,
+  priceCeiling,
   searchServices,
   slugify,
 } from '../../constants/serviceCatalogue';
+import { useCatalogue } from '../../hooks/useCatalogue';
+import ServiceMedia from '../../components/ServiceMedia';
 
 const ServicesPage: React.FC = () => {
   const navigate = useNavigate();
   // The route is `/services/:category`. Reading it is what makes a category link actually filter —
   // the page used to hold the selection in local state only, so every deep link opened unfiltered.
   const { category: categoryParam } = useParams<{ category?: string }>();
-  const selectedCategory = categoryFromSlug(categoryParam);
+
+  // The catalogue is admin-managed and arrives from the API; the list the site shipped with is only
+  // a fallback for a failed request.
+  const { services, categories, loading } = useCatalogue();
+
+  // Resolved against the categories actually in the catalogue, so a link to a category an admin has
+  // since removed falls back to "everything" rather than filtering to nothing.
+  const selectedCategory = categoryFromSlug(categoryParam, categories);
 
   // `?q=` lets a link name one service exactly — the footer uses it so "Cement" opens Cement
   // rather than the whole Materials category. Typing in the box writes back to the URL, so the
@@ -54,7 +61,12 @@ const ServicesPage: React.FC = () => {
     setSearchParams(next, { replace: true });
   };
 
-  const [priceRange, setPriceRange] = useState<number[]>([0, PRICE_CEILING]);
+  const ceiling = useMemo(() => priceCeiling(services), [services]);
+  // `null` means "the user has not touched the slider", which is what lets the range follow the
+  // catalogue: pinning it to the ceiling at mount would freeze it at whatever the fallback list
+  // topped out at, and every item above that would be filtered away the moment the API answered.
+  const [priceRange, setPriceRange] = useState<number[] | null>(null);
+  const effectiveRange = priceRange ?? [0, ceiling];
   const [sortBy, setSortBy] = useState('rating');
 
   // Navigating rather than setting state keeps the URL the single source of truth: the filter
@@ -67,21 +79,21 @@ const ServicesPage: React.FC = () => {
     const query = searchQuery.trim();
     // The same matcher the header search uses, so a query that found something up there cannot
     // come back empty down here — and "tmt" or "jcb" resolve through the alias list either way.
-    const base = query ? searchServices(query, ALL_SERVICES.length) : ALL_SERVICES;
+    const base = query ? searchServices(query, services, services.length) : services;
 
     return base
       .filter((service) => !selectedCategory || service.category === selectedCategory)
       .filter((service) => {
         const price = numericPrice(service.price);
         if (price === null) return true;
-        return price >= priceRange[0] && price <= priceRange[1];
+        return price >= effectiveRange[0] && price <= effectiveRange[1];
       })
       .sort((a, b) => {
         if (sortBy === 'rating') return b.rating - a.rating;
         if (sortBy === 'reviews') return b.reviews - a.reviews;
         return a.title.localeCompare(b.title);
       });
-  }, [selectedCategory, searchQuery, priceRange, sortBy]);
+  }, [services, selectedCategory, searchQuery, effectiveRange, sortBy]);
 
   const heading = selectedCategory ?? 'Find Your Service';
 
@@ -129,13 +141,13 @@ const ServicesPage: React.FC = () => {
           <Grid item xs={6} md={3}>
             <Box sx={{ px: 2 }}>
               <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1 }}>
-                Price Range: ₹{priceRange[0]} - ₹{priceRange[1]}
+                Price Range: ₹{effectiveRange[0]} - ₹{effectiveRange[1]}
               </Typography>
               <Slider
-                value={priceRange}
+                value={effectiveRange}
                 onChange={(_, val) => setPriceRange(val as number[])}
                 min={0}
-                max={PRICE_CEILING}
+                max={ceiling}
                 step={500}
                 sx={{ color: 'primary.main' }}
               />
@@ -143,7 +155,7 @@ const ServicesPage: React.FC = () => {
           </Grid>
           <Grid item xs={12} md={2}>
             <Typography variant="body2" sx={{ color: 'text.secondary', textAlign: 'center' }}>
-              {filteredServices.length} of {ALL_SERVICES.length} shown
+              {filteredServices.length} of {services.length} shown
             </Typography>
           </Grid>
         </Grid>
@@ -166,7 +178,7 @@ const ServicesPage: React.FC = () => {
               : {}),
           }}
         />
-        {CATEGORIES.map((cat) => (
+        {categories.map((cat) => (
           <Chip
             key={cat}
             label={cat}
@@ -197,7 +209,15 @@ const ServicesPage: React.FC = () => {
         )}
       </Box>
 
-      {filteredServices.length === 0 && (
+      {loading && (
+        <Card sx={{ borderRadius: 3, p: 6, textAlign: 'center' }}>
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+            Loading services…
+          </Typography>
+        </Card>
+      )}
+
+      {!loading && filteredServices.length === 0 && (
         <Card sx={{ borderRadius: 3, p: 6, textAlign: 'center' }}>
           <Typography variant="h6" sx={{ fontWeight: 600 }}>
             Nothing matches those filters
@@ -223,6 +243,13 @@ const ServicesPage: React.FC = () => {
                 onClick={() => navigate(`/book/${service.slug}`)}
               >
                 <CardActionArea sx={{ height: '100%', p: 3 }}>
+                  {/* Only for items an admin has given artwork; everything else keeps the icon-only
+                      layout the page has always had, rather than reserving an empty band. */}
+                  <ServiceMedia
+                    mediaUrl={service.mediaUrl}
+                    mediaType={service.mediaType}
+                    title={service.title}
+                  />
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
                     <Avatar
                       sx={{

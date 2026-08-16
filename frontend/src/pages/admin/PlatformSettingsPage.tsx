@@ -8,6 +8,7 @@ import {
   settingsApi, PlatformSetting, PlatformSettingsData, SettingsGroup,
 } from '../../services/adminApi';
 import { apiErrorMessage } from '../../services/apiError';
+import DateTimePreferences from '../../components/settings/DateTimePreferences';
 
 /**
  * Platform-wide settings — the switches that change how the platform behaves for everybody.
@@ -211,6 +212,20 @@ const PlatformSettingsPage: React.FC = () => {
           ))}
         </Grid>
       )}
+
+      {/* Personal, not platform-wide — labelled as such so it is not mistaken for a setting that
+          changes what everyone else sees. It sits here because this is where people look for it. */}
+      <Card sx={{ borderRadius: 3, mt: 3 }}>
+        <Box sx={{ p: 2.5, borderBottom: 1, borderColor: 'divider' }}>
+          <Typography variant="h6" sx={{ fontWeight: 700 }}>Your date and time</Typography>
+          <Typography variant="body2" color="text.secondary">
+            Applies to your account only — everyone else keeps their own.
+          </Typography>
+        </Box>
+        <Box sx={{ p: 2.5, maxWidth: 520 }}>
+          <DateTimePreferences />
+        </Box>
+      </Card>
 
       <Snackbar
         open={toast !== null}

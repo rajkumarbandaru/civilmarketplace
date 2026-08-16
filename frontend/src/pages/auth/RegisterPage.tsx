@@ -19,7 +19,7 @@ import {
   ToggleButtonGroup,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { Visibility, VisibilityOff } from '@mui/icons-material';
+import { Visibility, VisibilityOff, StorefrontOutlined } from '@mui/icons-material';
 import { useForm, Controller } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
@@ -361,6 +361,18 @@ const RegisterPage: React.FC = () => {
               Sign In
             </Link>
           </Typography>
+
+          {/* Same escape hatch as the login page: most of the marketplace is browsable
+              signed-out, so don't dead-end a visitor who is only looking around. */}
+          <Button
+            component={Link}
+            to="/"
+            fullWidth
+            startIcon={<StorefrontOutlined />}
+            sx={{ mt: 1.5, textTransform: 'none', color: 'text.secondary' }}
+          >
+            Continue browsing without signing in
+          </Button>
         </CardContent>
       </Card>
     </motion.div>

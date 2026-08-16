@@ -49,6 +49,10 @@ export interface UiConfigSnapshot {
   role: string;
   menu: ResolvedMenuItem[];
   theme: ResolvedTheme;
+  /** IANA zone id, or null when the member follows the browser's own zone. */
+  timezone: string | null;
+  /** A key from `DATE_FORMAT_KEYS`, or null for the site default. */
+  dateFormat: string | null;
 }
 
 export interface AppearanceSettings {
@@ -58,8 +62,13 @@ export interface AppearanceSettings {
   /** The member's own choice, or null when they are following the workspace. */
   myColorMode: string | null;
   myDensity: string | null;
+  /** The member's own zone, or null when they follow the browser. */
+  myTimezone: string | null;
+  /** The member's own date layout, or null for the site default. */
+  myDateFormat: string | null;
   colorModeOptions: string[];
   densityOptions: string[];
+  dateFormatOptions: string[];
   /** Which fields this screen should render controls for. */
   memberEditable: string[];
   /** Which fields it should render as read-only values — Super Admin owns these. */
