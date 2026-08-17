@@ -47,11 +47,13 @@ public class AdminEmailLogController {
             @RequestParam(required = false) String templateKey,
             @RequestParam(required = false) String search,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "25") int size) {
+            @RequestParam(defaultValue = "25") int size,
+            @RequestParam(defaultValue = "createdAt") String sort,
+            @RequestParam(defaultValue = "desc") String direction) {
         requireAdmin(role);
         return ResponseEntity.ok(emailLogService.search(
                 parseStatus(status), parseChannel(channel), templateKey, search,
-                PageRequest.of(page, Math.min(size, 200), Sort.by(Sort.Direction.DESC, "createdAt"))));
+                PageRequest.of(page, Math.min(size, 200), parseSort(sort, direction))));
     }
 
     @GetMapping("/summary")
@@ -81,6 +83,28 @@ public class AdminEmailLogController {
             throw new NoSuchElementException("No email log entry with id " + id);
         }
         return ResponseEntity.ok(found);
+    }
+
+    /**
+     * Columns the list may be ordered by.
+     *
+     * <p>A whitelist rather than a straight pass-through to {@code Sort.by}: the property name goes
+     * into a JPQL order clause, so accepting whatever the caller sends lets them order by — and so
+     * probe the existence of — fields the DTO never exposes, such as {@code body}.
+     *
+     * <p>Every sort falls back to id so paging stays stable. Without it, rows sharing a status or a
+     * timestamp are free to swap places between two page requests, and one can appear on both page
+     * one and page two while another is never seen at all.
+     */
+    private static final Set<String> SORTABLE = Set.of(
+            "createdAt", "channel", "recipient", "templateKey", "subject", "status", "provider");
+
+    private static Sort parseSort(String sort, String direction) {
+        String property = sort != null && SORTABLE.contains(sort) ? sort : "createdAt";
+        Sort.Direction dir = "asc".equalsIgnoreCase(direction)
+                ? Sort.Direction.ASC
+                : Sort.Direction.DESC;
+        return Sort.by(dir, property).and(Sort.by(Sort.Direction.DESC, "id"));
     }
 
     /** An unknown channel name is a typo in the query string, not an empty result. */

@@ -70,6 +70,11 @@ export function sortRows<T>(
  * @param rows      the list as fetched; never mutated
  * @param accessors one function per sortable column key, returning the value to compare
  * @param initial   column to sort by on first render, and its direction
+ * @param resetOn   when this value changes, the sort returns to `initial`. For tables whose
+ *                  columns are not fixed — the report preview picks its own per report — the
+ *                  column sorted on a moment ago may not exist in the new set at all, which left
+ *                  the table unsorted and its headers all showing no arrow. Pass the identity of
+ *                  the column set (its key, or the joined names) to re-apply the default.
  */
 // The column keys are inferred from `accessors`, not from `initial`: writing the accessor map is
 // what declares which columns are sortable, and inferring from the optional initial key collapsed
@@ -78,12 +83,22 @@ export function useTableSort<T, A extends Record<string, (row: T) => SortValue>>
   rows: T[],
   accessors: A,
   initial?: { key: Extract<keyof A, string>; direction?: SortDirection },
+  resetOn?: string | number | null,
 ) {
   type K = Extract<keyof A, string>;
   const [sort, setSort] = useState<SortState<K>>({
     key: initial?.key ?? null,
     direction: initial?.direction ?? 'asc',
   });
+
+  // Only fires for callers that pass resetOn, and only when it actually changes — the common case
+  // of a fixed column set never enters this branch, so a user's chosen sort is never yanked back
+  // to the default underneath them by a routine refetch.
+  const [lastReset, setLastReset] = useState(resetOn);
+  if (resetOn !== lastReset) {
+    setLastReset(resetOn);
+    setSort({ key: initial?.key ?? null, direction: initial?.direction ?? 'asc' });
+  }
 
   const onSort = (key: K) =>
     setSort((current) =>

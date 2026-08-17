@@ -76,7 +76,10 @@ const AdminTrackingPage: React.FC = () => {
     workerName: (b: AdminBooking) => b.workerName,
     city: (b: AdminBooking) => b.city,
     status: (b: AdminBooking) => b.status,
-  }, { key: 'bookingCode' });
+    // Booking codes carry their sequence, so ordering by one descending puts the newest jobs at
+    // the top — which is what a tracking board is opened to look at. There is no date column here
+    // to sort on instead; the board shows live work, not history.
+  }, { key: 'bookingCode', direction: 'desc' });
 
   if (selectedId !== null) {
     return (

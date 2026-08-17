@@ -6,6 +6,7 @@ import com.civileng.marketplace.audit.common.AuditPublisher;
 import com.civileng.marketplace.notification.client.AuthServiceClient;
 import com.civileng.marketplace.notification.dto.AnnouncementDto.CreateAnnouncementRequest;
 import com.civileng.marketplace.notification.model.Announcement;
+import com.civileng.marketplace.notification.model.AnnouncementStatus;
 import com.civileng.marketplace.notification.repository.AnnouncementRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -14,9 +15,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Set;
 
 /**
@@ -43,30 +46,37 @@ public class AnnouncementService {
     private final AuthServiceClient authServiceClient;
     private final AuditPublisher auditPublisher;
 
+    /**
+     * Creates an announcement and either sends it now or leaves it waiting for its appointed time.
+     *
+     * A null {@code scheduledAt} — or one already past, which is what a slightly fast browser
+     * clock produces when the operator means "now" — sends immediately.
+     */
     @Transactional
     public Announcement publish(Long actorId, String actorRole, CreateAnnouncementRequest request) {
         List<String> roles = request.getTargetRoles();
         String targetRoles = String.join(",", roles);
+        Instant scheduledAt = request.getScheduledAt();
+        boolean later = scheduledAt != null && scheduledAt.isAfter(Instant.now());
 
-        Set<Long> recipients = resolveRecipients(roles);
-
-        Announcement announcement = Announcement.builder()
+        Announcement saved = announcementRepository.save(Announcement.builder()
                 .title(request.getTitle())
                 .body(request.getBody())
                 .targetRoles(targetRoles)
                 .createdBy(actorId)
-                .recipientCount(recipients.size())
-                .build();
-        Announcement saved = announcementRepository.save(announcement);
+                .status(later ? AnnouncementStatus.SCHEDULED : AnnouncementStatus.SENT)
+                .scheduledAt(later ? scheduledAt : null)
+                .build());
 
-        for (Long userId : recipients) {
-            notificationService.createNotification(
-                    userId, "ANNOUNCEMENT", saved.getTitle(), saved.getBody(),
-                    "IN_APP", "ANNOUNCEMENT", saved.getId(), null);
+        if (later) {
+            log.info("Announcement {} scheduled by {} for {} (roles: {})",
+                    saved.getId(), actorId, scheduledAt, targetRoles);
+        } else {
+            // The audience is resolved here rather than at save time so that both paths do it at
+            // the moment of sending: a scheduled announcement must reach whoever holds the role
+            // when it goes out, not whoever held it when it was written.
+            fanOut(saved);
         }
-
-        log.info("Announcement {} published by {} to {} recipients (roles: {})",
-                saved.getId(), actorId, recipients.size(), targetRoles);
 
         auditPublisher.publish(AuditEventMessage.builder()
                 .sourceService(SOURCE)
@@ -75,8 +85,65 @@ public class AnnouncementService {
                 .action(AuditAction.CREATE)
                 .entityType(ENTITY)
                 .entityId(String.valueOf(saved.getId()))
-                .afterState("title=" + saved.getTitle() + ",targetRoles=" + targetRoles)
-                .recordCount(recipients.size())
+                .afterState("title=" + saved.getTitle() + ",targetRoles=" + targetRoles
+                        + ",status=" + saved.getStatus()
+                        + (later ? ",scheduledAt=" + scheduledAt : ""))
+                .recordCount(saved.getRecipientCount())
+                .build());
+
+        return saved;
+    }
+
+    /** Ids of every announcement whose scheduled time has passed and which has not gone out. */
+    @Transactional(readOnly = true)
+    public List<Long> findDue() {
+        return announcementRepository
+                .findByStatusAndScheduledAtLessThanEqualOrderByScheduledAtAsc(
+                        AnnouncementStatus.SCHEDULED, Instant.now())
+                .stream()
+                .map(Announcement::getId)
+                .toList();
+    }
+
+    /**
+     * Sends one due announcement, if this instance is the one that claims it.
+     *
+     * Claim and fan-out share a transaction so the row stays locked until the notifications are
+     * committed: a second instance's claim blocks on that lock rather than racing past it, and
+     * once released finds the row out of SCHEDULED and gives up. A crash mid-send rolls both back
+     * and leaves the announcement SCHEDULED, so the next minute retries it.
+     */
+    @Transactional
+    public void release(Long id) {
+        if (announcementRepository.claimForSending(id) == 0) {
+            log.debug("Announcement {} already claimed by another instance", id);
+            return;
+        }
+        announcementRepository.findById(id).ifPresent(this::fanOut);
+    }
+
+    /** Calls off a scheduled announcement. Anything already sent is past recalling. */
+    @Transactional
+    public Announcement cancel(Long actorId, String actorRole, Long id) {
+        Announcement announcement = announcementRepository.findById(id)
+                .orElseThrow(() -> new NoSuchElementException("Announcement not found: " + id));
+        if (announcement.getStatus() != AnnouncementStatus.SCHEDULED) {
+            throw new IllegalArgumentException(
+                    "Only a scheduled announcement can be cancelled; this one is "
+                            + announcement.getStatus().name().toLowerCase());
+        }
+        announcement.setStatus(AnnouncementStatus.CANCELLED);
+        Announcement saved = announcementRepository.save(announcement);
+
+        log.info("Announcement {} cancelled by {}", id, actorId);
+        auditPublisher.publish(AuditEventMessage.builder()
+                .sourceService(SOURCE)
+                .actorId(actorId)
+                .actorRole(actorRole)
+                .action(AuditAction.UPDATE)
+                .entityType(ENTITY)
+                .entityId(String.valueOf(id))
+                .afterState("status=CANCELLED")
                 .build());
 
         return saved;
@@ -85,6 +152,30 @@ public class AnnouncementService {
     @Transactional(readOnly = true)
     public Page<Announcement> listHistory(Pageable pageable) {
         return announcementRepository.findAllByOrderByCreatedAtDesc(pageable);
+    }
+
+    /**
+     * Resolves the audience and writes one in-app notification per recipient, then marks the
+     * announcement sent. Shared by the immediate and the scheduled path so both deliver
+     * identically.
+     */
+    private void fanOut(Announcement announcement) {
+        Set<Long> recipients = resolveRecipients(
+                List.of(announcement.getTargetRoles().split(",")));
+
+        for (Long userId : recipients) {
+            notificationService.createNotification(
+                    userId, "ANNOUNCEMENT", announcement.getTitle(), announcement.getBody(),
+                    "IN_APP", "ANNOUNCEMENT", announcement.getId(), null);
+        }
+
+        announcement.setRecipientCount(recipients.size());
+        announcement.setStatus(AnnouncementStatus.SENT);
+        announcement.setSentAt(Instant.now());
+        announcementRepository.save(announcement);
+
+        log.info("Announcement {} sent to {} recipients (roles: {})",
+                announcement.getId(), recipients.size(), announcement.getTargetRoles());
     }
 
     /**

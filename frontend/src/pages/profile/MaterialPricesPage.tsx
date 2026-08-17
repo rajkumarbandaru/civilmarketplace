@@ -126,7 +126,11 @@ const MaterialPricesPage: React.FC = () => {
     minOrderQuantity: (p) => p.minOrderQuantity ?? null,
     deliveryIncluded: (p) => p.deliveryIncluded,
     isActive: (p) => p.isActive,
-  }, { key: 'material' });
+    updatedAt: (p) => (p.updatedAt ? new Date(p.updatedAt) : null),
+    // Most recently changed first. A rate list is read to check what is current, and a rate that
+    // has not been touched in months is the one worth noticing — sorting by material name buried
+    // that under the alphabet.
+  }, { key: 'updatedAt', direction: 'desc' });
 
   const selectedMaterial = useMemo(
     () => catalogue.find((item) => item.id === form.materialItemId),
@@ -253,6 +257,7 @@ const MaterialPricesPage: React.FC = () => {
                     <SortableTableCell columnKey="minOrderQuantity" sort={sort} onSort={onSort} align="right">Min order</SortableTableCell>
                     <SortableTableCell columnKey="deliveryIncluded" sort={sort} onSort={onSort}>Delivery</SortableTableCell>
                     <SortableTableCell columnKey="isActive" sort={sort} onSort={onSort}>Status</SortableTableCell>
+                    <SortableTableCell columnKey="updatedAt" sort={sort} onSort={onSort}>Updated</SortableTableCell>
                     <TableCell align="right">Actions</TableCell>
                   </TableRow>
                 </TableHead>
@@ -282,6 +287,11 @@ const MaterialPricesPage: React.FC = () => {
                           color={price.isActive ? 'success' : 'default'}
                           variant={price.isActive ? 'filled' : 'outlined'}
                         />
+                      </TableCell>
+                      <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                        {price.updatedAt
+                          ? new Date(price.updatedAt).toLocaleDateString()
+                          : '—'}
                       </TableCell>
                       <TableCell align="right">
                         <Tooltip title="Edit rate">

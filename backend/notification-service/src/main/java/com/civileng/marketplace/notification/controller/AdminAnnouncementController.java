@@ -17,8 +17,11 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Set;
 
 /**
- * Super Admin / staff broadcast console. Publishing fans out immediately — there is no draft
- * state — matching the SRS's "one-click" framing for ENT·04.
+ * Super Admin / staff broadcast console. Publishing with no {@code scheduledAt} fans out
+ * immediately, matching the SRS's "one-click" framing for ENT·04; with one, the announcement
+ * waits for its time and {@code AnnouncementReleaseJob} sends it. There is still no draft state —
+ * a scheduled announcement is committed, only not yet delivered, and cancelling is how it is
+ * called off.
  */
 @RestController
 @RequestMapping("/api/v1/admin/announcements")
@@ -39,6 +42,16 @@ public class AdminAnnouncementController {
             @Valid @RequestBody CreateAnnouncementRequest request) {
         requireAdmin(role);
         return ResponseEntity.ok(announcementService.publish(actorId, role, request));
+    }
+
+    @PostMapping("/{id}/cancel")
+    @Operation(summary = "Call off an announcement that has not gone out yet")
+    public ResponseEntity<Announcement> cancel(
+            @RequestHeader("X-User-Id") Long actorId,
+            @RequestHeader(value = "X-User-Role", required = false) String role,
+            @PathVariable Long id) {
+        requireAdmin(role);
+        return ResponseEntity.ok(announcementService.cancel(actorId, role, id));
     }
 
     @GetMapping

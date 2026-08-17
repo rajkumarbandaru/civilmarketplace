@@ -31,7 +31,27 @@ const ReportsPage: React.FC = () => {
     ) as Record<string, (row: Record<string, string>) => string>,
     [preview?.columns]
   );
-  const { sorted, sort, onSort } = useTableSort(previewRows, sortAccessors);
+  /**
+   * Which column a report opens sorted on, chosen from the names it returned: a date if it has
+   * one, otherwise an id, otherwise the first column. Every report here is a list of things that
+   * happened — bookings, payments, signups — so its newest rows are the ones being checked, and
+   * ordering by whatever column happened to come back first was arbitrary.
+   */
+  const defaultSortColumn = useMemo(() => {
+    const columns = preview?.columns ?? [];
+    const matching = (pattern: RegExp) => columns.find((column) => pattern.test(column));
+    return matching(/date|time|when|created|updated|issued|joined|at$/i)
+      ?? matching(/(^|\b|_)(id|code|no|number)(\b|_|$)/i)
+      ?? columns[0];
+  }, [preview?.columns]);
+
+  const { sorted, sort, onSort } = useTableSort(
+    previewRows,
+    sortAccessors,
+    defaultSortColumn ? { key: defaultSortColumn, direction: 'desc' as const } : undefined,
+    // The columns change with the report, so the default has to be re-applied when they do.
+    (preview?.columns ?? []).join('|'),
+  );
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [downloading, setDownloading] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; severity: 'success' | 'error' } | null>(null);

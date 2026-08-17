@@ -1,10 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Badge, Box, Button, CircularProgress, Divider, IconButton, List, ListItemButton, ListItemText,
   Menu, Tooltip, Typography,
 } from '@mui/material';
-import { DoneAll, Notifications as NotificationsIcon } from '@mui/icons-material';
+import {
+  DoneAll, Notifications as NotificationsIcon, VolumeOff, VolumeUp,
+} from '@mui/icons-material';
 import { useAppDispatch, useAppSelector } from '../hooks';
 import {
   fetchNotifications,
@@ -13,6 +15,9 @@ import {
   refreshUnreadCount,
 } from '../store/slices/notificationSlice';
 import { AppNotification } from '../services/notificationApi';
+import {
+  isNotificationSoundMuted, playNotificationSound, setNotificationSoundMuted,
+} from '../utils/notificationSound';
 
 /**
  * The notification bell, and the menu behind it.
@@ -20,6 +25,10 @@ import { AppNotification } from '../services/notificationApi';
  * Both shells previously painted a bell that did nothing: the customer navbar showed a count that
  * could only ever be zero, and the admin shell showed the literal number 3. One component now
  * serves both, so the two cannot drift apart again.
+ *
+ * A rising unread count chimes, so an arrival is noticed without the badge being watched. The
+ * chime is bounded by the poll below: it announces the notification when the count is next read,
+ * not the instant it was written.
  */
 
 /** How often the badge is refreshed while the app is open. */
@@ -58,6 +67,41 @@ const NotificationBell: React.FC<{ color?: string }> = ({ color = 'text.secondar
   const { isAuthenticated } = useAppSelector((state) => state.auth);
   const { notifications, unreadCount, loading, loaded } = useAppSelector((state) => state.notification);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [muted, setMuted] = useState(isNotificationSoundMuted);
+
+  /**
+   * The last count we chimed against, or null before the first one has been seen.
+   *
+   * A ref rather than state: comparing counts must not itself cause a render, and the effect below
+   * has to read the previous value without listing it as a dependency.
+   */
+  const previousUnread = useRef<number | null>(null);
+
+  // Chime only when the count actually rises. The first reading after mount just sets the
+  // baseline — an admin who signs in with eleven unread notifications waiting should not be
+  // greeted by a chime for messages that have been sitting there since yesterday. A falling count
+  // (something was read, here or in another tab) is silent for the same reason.
+  useEffect(() => {
+    if (!isAuthenticated) {
+      previousUnread.current = null;
+      return;
+    }
+    const previous = previousUnread.current;
+    previousUnread.current = unreadCount;
+    if (previous !== null && unreadCount > previous) {
+      playNotificationSound();
+    }
+  }, [unreadCount, isAuthenticated]);
+
+  const toggleMuted = () => {
+    const next = !muted;
+    setMuted(next);
+    setNotificationSoundMuted(next);
+    // Unmuting plays the chime once, so the choice is confirmed by hearing it — and, because this
+    // runs inside a click, it is also what lifts the browser's autoplay block on the audio
+    // context, so the next real notification is audible without any further interaction.
+    if (!next) playNotificationSound();
+  };
 
   // Only the badge is polled. Refetching the whole list every minute would cost a page of rows to
   // render a number, and the list is re-read whenever the menu is opened anyway.
@@ -107,6 +151,11 @@ const NotificationBell: React.FC<{ color?: string }> = ({ color = 'text.secondar
           <Typography variant="subtitle1" sx={{ fontWeight: 700, flexGrow: 1 }}>
             Notifications
           </Typography>
+          <Tooltip title={muted ? 'Sound off — click to turn on' : 'Sound on — click to mute'}>
+            <IconButton size="small" onClick={toggleMuted} aria-label={muted ? 'Unmute notification sound' : 'Mute notification sound'}>
+              {muted ? <VolumeOff fontSize="small" /> : <VolumeUp fontSize="small" />}
+            </IconButton>
+          </Tooltip>
           {unreadCount > 0 && (
             <Button
               size="small"

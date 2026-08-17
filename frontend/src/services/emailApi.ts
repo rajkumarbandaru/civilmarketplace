@@ -165,6 +165,10 @@ export const fetchEmailLog = async (params: {
   search?: string;
   page?: number;
   size?: number;
+  // Sorting is server-side here, unlike the client-sorted admin tables: the log is paged, so
+  // ordering the 25 rows in hand would only ever reshuffle the current page.
+  sort?: string;
+  direction?: 'asc' | 'desc';
 }): Promise<Paged<EmailLogEntry>> => {
   const { data } = await api.get<Paged<EmailLogEntry>>(LOG, { params });
   return data;

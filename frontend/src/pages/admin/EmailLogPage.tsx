@@ -10,6 +10,15 @@ import {
   EmailLogEntry, EmailLogSummary, EmailStatus, NotificationChannel, fetchEmailLog,
   fetchEmailLogEntry, fetchEmailLogSummary, fetchLoggedTemplateKeys,
 } from '../../services/emailApi';
+import { SortState, SortableTableCell } from '../../components/admin/SortableTable';
+
+/**
+ * The orderable columns, named as the entity's own properties because they are sent straight to
+ * the API — which only accepts these. The trailing actions column is not among them: it holds a
+ * button, not a value to order by.
+ */
+type EmailLogSortKey =
+  | 'createdAt' | 'channel' | 'recipient' | 'templateKey' | 'subject' | 'status' | 'provider';
 
 /**
  * Every notification the platform tried to send — email, SMS, WhatsApp or in-app — and how far it
@@ -228,6 +237,27 @@ const EmailLogPage: React.FC = () => {
   const [viewing, setViewing] = useState<EmailLogEntry | null>(null);
   const [viewLoading, setViewLoading] = useState(false);
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string }>({ open: false, message: '' });
+  /**
+   * Sort lives in state here rather than in `useTableSort` because this list is paged on the
+   * server. Sorting the 25 rows already fetched would reorder the current page and nothing else,
+   * so the column and direction go to the API and the whole result set is ordered before paging.
+   *
+   * Newest first is the default: the log is read to check what just went out.
+   */
+  const [sort, setSort] = useState<SortState<EmailLogSortKey>>({ key: 'createdAt', direction: 'desc' });
+
+  const onSort = (key: EmailLogSortKey) => {
+    setSort((current) =>
+      current.key === key
+        ? { key, direction: current.direction === 'asc' ? 'desc' : 'asc' }
+        // A date column opens on its newest end, every other column on its first — landing an
+        // admin in 2019 because they clicked "When" is never what they meant.
+        : { key, direction: key === 'createdAt' ? 'desc' : 'asc' },
+    );
+    // The rows for the new order start at its beginning; keeping page 7 would show the middle of
+    // a list the admin has not seen the top of.
+    setPage(0);
+  };
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -248,6 +278,10 @@ const EmailLogPage: React.FC = () => {
           search: appliedSearch || undefined,
           page,
           size,
+          // No column chosen means "no sort override" — the API wants the parameter absent, not
+          // a literal null in the query string.
+          sort: sort.key ?? undefined,
+          direction: sort.direction,
         }),
         fetchEmailLogSummary(),
       ]);
@@ -259,7 +293,7 @@ const EmailLogPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [status, channel, templateKey, appliedSearch, page, size]);
+  }, [status, channel, templateKey, appliedSearch, page, size, sort.key, sort.direction]);
 
   useEffect(() => {
     load();
@@ -424,13 +458,13 @@ const EmailLogPage: React.FC = () => {
           <Table size="small">
             <TableHead>
               <TableRow>
-                <TableCell>When</TableCell>
-                <TableCell>Type</TableCell>
-                <TableCell>Recipient</TableCell>
-                <TableCell>Source</TableCell>
-                <TableCell>Subject</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Provider</TableCell>
+                <SortableTableCell columnKey="createdAt" sort={sort} onSort={onSort}>When</SortableTableCell>
+                <SortableTableCell columnKey="channel" sort={sort} onSort={onSort}>Type</SortableTableCell>
+                <SortableTableCell columnKey="recipient" sort={sort} onSort={onSort}>Recipient</SortableTableCell>
+                <SortableTableCell columnKey="templateKey" sort={sort} onSort={onSort}>Source</SortableTableCell>
+                <SortableTableCell columnKey="subject" sort={sort} onSort={onSort}>Subject</SortableTableCell>
+                <SortableTableCell columnKey="status" sort={sort} onSort={onSort}>Status</SortableTableCell>
+                <SortableTableCell columnKey="provider" sort={sort} onSort={onSort}>Provider</SortableTableCell>
                 <TableCell align="right" />
               </TableRow>
             </TableHead>

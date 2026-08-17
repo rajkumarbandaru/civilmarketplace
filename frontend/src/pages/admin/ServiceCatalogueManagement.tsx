@@ -114,7 +114,10 @@ const ServiceCatalogueManagement: React.FC = () => {
     rating: (s) => s.rating,
     media: (s) => (s.mediaUrl ? s.mediaType || 'IMAGE' : ''),
     active: (s) => s.active,
-  }, { key: 'title' });
+    createdAt: (s) => (s.createdAt ? new Date(s.createdAt) : null),
+    // Newest first: after adding a service the admin's next move is to price it, add media, or
+    // switch it live, and alphabetical order dropped it somewhere in the middle of the list.
+  }, { key: 'createdAt', direction: 'desc' });
 
   const handleAdd = () => {
     setEditing(null);
@@ -264,6 +267,7 @@ const ServiceCatalogueManagement: React.FC = () => {
                 <SortableTableCell columnKey="rating" sort={sort} onSort={onSort}>Rating</SortableTableCell>
                 <SortableTableCell columnKey="media" sort={sort} onSort={onSort}>Media</SortableTableCell>
                 <SortableTableCell columnKey="active" sort={sort} onSort={onSort}>Live</SortableTableCell>
+                <SortableTableCell columnKey="createdAt" sort={sort} onSort={onSort}>Added</SortableTableCell>
                 <TableCell sx={{ fontWeight: 700 }} align="right">Actions</TableCell>
               </TableRow>
             </TableHead>
@@ -271,7 +275,7 @@ const ServiceCatalogueManagement: React.FC = () => {
               {loading ? (
                 Array.from({ length: 6 }).map((_, idx) => (
                   <TableRow key={idx}>
-                    {Array.from({ length: 7 }).map((__, cidx) => (
+                    {Array.from({ length: 8 }).map((__, cidx) => (
                       <TableCell key={cidx}><Skeleton /></TableCell>
                     ))}
                   </TableRow>
@@ -318,6 +322,13 @@ const ServiceCatalogueManagement: React.FC = () => {
                         />
                       </Tooltip>
                     </TableCell>
+                    <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                      <Typography variant="caption" sx={{ color: '#94a3b8' }}>
+                        {service.createdAt
+                          ? new Date(service.createdAt).toLocaleDateString()
+                          : '—'}
+                      </Typography>
+                    </TableCell>
                     <TableCell align="right">
                       <IconButton size="small" onClick={() => handleEdit(service)} sx={{ mr: 1 }}>
                         <Edit fontSize="small" />
@@ -330,7 +341,7 @@ const ServiceCatalogueManagement: React.FC = () => {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
+                  <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
                     <Typography variant="body2" sx={{ color: '#94a3b8' }}>
                       {services.length === 0 ? 'No services yet' : 'Nothing matches that search'}
                     </Typography>

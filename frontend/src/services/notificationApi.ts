@@ -57,6 +57,8 @@ export const deleteNotification = async (id: number): Promise<void> => {
 
 // --------------------------------------------------------------------- admin broadcast
 
+export type AnnouncementStatus = 'SCHEDULED' | 'SENDING' | 'SENT' | 'CANCELLED';
+
 export interface Announcement {
   id: number;
   title: string;
@@ -65,6 +67,11 @@ export interface Announcement {
   targetRoles: string;
   createdBy: number | null;
   recipientCount: number | null;
+  status: AnnouncementStatus;
+  /** ISO-8601 instant, or null when it was sent immediately. */
+  scheduledAt: string | null;
+  /** ISO-8601 instant, null until it has actually gone out. */
+  sentAt: string | null;
   createdAt: string;
 }
 
@@ -73,6 +80,13 @@ export interface CreateAnnouncementRequest {
   body: string;
   /** Role names, or a single-element `['*']` for every active user. */
   targetRoles: string[];
+  /**
+   * ISO-8601 instant to send at, or omitted to send now.
+   *
+   * Always an instant with its offset — never the browser's bare wall-clock string. The services
+   * run on UTC and the operators do not, so a "02:00" with no zone would arrive hours out.
+   */
+  scheduledAt?: string;
 }
 
 export const publishAnnouncement = async (
@@ -87,6 +101,12 @@ export const fetchAnnouncements = async (page = 0, size = 20) => {
     '/admin/announcements',
     { params: { page, size } }
   );
+  return data;
+};
+
+/** Calls off a scheduled announcement. Only valid while it is still SCHEDULED. */
+export const cancelAnnouncement = async (id: number): Promise<Announcement> => {
+  const { data } = await api.post<Announcement>(`/admin/announcements/${id}/cancel`);
   return data;
 };
 
