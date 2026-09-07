@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { formatCurrency } from '../../utils/currency';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   Box,
@@ -141,7 +142,7 @@ const ServicesPage: React.FC = () => {
           <Grid item xs={6} md={3}>
             <Box sx={{ px: 2 }}>
               <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1 }}>
-                Price Range: ₹{effectiveRange[0]} - ₹{effectiveRange[1]}
+                Price Range: {formatCurrency(effectiveRange[0])} - {formatCurrency(effectiveRange[1])}
               </Typography>
               <Slider
                 value={effectiveRange}

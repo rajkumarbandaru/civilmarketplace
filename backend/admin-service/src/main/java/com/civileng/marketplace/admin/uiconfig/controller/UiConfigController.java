@@ -1,6 +1,6 @@
 package com.civileng.marketplace.admin.uiconfig.controller;
 
-import com.civileng.marketplace.admin.exception.AccessDeniedException;
+import com.civileng.marketplace.web.common.AccessDeniedException;
 import com.civileng.marketplace.admin.uiconfig.dto.UiConfigDTO.AppearanceSettings;
 import com.civileng.marketplace.admin.uiconfig.dto.UiConfigDTO.AppearanceUpdateCommand;
 import com.civileng.marketplace.admin.uiconfig.dto.UiConfigDTO.Snapshot;

@@ -60,6 +60,7 @@ const FALLBACK_NAV = [
   { key: 'admin-revenue', label: 'Revenue', path: '/admin/revenue', icon: 'AccountBalanceWallet', menuGroup: 'Finance', exactMatch: false },
   { key: 'admin-reports', label: 'Reports', path: '/admin/reports', icon: 'Assessment', menuGroup: 'Finance', exactMatch: false },
   { key: 'admin-invoices', label: 'Invoices', path: '/admin/invoices', icon: 'Receipt', menuGroup: 'Finance', exactMatch: false },
+  { key: 'admin-tenants', label: 'Tenants', path: '/admin/tenants', icon: 'Domain', menuGroup: 'System', exactMatch: false },
   { key: 'admin-workspaces', label: 'Workspaces', path: '/admin/workspaces', icon: 'ViewQuilt', menuGroup: 'System', exactMatch: false },
   { key: 'admin-theme', label: 'Theme & UI style', path: '/admin/theme', icon: 'Palette', menuGroup: 'System', exactMatch: false },
   { key: 'admin-settings', label: 'Settings', path: '/admin/settings', icon: 'Settings', menuGroup: 'System', exactMatch: false },

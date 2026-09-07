@@ -13,8 +13,14 @@ import org.springframework.data.elasticsearch.annotations.FieldType;
  * Denormalised read model of a supply-side profile, assembled from auth-service (identity),
  * user-service (profile) and review-service (reputation). Never written to by anything except
  * the reindex pipeline — the owning services remain the source of truth.
+ *
+ * <p>One index per tenant; see {@link com.civileng.marketplace.search.config.TenantIndex}. Callers
+ * pass explicit {@code IndexCoordinates}, and the SpEL name here is the backstop that keeps any
+ * future call which forgets them tenant-scoped rather than pointed at a shared index.
+ * {@code createIndex = false} because there is no single index to create at startup, and startup
+ * has no tenant bound to resolve one.
  */
-@Document(indexName = "profiles")
+@Document(indexName = "#{@tenantIndex.profiles()}", createIndex = false)
 @Data
 @Builder
 @NoArgsConstructor

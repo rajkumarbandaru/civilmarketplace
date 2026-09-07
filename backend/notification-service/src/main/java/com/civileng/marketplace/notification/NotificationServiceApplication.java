@@ -9,7 +9,11 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
 @EnableDiscoveryClient
-@EnableFeignClients
+// UserDirectoryClient is shared with search-service, which pages the same endpoint.
+@EnableFeignClients(basePackages = {
+        "com.civileng.marketplace.notification.client",
+        "com.civileng.marketplace.web.common.client"
+})
 @EnableAsync
 // Drives AnnouncementReleaseJob, which sends announcements booked for a later time.
 @EnableScheduling

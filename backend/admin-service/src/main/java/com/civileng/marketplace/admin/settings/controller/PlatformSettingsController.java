@@ -1,6 +1,6 @@
 package com.civileng.marketplace.admin.settings.controller;
 
-import com.civileng.marketplace.admin.exception.AccessDeniedException;
+import com.civileng.marketplace.web.common.AccessDeniedException;
 import com.civileng.marketplace.admin.settings.service.PlatformSettingsService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;

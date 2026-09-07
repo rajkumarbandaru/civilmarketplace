@@ -4,10 +4,20 @@ server:
 spring:
   application:
     name: search-service
+  task:
+    scheduling:
+      # Two: the reindex sweep and a new tenant's delayed provisioning retry must not queue behind
+      # each other on a single-threaded scheduler.
+      pool:
+        size: 2
   elasticsearch:
     uris: ${ELASTICSEARCH_URIS:http://elasticsearch:9200}
     connection-timeout: 5s
     socket-timeout: 10s
+  kafka:
+    # Only consumer here is tenant-common's provisioning listener, which builds a new tenant's
+    # indices the moment it goes ACTIVE instead of leaving it unsearchable until the next sweep.
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}
 
 resilience4j:
   circuitbreaker:
@@ -21,12 +31,34 @@ resilience4j:
         wait-duration-in-open-state: 5s
         failure-rate-threshold: 50
 
+platform:
+  # Shared HTTP layer (web-common).
+  web:
+    admin-guard:
+      enabled: true
+      path-patterns:
+        - "/api/v1/admin/**"
+  tenant:
+    enabled: true
+    # No schema-prefix: this service stores nothing in MySQL, so it takes the tenant context,
+    # header filter and Feign propagation from tenant-common but not the schema-per-tenant layer.
+    # Its isolation is one Elasticsearch index per tenant — see TenantIndex.
+    registry:
+      url: jdbc:mysql://mysql:3306/civil_engineer_tenants?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      username: ${TENANT_DB_USERNAME:civil_user}
+      password: ${TENANT_DB_PASSWORD:civil_pass}
+
 search:
   # Full reindex cadence. The index is a read replica of user/auth/review data; there are no
   # change events to consume yet, so a periodic pull keeps it fresh (SRS CP-02 allows < 60s lag,
   # which this does not meet — wire event-driven updates when the services publish them).
   reindex-cron: "0 */5 * * * *"
   reindex-on-startup: true
+  # A new tenant's first index build races the other services provisioning the same tenant from the
+  # same Kafka message — reading a schema they have not migrated yet is a 500. Retry rather than
+  # leave the tenant looking empty until the next sweep. See SearchTenantProvisioner.
+  provision-retries: 5
+  provision-retry-delay-seconds: 15
 
 eureka:
   instance:
@@ -52,3 +84,4 @@ springdoc:
     path: /api-docs
   swagger-ui:
     path: /swagger-ui.html
+

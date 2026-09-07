@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { formatCompactCurrency } from '../../utils/currency';
 import {
   Box, Card, CardContent, Typography, Grid, Chip, Avatar, LinearProgress, Skeleton,
 } from '@mui/material';
@@ -92,7 +93,7 @@ const AnalyticsPage: React.FC = () => {
                   monthlyTrend.map((month: MonthlyTrend) => (
                     <Box key={month.month} sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%' }}>
                       <Typography variant="caption" sx={{ color: '#64748b', mb: 0.5, fontSize: '0.65rem' }}>
-                        ₹{(month.revenue / 100000).toFixed(1)}L
+                        {formatCompactCurrency(month.revenue)}
                       </Typography>
                       <Box sx={{
                         width: '100%', maxWidth: 32,

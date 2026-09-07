@@ -4,7 +4,9 @@ import { logout, setCredentials } from '../store/slices/authSlice';
 
 // Gateway runs on host port 8080 (HOST_PORT_GATEWAY in docker/.env). Keep this default in step
 // with that variable — pointing at a port nothing serves sends every API call into the void.
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+import { API_ORIGIN } from './apiBase';
+
+const API_BASE_URL = API_ORIGIN;
 
 const api = axios.create({
   baseURL: `${API_BASE_URL}/api/v1`,

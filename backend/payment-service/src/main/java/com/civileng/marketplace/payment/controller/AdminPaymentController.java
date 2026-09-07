@@ -1,9 +1,9 @@
 package com.civileng.marketplace.payment.controller;
 
+import com.civileng.marketplace.web.common.client.UserNameResolver;
 import com.civileng.marketplace.payment.model.Payment;
 import com.civileng.marketplace.payment.model.PaymentStatus;
 import com.civileng.marketplace.payment.repository.PaymentRepository;
-import com.civileng.marketplace.payment.service.UserNameResolver;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;

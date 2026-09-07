@@ -1,6 +1,7 @@
 package com.civileng.marketplace.review.controller;
 
-import com.civileng.marketplace.review.exception.AccessDeniedException;
+import com.civileng.marketplace.web.common.StaffRoles;
+import com.civileng.marketplace.web.common.AccessDeniedException;
 import com.civileng.marketplace.review.model.Review;
 import com.civileng.marketplace.review.repository.ReviewRepository;
 import com.civileng.marketplace.review.service.ReviewService;
@@ -15,7 +16,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
-import java.util.Set;
 
 @RestController
 @RequestMapping("/api/v1/admin/reviews")
@@ -24,8 +24,6 @@ import java.util.Set;
 @Tag(name = "Admin Review Moderation", description = "Admin endpoints for review moderation")
 public class AdminReviewController {
 
-    private static final Set<String> ADMIN_ROLES =
-            Set.of("SUPER_ADMIN", "ADMIN", "SUB_ADMIN", "REGIONAL_ADMIN");
 
     private final ReviewService reviewService;
     private final ReviewRepository reviewRepository;
@@ -62,7 +60,7 @@ public class AdminReviewController {
     }
 
     private void requireAdmin(String role) {
-        if (role == null || !ADMIN_ROLES.contains(role)) {
+        if (!StaffRoles.isStaff(role)) {
             throw new AccessDeniedException("Admin role required");
         }
     }

@@ -1,4 +1,6 @@
 import React, { useEffect } from 'react';
+import { bookingStatusColor } from '../../utils/statusColors';
+import { formatCurrency } from '../../utils/currency';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -39,17 +41,6 @@ const statCards = [
   { label: 'Reviews Given', value: '8', icon: <Star />, color: '#f59e0b', bg: '#fffbeb' },
   { label: 'Saved Pros', value: '5', icon: <People />, color: '#8b5cf6', bg: '#f5f3ff' },
 ];
-
-const getStatusColor = (status: string) => {
-  const colors: Record<string, string> = {
-    PENDING: '#f59e0b',
-    CONFIRMED: '#3b82f6',
-    IN_PROGRESS: '#8b5cf6',
-    COMPLETED: '#10b981',
-    CANCELLED: '#ef4444',
-  };
-  return colors[status] || '#64748b';
-};
 
 const DashboardPage: React.FC = () => {
   const { formatDate } = useDateTime();
@@ -189,13 +180,13 @@ const DashboardPage: React.FC = () => {
                         label={booking.status}
                         size="small"
                         sx={{
-                          bgcolor: `${getStatusColor(booking.status)}15`,
-                          color: getStatusColor(booking.status),
+                          bgcolor: `${bookingStatusColor(booking.status)}15`,
+                          color: bookingStatusColor(booking.status),
                           fontWeight: 600,
                         }}
                       />
                     </TableCell>
-                    <TableCell>₹{booking.totalAmount}</TableCell>
+                    <TableCell>{formatCurrency(booking.totalAmount)}</TableCell>
                     <TableCell>
                       {formatDate(booking.createdAt)}
                     </TableCell>

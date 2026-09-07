@@ -1,7 +1,7 @@
 package com.civileng.marketplace.review.service;
 
-import com.civileng.marketplace.review.client.BookingDto;
-import com.civileng.marketplace.review.client.BookingServiceClient;
+import com.civileng.marketplace.web.common.client.BookingDto;
+import com.civileng.marketplace.web.common.client.BookingLookupClient;
 import com.civileng.marketplace.review.dto.SubmitReviewRequest;
 import com.civileng.marketplace.review.model.RatingSummary;
 import com.civileng.marketplace.review.model.Review;
@@ -26,7 +26,7 @@ public class ReviewService {
 
     private final ReviewRepository reviewRepository;
     private final RatingSummaryRepository ratingSummaryRepository;
-    private final BookingServiceClient bookingServiceClient;
+    private final BookingLookupClient bookingLookupClient;
 
     @Transactional
     public Review submitReview(Long reviewerId, SubmitReviewRequest request) {
@@ -34,7 +34,7 @@ public class ReviewService {
             throw new IllegalArgumentException("You have already reviewed this booking");
         }
 
-        BookingDto booking = bookingServiceClient.getBooking(request.getBookingId());
+        BookingDto booking = bookingLookupClient.getBooking(request.getBookingId());
         if (booking == null) {
             throw new IllegalArgumentException("Booking not found or booking-service unavailable");
         }

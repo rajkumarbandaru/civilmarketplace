@@ -7,7 +7,11 @@ import org.springframework.cloud.openfeign.EnableFeignClients;
 
 @SpringBootApplication
 @EnableDiscoveryClient
-@EnableFeignClients
+@EnableFeignClients(basePackages = {
+        "com.civileng.marketplace.project.client",
+        // BookingDto and BookingLookupClient, shared with the other services that read a booking.
+        "com.civileng.marketplace.web.common.client"
+})
 public class ProjectServiceApplication {
 
     public static void main(String[] args) {

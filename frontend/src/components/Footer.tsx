@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Box, Container, Grid, Typography, Link, IconButton, Divider } from '@mui/material';
+import { Box, Container, Typography, Link, IconButton, Divider } from '@mui/material';
 import DynamicIcon from './DynamicIcon';
 import { usePageSections, useSection } from '../hooks/useSiteContent';
 import { ContentSection, resolveMediaUrl } from '../services/siteContentApi';
@@ -70,10 +70,26 @@ const Footer: React.FC = () => {
       }}
     >
       <Container maxWidth="xl">
-        <Grid container spacing={6} alignItems="flex-start">
+        {/* A grid rather than a 12-column Grid: the link columns each need room for their longest
+            label ("Register as Material Supplier") on one or two lines, which 1.8/12 never gave
+            them. `minmax(0, 1fr)` keeps every column the same width and lets them wrap onto a
+            second row on narrow viewports instead of squeezing. */}
+        <Box
+          sx={{
+            display: 'grid',
+            gap: { xs: 4, md: 5 },
+            alignItems: 'start',
+            gridTemplateColumns: {
+              xs: 'repeat(2, minmax(0, 1fr))',
+              sm: 'repeat(3, minmax(0, 1fr))',
+              md: 'repeat(4, minmax(0, 1fr))',
+              lg: 'minmax(0, 1.4fr) repeat(5, minmax(0, 1fr))',
+            },
+          }}
+        >
           {/* Brand */}
           {brand && (
-            <Grid item xs={12} md={3}>
+            <Box sx={{ gridColumn: { xs: '1 / -1', lg: 'auto' }, maxWidth: 340 }}>
               {logo ? (
                 <Box
                   component="img"
@@ -118,14 +134,18 @@ const Footer: React.FC = () => {
                   </IconButton>
                 ))}
               </Box>
-            </Grid>
+            </Box>
           )}
 
-          {/* Link columns. Five at md=1.8 (=9) sit on one row beside the 3-wide brand block. */}
+          {/* Link columns: each is its own stack, so a column holding two groups keeps a uniform
+              gap between them regardless of how long its neighbours are. */}
           {columns.map((column) => (
-            <Grid item xs={6} md={1.8} key={column[0].sectionKey}>
-              {column.map((section, idx) => (
-                <Box key={section.sectionKey} sx={{ mb: idx < column.length - 1 ? 3 : 0 }}>
+            <Box
+              key={column[0].sectionKey}
+              sx={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}
+            >
+              {column.map((section) => (
+                <Box key={section.sectionKey}>
                   <Typography
                     variant="subtitle2"
                     sx={{
@@ -133,7 +153,9 @@ const Footer: React.FC = () => {
                       fontWeight: 600,
                       mb: 2,
                       textTransform: 'uppercase',
-                      letterSpacing: 1,
+                      letterSpacing: 0.6,
+                      fontSize: '0.8125rem',
+                      lineHeight: 1.4,
                     }}
                   >
                     {section.title}
@@ -152,8 +174,9 @@ const Footer: React.FC = () => {
                         border: 'none',
                         p: 0,
                         color: '#94a3b8',
-                        mb: 1.5,
+                        mb: 1.25,
                         fontSize: '0.875rem',
+                        lineHeight: 1.5,
                         fontFamily: 'inherit',
                         cursor: link.linkUrl ? 'pointer' : 'default',
                         transition: 'color 0.2s',
@@ -165,13 +188,22 @@ const Footer: React.FC = () => {
                   ))}
                 </Box>
               ))}
-            </Grid>
+            </Box>
           ))}
-        </Grid>
+        </Box>
 
-        <Divider sx={{ my: 4, borderColor: 'rgba(255,255,255,0.1)' }} />
+        <Divider sx={{ mt: 6, mb: 3, borderColor: 'rgba(255,255,255,0.1)' }} />
 
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: 2,
+            textAlign: { xs: 'center', sm: 'left' },
+          }}
+        >
           <Typography variant="body2" sx={{ color: '#64748b' }}>
             {legalLine}
           </Typography>

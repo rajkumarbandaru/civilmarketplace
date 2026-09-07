@@ -1,7 +1,8 @@
 package com.civileng.marketplace.notification.controller;
 
+import com.civileng.marketplace.web.common.StaffRoles;
 import com.civileng.marketplace.notification.dto.NotificationRequest;
-import com.civileng.marketplace.notification.exception.AccessDeniedException;
+import com.civileng.marketplace.web.common.AccessDeniedException;
 import com.civileng.marketplace.notification.service.NotificationDispatcher;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -11,7 +12,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
-import java.util.Set;
 
 /**
  * Lets staff send a notification over any channel directly, without waiting for a platform
@@ -25,8 +25,6 @@ import java.util.Set;
 @Tag(name = "Admin Notifications", description = "Direct multi-channel notification dispatch")
 public class AdminNotificationDispatchController {
 
-    private static final Set<String> ADMIN_ROLES =
-            Set.of("SUPER_ADMIN", "ADMIN", "SUB_ADMIN", "REGIONAL_ADMIN");
 
     private final NotificationDispatcher dispatcher;
 
@@ -46,7 +44,7 @@ public class AdminNotificationDispatchController {
     }
 
     private void requireAdmin(String role) {
-        if (role == null || !ADMIN_ROLES.contains(role)) {
+        if (!StaffRoles.isStaff(role)) {
             throw new AccessDeniedException("Admin role required");
         }
     }

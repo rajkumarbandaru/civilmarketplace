@@ -2,7 +2,7 @@ package com.civileng.marketplace.admin.content.controller;
 
 import com.civileng.marketplace.admin.content.dto.ContentDTO.*;
 import com.civileng.marketplace.admin.content.service.ContentService;
-import com.civileng.marketplace.admin.exception.AccessDeniedException;
+import com.civileng.marketplace.web.common.AccessDeniedException;
 import com.civileng.marketplace.audit.common.AuditAction;
 import com.civileng.marketplace.audit.common.AuditEventMessage;
 import com.civileng.marketplace.audit.common.AuditPublisher;

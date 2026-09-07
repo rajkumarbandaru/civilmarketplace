@@ -33,6 +33,9 @@
         <module>search-service</module>
         <module>project-service</module>
         <module>audit-common</module>
+        <module>web-common</module>
+        <module>tenant-common</module>
+        <module>tenant-service</module>
         <module>audit-service</module>
         <module>messaging-service</module>
         <module>support-service</module>

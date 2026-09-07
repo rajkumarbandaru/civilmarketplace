@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useDateTime } from '../../providers/UiConfigProvider';
 import {
   Alert, Autocomplete, Box, Button, Card, CardContent, Chip, CircularProgress, Divider,
   FormControlLabel, Grid, Radio, RadioGroup, Snackbar, Switch, Table, TableBody, TableCell,
@@ -45,10 +46,6 @@ const toLocalInput = (date: Date): string => {
     + `T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 };
 
-/** Formats an instant from the API in the reader's own timezone. */
-const formatInstant = (iso: string | null): string =>
-  (iso ? new Date(iso).toLocaleString() : '—');
-
 const STATUS_CHIP: Record<string, { label: string; color: 'default' | 'primary' | 'success' | 'warning' }> = {
   SCHEDULED: { label: 'Scheduled', color: 'warning' },
   SENDING: { label: 'Sending…', color: 'warning' },
@@ -57,6 +54,7 @@ const STATUS_CHIP: Record<string, { label: string; color: 'default' | 'primary' 
 };
 
 const AlertsPage: React.FC = () => {
+  const { formatDateTime } = useDateTime();
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [roles, setRoles] = useState<string[]>([]);
@@ -128,7 +126,7 @@ const AlertsPage: React.FC = () => {
       setSnackbar({
         open: true,
         message: created.status === 'SCHEDULED'
-          ? `Scheduled for ${formatInstant(created.scheduledAt)}.`
+          ? `Scheduled for ${formatDateTime(created.scheduledAt)}.`
           : created.recipientCount != null
             ? `Sent to ${created.recipientCount} ${created.recipientCount === 1 ? 'person' : 'people'}.`
             : 'Alert sent.',
@@ -319,9 +317,9 @@ const AlertsPage: React.FC = () => {
                   <TableCell>
                     {a.status === 'SCHEDULED'
                       ? <Typography variant="body2" color="warning.main">
-                          Due {formatInstant(a.scheduledAt)}
+                          Due {formatDateTime(a.scheduledAt)}
                         </Typography>
-                      : formatInstant(a.sentAt ?? a.createdAt)}
+                      : formatDateTime(a.sentAt ?? a.createdAt)}
                   </TableCell>
                   <TableCell align="right">
                     {a.status === 'SCHEDULED' && (

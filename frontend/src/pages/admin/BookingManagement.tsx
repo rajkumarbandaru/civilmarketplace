@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { bookingStatusColor, paymentStatusColor } from '../../utils/statusColors';
+import { formatCurrency } from '../../utils/currency';
 import {
   Box, Card, Typography, TextField, InputAdornment, Table, TableBody, TableCell,
   TableContainer, TableHead, TableRow, TablePagination, Chip, Avatar, IconButton,
@@ -11,17 +13,6 @@ import {
 import { bookingApi, AdminBooking } from '../../services/adminApi';
 import { useDateTime } from '../../providers/UiConfigProvider';
 import { SortableTableCell, useTableSort } from '../../components/admin/SortableTable';
-
-const statusColors: Record<string, string> = {
-  PENDING: '#f59e0b', QUOTATION_PENDING: '#f59e0b', QUOTATION_SENT: '#3b82f6',
-  QUOTATION_ACCEPTED: '#10b981', QUOTATION_REJECTED: '#ef4444', AWAITING_PAYMENT: '#f97316',
-  CONFIRMED: '#3b82f6', ASSIGNED: '#8b5cf6', IN_PROGRESS: '#8b5cf6',
-  COMPLETED: '#10b981', CANCELLED: '#ef4444', REFUNDED: '#64748b', DISPUTED: '#f97316',
-};
-
-const paymentColors: Record<string, string> = {
-  PAID: '#10b981', PENDING: '#f59e0b', REFUNDED: '#64748b', FAILED: '#ef4444',
-};
 
 const BookingManagement: React.FC = () => {
   const { formatDate } = useDateTime();
@@ -88,10 +79,6 @@ const BookingManagement: React.FC = () => {
     } catch (err) {
       setSnackbar({ open: true, message: 'Failed to update booking', severity: 'error' });
     }
-  };
-
-  const formatCurrency = (amount: number) => {
-    return `₹${(amount || 0).toLocaleString()}`;
   };
 
   const statCards = [
@@ -218,12 +205,12 @@ const BookingManagement: React.FC = () => {
                     <TableCell><Typography variant="body2" sx={{ fontWeight: 500 }}>{booking.serviceName}</Typography></TableCell>
                     <TableCell>
                       <Chip label={booking.status?.replace(/_/g, ' ') || 'N/A'} size="small"
-                        sx={{ bgcolor: `${statusColors[booking.status] || '#94a3b8'}15`, color: statusColors[booking.status] || '#94a3b8', fontWeight: 600, fontSize: '0.7rem' }} />
+                        sx={{ bgcolor: `${bookingStatusColor(booking.status)}15`, color: bookingStatusColor(booking.status), fontWeight: 600, fontSize: '0.7rem' }} />
                     </TableCell>
                     <TableCell><Typography variant="body2" sx={{ fontWeight: 600 }}>{formatCurrency(booking.amount)}</Typography></TableCell>
                     <TableCell>
                       <Chip label={booking.paymentStatus || 'N/A'} size="small"
-                        sx={{ bgcolor: `${paymentColors[booking.paymentStatus] || '#94a3b8'}15`, color: paymentColors[booking.paymentStatus] || '#94a3b8', fontWeight: 600, fontSize: '0.7rem' }} />
+                        sx={{ bgcolor: `${paymentStatusColor(booking.paymentStatus)}15`, color: paymentStatusColor(booking.paymentStatus), fontWeight: 600, fontSize: '0.7rem' }} />
                     </TableCell>
                     <TableCell><Typography variant="body2" sx={{ color: '#64748b' }}>
                       {formatDate(booking.createdAt, 'N/A')}
@@ -270,7 +257,7 @@ const BookingManagement: React.FC = () => {
               <Grid item xs={6}>
                 <Typography variant="caption" sx={{ color: '#94a3b8' }}>Status</Typography>
                 <Chip label={selectedBooking.status} size="small"
-                  sx={{ ml: 1, bgcolor: `${statusColors[selectedBooking.status]}15`, color: statusColors[selectedBooking.status], fontWeight: 600 }} />
+                  sx={{ ml: 1, bgcolor: `${bookingStatusColor(selectedBooking.status)}15`, color: bookingStatusColor(selectedBooking.status), fontWeight: 600 }} />
               </Grid>
               <Grid item xs={6}>
                 <Typography variant="caption" sx={{ color: '#94a3b8' }}>Customer</Typography>

@@ -1,5 +1,6 @@
 package com.civileng.marketplace.booking.controller;
 
+import com.civileng.marketplace.web.common.client.UserNameResolver;
 import com.civileng.marketplace.booking.model.Booking;
 import com.civileng.marketplace.booking.model.BookingStatus;
 import com.civileng.marketplace.booking.model.ServiceCategory;
@@ -7,7 +8,6 @@ import com.civileng.marketplace.booking.repository.BookingRepository;
 import com.civileng.marketplace.booking.repository.ServiceCategoryRepository;
 import com.civileng.marketplace.booking.service.BookingService;
 import com.civileng.marketplace.booking.service.CatalogueService;
-import com.civileng.marketplace.booking.service.UserNameResolver;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;

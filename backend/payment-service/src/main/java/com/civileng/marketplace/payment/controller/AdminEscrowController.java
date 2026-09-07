@@ -1,6 +1,7 @@
 package com.civileng.marketplace.payment.controller;
 
-import com.civileng.marketplace.payment.exception.AccessDeniedException;
+import com.civileng.marketplace.web.common.StaffRoles;
+import com.civileng.marketplace.web.common.AccessDeniedException;
 import com.civileng.marketplace.payment.model.EscrowHold;
 import com.civileng.marketplace.payment.service.EscrowService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -12,7 +13,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
-import java.util.Set;
 
 @RestController
 @RequestMapping("/api/v1/admin/escrow")
@@ -20,8 +20,6 @@ import java.util.Set;
 @Tag(name = "Admin Escrow", description = "Dispute-linked holds and platform-wide escrow view")
 public class AdminEscrowController {
 
-    private static final Set<String> ADMIN_ROLES =
-            Set.of("SUPER_ADMIN", "ADMIN", "SUB_ADMIN", "REGIONAL_ADMIN");
 
     private final EscrowService escrowService;
 
@@ -49,7 +47,7 @@ public class AdminEscrowController {
     }
 
     private void requireAdmin(String role) {
-        if (role == null || !ADMIN_ROLES.contains(role)) {
+        if (!StaffRoles.isStaff(role)) {
             throw new AccessDeniedException("Admin role required");
         }
     }

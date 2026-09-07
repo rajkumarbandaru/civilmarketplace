@@ -7,7 +7,9 @@ import org.springframework.cloud.openfeign.EnableFeignClients;
 
 @SpringBootApplication
 @EnableDiscoveryClient
-@EnableFeignClients
+// This service's only Feign client is the shared BookingLookupClient — this service and
+// review-service used to declare an identical copy each, in their own client package. Both are gone.
+@EnableFeignClients(basePackages = "com.civileng.marketplace.web.common.client")
 public class MessagingServiceApplication {
 
     public static void main(String[] args) {

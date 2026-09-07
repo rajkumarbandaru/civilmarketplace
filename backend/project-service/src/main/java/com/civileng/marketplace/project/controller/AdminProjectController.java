@@ -1,7 +1,8 @@
 package com.civileng.marketplace.project.controller;
 
+import com.civileng.marketplace.web.common.StaffRoles;
 import com.civileng.marketplace.project.dto.ProjectSummary;
-import com.civileng.marketplace.project.exception.AccessDeniedException;
+import com.civileng.marketplace.web.common.AccessDeniedException;
 import com.civileng.marketplace.project.model.Project;
 import com.civileng.marketplace.project.service.ProjectService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -12,7 +13,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Set;
 
 /**
  * Super Admin's read-only window for dispute investigation and platform reporting (ENT·01
@@ -24,8 +24,6 @@ import java.util.Set;
 @Tag(name = "Admin Projects", description = "Platform-wide project oversight")
 public class AdminProjectController {
 
-    private static final Set<String> ADMIN_ROLES =
-            Set.of("SUPER_ADMIN", "ADMIN", "SUB_ADMIN", "REGIONAL_ADMIN");
 
     private final ProjectService projectService;
 
@@ -55,7 +53,7 @@ public class AdminProjectController {
      * from the framework before this method ever runs.
      */
     private void requireAdmin(String role) {
-        if (role == null || !ADMIN_ROLES.contains(role)) {
+        if (!StaffRoles.isStaff(role)) {
             throw new AccessDeniedException("Admin role required");
         }
     }

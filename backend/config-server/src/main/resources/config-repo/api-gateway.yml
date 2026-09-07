@@ -128,3 +128,14 @@ management:
   endpoint:
     health:
       show-details: always
+
+# Tenant resolution. The gateway resolves every request's tenant from its Host header and injects
+# X-Tenant-Id downstream, stripping whatever the client sent.
+platform:
+  tenant:
+    service-uri: lb://tenant-service
+    # Local development only. There is no wildcard DNS on localhost, so a request to
+    # localhost:8080 resolves to no tenant and would 404 without this. MUST be empty in any
+    # deployed environment: with it set, an unrecognised Host silently becomes real tenant traffic
+    # instead of being refused.
+    fallback: ${TENANT_FALLBACK_HOST:platform.localhost}

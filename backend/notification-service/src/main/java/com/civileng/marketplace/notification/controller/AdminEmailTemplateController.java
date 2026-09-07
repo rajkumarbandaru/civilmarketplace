@@ -1,7 +1,7 @@
 package com.civileng.marketplace.notification.controller;
 
 import com.civileng.marketplace.notification.dto.EmailTemplateDto.*;
-import com.civileng.marketplace.notification.exception.AccessDeniedException;
+import com.civileng.marketplace.web.common.AccessDeniedException;
 import com.civileng.marketplace.notification.model.EmailStatus;
 import com.civileng.marketplace.notification.service.EmailService;
 import com.civileng.marketplace.notification.service.EmailTemplateService;

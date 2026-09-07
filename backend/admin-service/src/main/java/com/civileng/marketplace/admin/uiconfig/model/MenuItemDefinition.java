@@ -35,6 +35,13 @@ public class MenuItemDefinition {
     @Column(name = "item_key", nullable = false, unique = true, length = 64)
     private String itemKey;
 
+    /**
+     * The module a tenant must have for this item to appear. Null means horizontal — Dashboard,
+     * Profile, Settings — present whatever the tenant bought.
+     */
+    @Column(name = "required_module", length = 40)
+    private String requiredModule;
+
     @Column(nullable = false, length = 120)
     private String label;
 

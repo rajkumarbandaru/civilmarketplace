@@ -1,6 +1,7 @@
 package com.civileng.marketplace.user.controller;
 
 import com.civileng.marketplace.user.model.UserProfile;
+import com.civileng.marketplace.user.repository.KycDocumentRepository;
 import com.civileng.marketplace.user.repository.UserProfileRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -45,6 +46,13 @@ class AdminProfileControllerTest {
 
     @MockBean
     private UserProfileRepository userProfileRepository;
+
+    /**
+     * Not exercised by these tests, but the controller has taken it as a constructor argument
+     * since KYC shipped — without the mock the slice cannot build the controller at all.
+     */
+    @MockBean
+    private KycDocumentRepository kycDocumentRepository;
 
     private UserProfile sampleProfile;
 

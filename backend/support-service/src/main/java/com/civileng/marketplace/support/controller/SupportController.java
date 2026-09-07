@@ -2,7 +2,7 @@ package com.civileng.marketplace.support.controller;
 
 import com.civileng.marketplace.support.dto.CreateTicketRequest;
 import com.civileng.marketplace.support.dto.ReplyRequest;
-import com.civileng.marketplace.support.dto.StatusChangeRequest;
+import com.civileng.marketplace.web.common.dto.StatusChangeRequest;
 import com.civileng.marketplace.support.model.SupportTicket;
 import com.civileng.marketplace.support.model.TicketMessage;
 import com.civileng.marketplace.support.service.SupportService;

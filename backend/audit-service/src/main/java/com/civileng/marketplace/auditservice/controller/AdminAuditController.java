@@ -1,6 +1,7 @@
 package com.civileng.marketplace.auditservice.controller;
 
-import com.civileng.marketplace.auditservice.exception.AccessDeniedException;
+import com.civileng.marketplace.web.common.StaffRoles;
+import com.civileng.marketplace.web.common.AccessDeniedException;
 import com.civileng.marketplace.auditservice.model.AccessAnomalyAlert;
 import com.civileng.marketplace.auditservice.model.AuditEvent;
 import com.civileng.marketplace.auditservice.model.ErasureRequest;
@@ -18,7 +19,6 @@ import org.springframework.web.bind.annotation.*;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Set;
 
 @RestController
 @RequestMapping("/api/v1/admin/audit")
@@ -27,8 +27,6 @@ import java.util.Set;
 @Tag(name = "Admin Audit", description = "Audit log query, export and integrity APIs")
 public class AdminAuditController {
 
-    private static final Set<String> ADMIN_ROLES =
-            Set.of("SUPER_ADMIN", "ADMIN", "SUB_ADMIN", "REGIONAL_ADMIN");
 
     private final AuditQueryService auditQueryService;
     private final AccessAnomalyAlertRepository anomalyRepository;
@@ -104,7 +102,7 @@ public class AdminAuditController {
     }
 
     private void requireAdmin(String role) {
-        if (role == null || !ADMIN_ROLES.contains(role)) {
+        if (!StaffRoles.isStaff(role)) {
             throw new AccessDeniedException("Admin role required");
         }
     }

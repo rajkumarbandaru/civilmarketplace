@@ -1,13 +1,14 @@
 package com.civileng.marketplace.support.service;
 
+import com.civileng.marketplace.web.common.StaffRoles;
 import com.civileng.marketplace.audit.common.AuditAction;
 import com.civileng.marketplace.audit.common.AuditEventMessage;
 import com.civileng.marketplace.audit.common.AuditPublisher;
 import com.civileng.marketplace.support.dto.AssignRequest;
 import com.civileng.marketplace.support.dto.CreateTicketRequest;
 import com.civileng.marketplace.support.dto.ReplyRequest;
-import com.civileng.marketplace.support.dto.StatusChangeRequest;
-import com.civileng.marketplace.support.exception.AccessDeniedException;
+import com.civileng.marketplace.web.common.dto.StatusChangeRequest;
+import com.civileng.marketplace.web.common.AccessDeniedException;
 import com.civileng.marketplace.support.model.SupportTicket;
 import com.civileng.marketplace.support.model.TicketMessage;
 import com.civileng.marketplace.support.model.TicketPriority;
@@ -23,7 +24,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Set;
 
 @Service
 @Slf4j
@@ -34,8 +34,6 @@ public class SupportService {
     private static final String ENTITY = "SupportTicket";
 
     /** From auth-service's roles seed data. */
-    private static final Set<String> ADMIN_ROLES =
-            Set.of("SUPER_ADMIN", "ADMIN", "SUB_ADMIN", "REGIONAL_ADMIN");
 
     private final SupportTicketRepository ticketRepository;
     private final TicketMessageRepository messageRepository;
@@ -172,18 +170,18 @@ public class SupportService {
     /** Reporter, assignee, or any staff role. */
     private void requireParty(SupportTicket ticket, Long actorId, String actorRole) {
         if (ticket.involves(actorId)) return;
-        if (actorRole != null && ADMIN_ROLES.contains(actorRole)) return;
+        if (StaffRoles.isStaff(actorRole)) return;
         throw new AccessDeniedException("You do not have access to this ticket");
     }
 
     private void requireAssigneeOrAdmin(SupportTicket ticket, Long actorId, String actorRole) {
         if (actorId != null && actorId.equals(ticket.getAssigneeId())) return;
-        if (actorRole != null && ADMIN_ROLES.contains(actorRole)) return;
+        if (StaffRoles.isStaff(actorRole)) return;
         throw new AccessDeniedException("Only the assignee or an admin may change ticket status");
     }
 
     private void requireAdmin(String actorRole) {
-        if (actorRole == null || !ADMIN_ROLES.contains(actorRole)) {
+        if (!StaffRoles.isStaff(actorRole)) {
             throw new AccessDeniedException("Admin role required");
         }
     }

@@ -1,6 +1,6 @@
 package com.civileng.marketplace.admin.uiconfig.controller;
 
-import com.civileng.marketplace.admin.exception.AccessDeniedException;
+import com.civileng.marketplace.web.common.AccessDeniedException;
 import com.civileng.marketplace.admin.uiconfig.dto.UiConfigDTO.*;
 import com.civileng.marketplace.admin.uiconfig.service.UiConfigService;
 import com.civileng.marketplace.audit.common.AuditAction;

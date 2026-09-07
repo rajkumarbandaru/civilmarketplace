@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { formatCompactCurrency } from '../../utils/currency';
 import {
   Box, Card, CardContent, Typography, Grid, Chip, Avatar, Table, TableBody, TableCell,
   TableContainer, TableHead, TableRow, Button, LinearProgress, Skeleton,
@@ -10,12 +11,6 @@ import {
 import { revenueApi, RevenueData, RevenueSummary, MonthlyRevenue, BreakdownItem, Transaction } from '../../services/adminApi';
 import { SortableTableCell, useTableSort } from '../../components/admin/SortableTable';
 
-const formatCurrency = (amount: number) => {
-  if (amount >= 10000000) return `₹${(amount / 10000000).toFixed(2)}Cr`;
-  if (amount >= 100000) return `₹${(amount / 100000).toFixed(1)}L`;
-  if (amount >= 1000) return `₹${(amount / 1000).toFixed(1)}K`;
-  return `₹${amount.toLocaleString()}`;
-};
 
 const RevenuePage: React.FC = () => {
   // The brand colour is read from the theme, not written in: these cards used the shipped violet
@@ -57,10 +52,10 @@ const RevenuePage: React.FC = () => {
   const maxMonthlyRevenue = Math.max(...monthlyRevenue.map(m => m.revenue), 1);
 
   const revenueStats = summary ? [
-    { label: 'Total Revenue (MTD)', value: formatCurrency(summary.totalRevenueMtd), change: summary.revenueChange, icon: <AccountBalanceWallet />, color: '#10b981' },
-    { label: 'Platform Fees', value: formatCurrency(summary.platformFees), change: summary.platformFeePercentage, icon: <TrendingUp />, color: theme.palette.primary.main },
-    { label: 'Pending Payouts', value: formatCurrency(summary.pendingPayouts), change: `${summary.pendingPayoutWorkers} workers`, icon: <Payment />, color: '#f59e0b' },
-    { label: 'Refunds (MTD)', value: formatCurrency(summary.refundsMtd), change: summary.refundChange, icon: <MoneyOff />, color: '#ef4444' },
+    { label: 'Total Revenue (MTD)', value: formatCompactCurrency(summary.totalRevenueMtd), change: summary.revenueChange, icon: <AccountBalanceWallet />, color: '#10b981' },
+    { label: 'Platform Fees', value: formatCompactCurrency(summary.platformFees), change: summary.platformFeePercentage, icon: <TrendingUp />, color: theme.palette.primary.main },
+    { label: 'Pending Payouts', value: formatCompactCurrency(summary.pendingPayouts), change: `${summary.pendingPayoutWorkers} workers`, icon: <Payment />, color: '#f59e0b' },
+    { label: 'Refunds (MTD)', value: formatCompactCurrency(summary.refundsMtd), change: summary.refundChange, icon: <MoneyOff />, color: '#ef4444' },
   ] : [];
 
   return (
@@ -153,7 +148,7 @@ const RevenuePage: React.FC = () => {
                   <Box key={idx} sx={{ mb: idx < breakdown.length - 1 ? 3 : 0 }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                       <Typography variant="body2" sx={{ fontWeight: 500 }}>{item.label}</Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>{formatCurrency(item.value)}</Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>{formatCompactCurrency(item.value)}</Typography>
                     </Box>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <LinearProgress variant="determinate" value={item.percentage}
@@ -202,7 +197,7 @@ const RevenuePage: React.FC = () => {
                         <TableCell><Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 600 }}>{txn.transactionId}</Typography></TableCell>
                         <TableCell><Typography variant="body2" sx={{ fontFamily: 'monospace', color: 'primary.main' }}>{txn.bookingCode}</Typography></TableCell>
                         <TableCell><Typography variant="body2">{txn.customerName}</Typography></TableCell>
-                        <TableCell><Typography variant="body2" sx={{ fontWeight: 600 }}>{formatCurrency(txn.amount)}</Typography></TableCell>
+                        <TableCell><Typography variant="body2" sx={{ fontWeight: 600 }}>{formatCompactCurrency(txn.amount)}</Typography></TableCell>
                         <TableCell>
                           <Chip label={txn.type} size="small"
                             sx={{ bgcolor: txn.type === 'Refund' ? '#fef2f2' : txn.type === 'Payout' ? '#fffbeb' : '#ecfdf5',

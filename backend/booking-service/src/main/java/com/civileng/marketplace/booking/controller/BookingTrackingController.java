@@ -1,5 +1,6 @@
 package com.civileng.marketplace.booking.controller;
 
+import com.civileng.marketplace.web.common.StaffRoles;
 import com.civileng.marketplace.booking.dto.TrackingPingRequest;
 import com.civileng.marketplace.booking.event.BookingEventPublisher;
 import com.civileng.marketplace.booking.model.Booking;
@@ -20,7 +21,6 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * Live position of the worker or vehicle travelling to a booking.
@@ -36,8 +36,6 @@ import java.util.Set;
 @Tag(name = "Booking Tracking", description = "Live worker location for an active booking")
 public class BookingTrackingController {
 
-    private static final Set<String> ADMIN_ROLES =
-            Set.of("SUPER_ADMIN", "ADMIN", "SUB_ADMIN", "REGIONAL_ADMIN");
 
     /**
      * How long a fix stays believable. Past this the UI is told the position is stale rather than
@@ -200,7 +198,7 @@ public class BookingTrackingController {
     }
 
     private boolean isAdmin(String role) {
-        return role != null && ADMIN_ROLES.contains(role);
+        return StaffRoles.isStaff(role);
     }
 
     /**

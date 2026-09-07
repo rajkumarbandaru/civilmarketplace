@@ -1,0 +1,2 @@
+com.civileng.marketplace.web.common.WebCommonAutoConfiguration
+com.civileng.marketplace.web.common.client.SharedClientConfiguration

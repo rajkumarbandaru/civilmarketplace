@@ -7,6 +7,7 @@ import com.civileng.marketplace.auth.entity.UserStatus;
 import com.civileng.marketplace.auth.repository.RoleRepository;
 import com.civileng.marketplace.auth.repository.UserRepository;
 import com.civileng.marketplace.auth.security.JwtTokenProvider;
+import com.civileng.marketplace.tenant.common.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -264,11 +265,12 @@ public class AuthService {
                 user.getId().toString(),
                 user.getEmail(),
                 user.getRole().getName(),
-                user.getName()
+                user.getName(),
+                TenantContext.require()
         );
 
         String refreshToken = jwtTokenProvider.generateRefreshToken(
-                user.getId().toString());
+                user.getId().toString(), TenantContext.require());
         refreshTokenService.storeRefreshToken(user.getId().toString(), refreshToken);
 
         AuthResponse.UserDto userDto = AuthResponse.UserDto.builder()

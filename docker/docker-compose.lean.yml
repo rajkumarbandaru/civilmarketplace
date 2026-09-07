@@ -15,6 +15,9 @@ services:
   api-gateway:
     environment: *jvm
     mem_limit: 768m
+  tenant-service:
+    environment: *jvm
+    mem_limit: 512m
   auth-service:
     environment: *jvm
     mem_limit: 768m

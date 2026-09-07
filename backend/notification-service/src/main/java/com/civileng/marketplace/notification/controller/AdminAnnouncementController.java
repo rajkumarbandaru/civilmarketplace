@@ -1,7 +1,8 @@
 package com.civileng.marketplace.notification.controller;
 
+import com.civileng.marketplace.web.common.StaffRoles;
 import com.civileng.marketplace.notification.dto.AnnouncementDto.CreateAnnouncementRequest;
-import com.civileng.marketplace.notification.exception.AccessDeniedException;
+import com.civileng.marketplace.web.common.AccessDeniedException;
 import com.civileng.marketplace.notification.model.Announcement;
 import com.civileng.marketplace.notification.service.AnnouncementService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -14,7 +15,6 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Set;
 
 /**
  * Super Admin / staff broadcast console. Publishing with no {@code scheduledAt} fans out
@@ -29,8 +29,6 @@ import java.util.Set;
 @Tag(name = "Admin Announcements", description = "Platform-wide broadcast to a role or everyone")
 public class AdminAnnouncementController {
 
-    private static final Set<String> ADMIN_ROLES =
-            Set.of("SUPER_ADMIN", "ADMIN", "SUB_ADMIN", "REGIONAL_ADMIN");
 
     private final AnnouncementService announcementService;
 
@@ -70,7 +68,7 @@ public class AdminAnnouncementController {
      * from the framework before this method ever runs.
      */
     private void requireAdmin(String role) {
-        if (role == null || !ADMIN_ROLES.contains(role)) {
+        if (!StaffRoles.isStaff(role)) {
             throw new AccessDeniedException("Admin role required");
         }
     }

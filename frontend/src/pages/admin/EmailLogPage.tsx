@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useDateTime } from '../../providers/UiConfigProvider';
 import {
   Alert, Box, Button, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
   Grid, IconButton,
@@ -61,12 +62,6 @@ const CHANNEL_META: Record<NotificationChannel, { label: string; color: 'primary
 
 const CHANNEL_ORDER: NotificationChannel[] = ['EMAIL', 'SMS', 'WHATSAPP', 'IN_APP'];
 
-const formatWhen = (iso: string): string => {
-  if (!iso) return '—';
-  const date = new Date(iso);
-  return Number.isNaN(date.getTime()) ? iso : date.toLocaleString();
-};
-
 /**
  * The non-email channels rendered as the recipient saw them.
  *
@@ -93,6 +88,11 @@ const whatsAppFormatted = (text: string): React.ReactNode =>
     return <React.Fragment key={i}>{part}</React.Fragment>;
   });
 
+/**
+ * The clock on a chat bubble inside the phone mockups. Deliberately the reader's own browser time
+ * and not the workspace's configured timezone: these frames show how the message looked on the
+ * recipient's handset, and a handset shows local time.
+ */
 const formatClock = (iso: string): string => {
   const date = new Date(iso);
   return Number.isNaN(date.getTime())
@@ -195,7 +195,12 @@ const InAppPreview: React.FC<{ title: string; body: string; sentAt: string }> = 
   title,
   body,
   sentAt,
-}) => (
+}) => {
+  // Unlike the SMS and WhatsApp frames, this one is read inside this app, so it shows the
+  // workspace's configured timezone rather than the device's.
+  const { formatDateTime } = useDateTime();
+
+  return (
   <PhoneFrame>
     <Paper variant="outlined" sx={{ p: 1.75, display: 'flex', gap: 1.25 }}>
       <NotificationsActive fontSize="small" color="primary" sx={{ mt: 0.25 }} />
@@ -211,14 +216,16 @@ const InAppPreview: React.FC<{ title: string; body: string; sentAt: string }> = 
           {body}
         </Typography>
         <Typography variant="caption" color="text.disabled" display="block" sx={{ mt: 0.75 }}>
-          {formatWhen(sentAt)}
+          {formatDateTime(sentAt)}
         </Typography>
       </Box>
     </Paper>
   </PhoneFrame>
-);
+  );
+};
 
 const EmailLogPage: React.FC = () => {
+  const { formatDateTime } = useDateTime();
   const [rows, setRows] = useState<EmailLogEntry[]>([]);
   const [total, setTotal] = useState(0);
   const [summary, setSummary] = useState<EmailLogSummary | null>(null);
@@ -490,7 +497,7 @@ const EmailLogPage: React.FC = () => {
                   const meta = STATUS_META[row.status] ?? STATUS_META.PENDING;
                   return (
                     <TableRow key={row.id} hover>
-                      <TableCell sx={{ whiteSpace: 'nowrap' }}>{formatWhen(row.createdAt)}</TableCell>
+                      <TableCell sx={{ whiteSpace: 'nowrap' }}>{formatDateTime(row.createdAt)}</TableCell>
                       <TableCell>
                         <Chip
                           size="small"
@@ -556,7 +563,7 @@ const EmailLogPage: React.FC = () => {
             {' to '}
             {viewing?.recipient}
             {' · '}
-            {formatWhen(viewing?.createdAt ?? '')}
+            {formatDateTime(viewing?.createdAt ?? '')}
           </Typography>
         </DialogTitle>
         <DialogContent dividers>
@@ -626,8 +633,8 @@ const EmailLogPage: React.FC = () => {
                 label="Triggered by"
                 value={detail.triggeredBy ? `Admin #${detail.triggeredBy}` : 'Application event'}
               />
-              <Field label="Queued" value={formatWhen(detail.createdAt)} />
-              <Field label="Last update" value={formatWhen(detail.updatedAt)} />
+              <Field label="Queued" value={formatDateTime(detail.createdAt)} />
+              <Field label="Last update" value={formatDateTime(detail.updatedAt)} />
             </Stack>
           )}
         </DialogContent>

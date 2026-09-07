@@ -8,7 +8,11 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
 @EnableDiscoveryClient
-@EnableFeignClients
+// UserDirectoryClient is shared with notification-service, which pages the same endpoint.
+@EnableFeignClients(basePackages = {
+        "com.civileng.marketplace.search.client",
+        "com.civileng.marketplace.web.common.client"
+})
 @EnableScheduling
 public class SearchServiceApplication {
 

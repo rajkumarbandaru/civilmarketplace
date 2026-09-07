@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { formatCompactCurrency, formatCount } from '../../utils/currency';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -133,16 +134,10 @@ const AdminDashboard: React.FC = () => {
     fetchDashboard();
   }, []);
 
-  const formatRevenue = (amount: number) => {
-    if (amount >= 100000) return `₹${(amount / 100000).toFixed(1)}L`;
-    if (amount >= 1000) return `₹${(amount / 1000).toFixed(1)}K`;
-    return `₹${amount.toLocaleString()}`;
-  };
-
   const statCards = stats ? [
     { label: 'Total Users', value: stats.totalUsers.toLocaleString(), change: stats.userGrowth, icon: <People />, color: theme.palette.primary.main },
     { label: 'Active Bookings', value: stats.activeBookings.toLocaleString(), change: stats.bookingGrowth, icon: <Receipt />, color: '#10b981' },
-    { label: 'Revenue (Month)', value: formatRevenue(stats.monthlyRevenue), change: stats.revenueGrowth, icon: <TrendingUp />, color: '#f59e0b' },
+    { label: 'Revenue (Month)', value: formatCompactCurrency(stats.monthlyRevenue), change: stats.revenueGrowth, icon: <TrendingUp />, color: '#f59e0b' },
     { label: 'Pending Actions', value: stats.pendingActions.toString(), change: stats.pendingActionsChange, icon: <Warning />, color: '#ef4444' },
   ] : [];
 

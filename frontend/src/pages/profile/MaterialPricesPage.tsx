@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useDateTime } from '../../providers/UiConfigProvider';
 import {
   Alert,
   Box,
@@ -85,6 +86,7 @@ const EMPTY_FORM: FormState = {
  * left stale here is a rate someone else is budgeting against.
  */
 const MaterialPricesPage: React.FC = () => {
+  const { formatDate } = useDateTime();
   const { user } = useAppSelector((state) => state.auth);
   const canPublish = SUPPLIER_ROLES.includes((user?.role ?? '').toUpperCase());
 
@@ -289,9 +291,7 @@ const MaterialPricesPage: React.FC = () => {
                         />
                       </TableCell>
                       <TableCell sx={{ whiteSpace: 'nowrap' }}>
-                        {price.updatedAt
-                          ? new Date(price.updatedAt).toLocaleDateString()
-                          : '—'}
+                        {formatDate(price.updatedAt)}
                       </TableCell>
                       <TableCell align="right">
                         <Tooltip title="Edit rate">

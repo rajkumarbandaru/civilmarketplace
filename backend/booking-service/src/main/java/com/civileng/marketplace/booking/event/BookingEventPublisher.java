@@ -1,6 +1,6 @@
 package com.civileng.marketplace.booking.event;
 
-import com.civileng.marketplace.booking.client.UserServiceClient;
+import com.civileng.marketplace.web.common.client.UserNameClient;
 import com.civileng.marketplace.booking.model.Booking;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -37,7 +37,7 @@ public class BookingEventPublisher {
             DateTimeFormatter.ofPattern("EEE, d MMM yyyy 'at' h:mm a");
 
     private final KafkaTemplate<String, Object> kafkaTemplate;
-    private final UserServiceClient userServiceClient;
+    private final UserNameClient userNameClient;
 
     /** Payment cleared: the receipt, with what was booked and when it is due to happen. */
     public void publishPaid(Booking booking, String paymentCode, BigDecimal amountPaid) {
@@ -122,7 +122,7 @@ public class BookingEventPublisher {
         contact.put("phone", "");
         if (userId == null) return contact;
         try {
-            Map<String, Object> user = userServiceClient.getUserName(userId).getBody();
+            Map<String, Object> user = userNameClient.getUserName(userId).getBody();
             if (user != null) {
                 contact.put("name", String.valueOf(user.getOrDefault("name", "")));
                 contact.put("email", String.valueOf(user.getOrDefault("email", "")));

@@ -80,8 +80,12 @@ export const priceBreakdown = (rate: number, quantity: number): PriceBreakdown =
 
 const round2 = (value: number): number => Math.round(value * 100) / 100;
 
-export const formatRupees = (value: number): string =>
-  `₹${value.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+/**
+ * Kept as a named re-export rather than deleted: the booking flow imports `formatRupees` in a
+ * dozen places, and the name reads better next to the pricing maths than `formatCurrency` does.
+ * It is the same function — there is one implementation now, not two.
+ */
+export { formatCurrency as formatRupees } from './currency';
 
 /**
  * Minutes to send as the booking's estimated duration.

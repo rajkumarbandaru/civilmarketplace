@@ -13,6 +13,11 @@
     <description>Project and Milestone management (SRS ENT-01)</description>
     <dependencies>
         <dependency>
+            <groupId>com.civileng.marketplace</groupId>
+            <artifactId>web-common</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
@@ -76,6 +81,11 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.civileng.marketplace</groupId>
+            <artifactId>tenant-common</artifactId>
+            <version>${project.version}</version>
         </dependency>
     </dependencies>
     <build>

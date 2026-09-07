@@ -1,5 +1,6 @@
 package com.civileng.marketplace.payment.controller;
 
+import com.civileng.marketplace.web.common.StaffRoles;
 import com.civileng.marketplace.payment.dto.CreateEscrowRequest;
 import com.civileng.marketplace.payment.model.EscrowHold;
 import com.civileng.marketplace.payment.service.EscrowService;
@@ -15,7 +16,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 @RestController
 @RequestMapping("/api/v1/escrow")
@@ -23,8 +23,6 @@ import java.util.Set;
 @Tag(name = "Escrow", description = "Milestone escrow hold and release (SRS CP-06 FR-06)")
 public class EscrowController {
 
-    private static final Set<String> ADMIN_ROLES =
-            Set.of("SUPER_ADMIN", "ADMIN", "SUB_ADMIN", "REGIONAL_ADMIN");
 
     private final EscrowService escrowService;
 
@@ -102,6 +100,6 @@ public class EscrowController {
     }
 
     private boolean isAdmin(String role) {
-        return role != null && ADMIN_ROLES.contains(role);
+        return StaffRoles.isStaff(role);
     }
 }

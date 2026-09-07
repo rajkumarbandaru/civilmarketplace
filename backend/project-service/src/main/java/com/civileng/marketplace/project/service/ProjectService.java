@@ -1,14 +1,16 @@
 package com.civileng.marketplace.project.service;
 
+import com.civileng.marketplace.web.common.dto.StatusChangeRequest;
+import com.civileng.marketplace.web.common.StaffRoles;
 import com.civileng.marketplace.audit.common.AuditAction;
 import com.civileng.marketplace.audit.common.AuditEventMessage;
 import com.civileng.marketplace.audit.common.AuditPublisher;
-import com.civileng.marketplace.project.client.BookingDto;
-import com.civileng.marketplace.project.client.BookingServiceClient;
+import com.civileng.marketplace.web.common.client.BookingDto;
+import com.civileng.marketplace.project.client.ProjectBookingsClient;
 import com.civileng.marketplace.project.client.EscrowDto;
-import com.civileng.marketplace.project.client.PaymentServiceClient;
+import com.civileng.marketplace.project.client.ProjectEscrowClient;
 import com.civileng.marketplace.project.dto.*;
-import com.civileng.marketplace.project.exception.AccessDeniedException;
+import com.civileng.marketplace.web.common.AccessDeniedException;
 import com.civileng.marketplace.project.model.*;
 import com.civileng.marketplace.project.repository.*;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +23,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Set;
 
 @Service
 @Slf4j
@@ -32,15 +33,13 @@ public class ProjectService {
     private static final String ENTITY = "Project";
 
     /** From auth-service's roles seed data. */
-    private static final Set<String> ADMIN_ROLES =
-            Set.of("SUPER_ADMIN", "ADMIN", "SUB_ADMIN", "REGIONAL_ADMIN");
 
     private final ProjectRepository projectRepository;
     private final MilestoneRepository milestoneRepository;
     private final ProjectDocumentRepository documentRepository;
     private final ProjectStatusHistoryRepository statusHistoryRepository;
-    private final BookingServiceClient bookingServiceClient;
-    private final PaymentServiceClient paymentServiceClient;
+    private final ProjectBookingsClient projectBookingsClient;
+    private final ProjectEscrowClient projectEscrowClient;
     private final AuditPublisher auditPublisher;
 
     // --------------------------------------------------------------------- projects
@@ -152,7 +151,7 @@ public class ProjectService {
     /**
      * FR-05 with the SRS's completion guard: a project cannot reach COMPLETED while any linked
      * booking is still in flight. When booking-service is unreachable the transition is refused
-     * rather than allowed — see {@code BookingServiceClientFallbackFactory}.
+     * rather than allowed — see {@code ProjectBookingsClientFallbackFactory}.
      */
     @Transactional
     public Project changeStatus(Long projectId, Long actorId, StatusChangeRequest request) {
@@ -347,7 +346,7 @@ public class ProjectService {
                 ? null
                 : (int) Math.round(100.0 * completed / milestones.size());
 
-        List<BookingDto> bookings = bookingServiceClient.getProjectBookings(projectId);
+        List<BookingDto> bookings = projectBookingsClient.getProjectBookings(projectId);
         boolean bookingDataAvailable = bookings != null;
         BigDecimal spend = BigDecimal.ZERO;
         int bookingCount = 0;
@@ -360,7 +359,7 @@ public class ProjectService {
             }
         }
 
-        List<EscrowDto> escrow = paymentServiceClient.getProjectEscrow(projectId);
+        List<EscrowDto> escrow = projectEscrowClient.getProjectEscrow(projectId);
         boolean escrowDataAvailable = escrow != null;
         BigDecimal escrowHeld = BigDecimal.ZERO;
         BigDecimal escrowReleased = BigDecimal.ZERO;
@@ -435,7 +434,7 @@ public class ProjectService {
     /** Owner, or a staff role — Super Admin gets read access for dispute investigation. */
     private void requireViewer(Project project, Long actorId, String actorRole) {
         if (actorId != null && actorId.equals(project.getOwnerId())) return;
-        if (actorRole != null && ADMIN_ROLES.contains(actorRole)) return;
+        if (StaffRoles.isStaff(actorRole)) return;
         throw new AccessDeniedException("You do not have access to this project");
     }
 
@@ -464,7 +463,7 @@ public class ProjectService {
     }
 
     private void requireNoActiveBookings(Long projectId) {
-        List<BookingDto> bookings = bookingServiceClient.getProjectBookings(projectId);
+        List<BookingDto> bookings = projectBookingsClient.getProjectBookings(projectId);
         if (bookings == null) {
             throw new IllegalArgumentException(
                     "Cannot verify this project's bookings right now — try again shortly");

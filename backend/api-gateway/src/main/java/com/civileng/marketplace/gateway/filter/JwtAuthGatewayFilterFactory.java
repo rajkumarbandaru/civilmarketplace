@@ -1,5 +1,6 @@
 package com.civileng.marketplace.gateway.filter;
 
+import com.civileng.marketplace.gateway.tenant.TenantResolutionGlobalFilter;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
@@ -19,11 +20,24 @@ import reactor.core.publisher.Mono;
 import javax.crypto.SecretKey;
 import java.util.Base64;
 import java.util.List;
+import java.util.Set;
 
 @Component
 @Slf4j
 public class JwtAuthGatewayFilterFactory
         extends AbstractGatewayFilterFactory<JwtAuthGatewayFilterFactory.Config> {
+
+    /**
+     * Every path under this prefix is a staff surface — verified across all eleven services: there
+     * is no member-facing endpoint below it. Guarding it here rather than per route means a new
+     * admin route added to {@link com.civileng.marketplace.gateway.config.GatewayConfig} is gated
+     * the moment it exists, instead of relying on whoever adds it to remember.
+     */
+    private static final String ADMIN_PREFIX = "/api/v1/admin";
+
+    /** The staff roles seeded by auth-service. Anything else is a member. */
+    private static final Set<String> ADMIN_ROLES =
+            Set.of("SUPER_ADMIN", "ADMIN", "SUB_ADMIN", "REGIONAL_ADMIN");
 
     private final SecretKey secretKey;
 
@@ -53,6 +67,32 @@ public class JwtAuthGatewayFilterFactory
                         .parseSignedClaims(token)
                         .getPayload();
 
+                // A token is only valid on the tenant it was issued for. Without this check a
+                // SUPER_ADMIN of one workspace could point their token at another workspace's
+                // subdomain and be served as an admin there, since downstream services trust the
+                // resolved X-Tenant-Id header unconditionally.
+                String tokenTenant = claims.get("tenant", String.class);
+                String resolvedTenant = exchange.getRequest()
+                        .getHeaders().getFirst(TenantResolutionGlobalFilter.TENANT_HEADER);
+
+                if (tokenTenant == null || !tokenTenant.equals(resolvedTenant)) {
+                    log.warn("Token issued for tenant '{}' presented on tenant '{}'",
+                            tokenTenant, resolvedTenant);
+                    return onError(exchange, "Token is not valid for this workspace",
+                            HttpStatus.FORBIDDEN);
+                }
+
+                // The role gate. Downstream services check this themselves too — this is the
+                // outer of two layers, not the only one, because a service reachable on its own
+                // port inside the network must not depend on the gateway for its authorisation.
+                String role = claims.get("role", String.class);
+                String path = exchange.getRequest().getPath().value();
+
+                if (isAdminPath(path) && !ADMIN_ROLES.contains(role)) {
+                    log.warn("Non-admin role '{}' refused on admin path {}", role, path);
+                    return onError(exchange, "Admin role required", HttpStatus.FORBIDDEN);
+                }
+
                 exchange = exchange.mutate()
                         .request(r -> r
                                 .header("X-User-Id", claims.getSubject())
@@ -74,6 +114,14 @@ public class JwtAuthGatewayFilterFactory
                 return onError(exchange, "Invalid token", HttpStatus.UNAUTHORIZED);
             }
         };
+    }
+
+    /**
+     * Prefix match, but only on a segment boundary — a future `/api/v1/administrators` route must
+     * not be swept into the admin gate by a bare {@code startsWith}.
+     */
+    private static boolean isAdminPath(String path) {
+        return path.equals(ADMIN_PREFIX) || path.startsWith(ADMIN_PREFIX + "/");
     }
 
     private Mono<Void> onError(ServerWebExchange exchange, String message,

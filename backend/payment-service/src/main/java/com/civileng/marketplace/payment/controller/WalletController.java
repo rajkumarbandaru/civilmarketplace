@@ -1,5 +1,6 @@
 package com.civileng.marketplace.payment.controller;
 
+import com.civileng.marketplace.web.common.StaffRoles;
 import com.civileng.marketplace.payment.model.Wallet;
 import com.civileng.marketplace.payment.model.WalletTransaction;
 import com.civileng.marketplace.payment.service.WalletService;
@@ -11,7 +12,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Set;
 
 /**
  * The `wallets` table has existed since payment-service's first migration but had no API. Escrow
@@ -26,8 +26,6 @@ import java.util.Set;
 @Tag(name = "Wallets", description = "Supply-side wallet balances and ledger")
 public class WalletController {
 
-    private static final Set<String> ADMIN_ROLES =
-            Set.of("SUPER_ADMIN", "ADMIN", "SUB_ADMIN", "REGIONAL_ADMIN");
 
     private final WalletService walletService;
 
@@ -51,8 +49,8 @@ public class WalletController {
     public ResponseEntity<Wallet> userWallet(
             @RequestHeader(value = "X-User-Role", required = false) String role,
             @PathVariable Long userId) {
-        if (role == null || !ADMIN_ROLES.contains(role)) {
-            throw new com.civileng.marketplace.payment.exception.AccessDeniedException(
+        if (!StaffRoles.isStaff(role)) {
+            throw new com.civileng.marketplace.web.common.AccessDeniedException(
                     "Admin role required");
         }
         return ResponseEntity.ok(walletService.getWallet(userId));

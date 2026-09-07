@@ -4,12 +4,18 @@ import com.civileng.marketplace.admin.client.AuthServiceClient;
 import com.civileng.marketplace.admin.uiconfig.dto.UiConfigDTO.*;
 import com.civileng.marketplace.admin.uiconfig.model.CustomThemePreset;
 import com.civileng.marketplace.admin.uiconfig.model.MenuItemDefinition;
+import com.civileng.marketplace.admin.uiconfig.model.TenantMenuOverrideRow;
+import com.civileng.marketplace.admin.uiconfig.model.TenantModule;
+import com.civileng.marketplace.admin.uiconfig.model.TenantNavigation;
 import com.civileng.marketplace.admin.uiconfig.model.ThemeConfig;
 import com.civileng.marketplace.admin.uiconfig.model.UserAppearance;
 import com.civileng.marketplace.admin.uiconfig.model.UserMenuOverride;
 import com.civileng.marketplace.admin.uiconfig.model.WorkspaceMenuEntry;
 import com.civileng.marketplace.admin.uiconfig.repository.CustomThemePresetRepository;
 import com.civileng.marketplace.admin.uiconfig.repository.MenuItemDefinitionRepository;
+import com.civileng.marketplace.admin.uiconfig.repository.TenantMenuOverrideRowRepository;
+import com.civileng.marketplace.admin.uiconfig.repository.TenantModuleRepository;
+import com.civileng.marketplace.admin.uiconfig.repository.TenantNavigationRepository;
 import com.civileng.marketplace.admin.uiconfig.repository.ThemeConfigRepository;
 import com.civileng.marketplace.admin.uiconfig.repository.UserAppearanceRepository;
 import com.civileng.marketplace.admin.uiconfig.repository.UserMenuOverrideRepository;
@@ -46,6 +52,9 @@ public class UiConfigService {
     private final WorkspaceMenuEntryRepository workspaceMenuRepository;
     private final UserMenuOverrideRepository userOverrideRepository;
     private final ThemeConfigRepository themeRepository;
+    private final TenantModuleRepository tenantModuleRepository;
+    private final TenantMenuOverrideRowRepository tenantMenuOverrideRepository;
+    private final TenantNavigationRepository navigationRepository;
     private final CustomThemePresetRepository customPresetRepository;
     private final UserAppearanceRepository userAppearanceRepository;
     private final RoleDirectory roleDirectory;
@@ -80,7 +89,27 @@ public class UiConfigService {
         UserAppearance mine = userAppearanceRepository.findById(userId).orElse(null);
         return new Snapshot(userId, role, menu, effectiveTheme(userId, role),
                 mine == null ? null : mine.getTimezone(),
-                mine == null ? null : mine.getDateFormat());
+                mine == null ? null : mine.getDateFormat(),
+                landingPathFor(menu));
+    }
+
+    /**
+     * The operator's landing page, if this member can actually reach it.
+     *
+     * <p>Checked against the menu this member resolved to rather than returned as stored. The
+     * operator picks one landing page for the whole tenant, but the menu is per role — a path that
+     * is right for an admin can be a screen a customer's role has no entry for, and sending them
+     * there on sign-in would open their console on a 403. Falling back to the dashboard is the
+     * quieter failure, and the only one the member can navigate out of.
+     */
+    private String landingPathFor(List<ResolvedMenuItem> menu) {
+        String landing = navigationRepository.findById(TenantNavigation.SCOPE)
+                .map(TenantNavigation::getLandingPath)
+                .orElse(null);
+        if (landing == null) {
+            return null;
+        }
+        return menu.stream().anyMatch(item -> landing.equals(item.path())) ? landing : null;
     }
 
     /**
@@ -116,7 +145,7 @@ public class UiConfigService {
 
         // The catalogue is the same for every role, so it is read once here rather than once per
         // workspace — 24 roles would otherwise mean 24 identical queries.
-        List<MenuItemDefinition> catalogue = menuItemRepository.findAllByOrderBySortOrderAsc();
+        List<MenuItemDefinition> catalogue = tenantCatalogue();
         Map<String, List<WorkspaceMenuEntry>> overlaysByRole = workspaceMenuRepository.findAll().stream()
                 .collect(Collectors.groupingBy(WorkspaceMenuEntry::getRole));
 
@@ -217,9 +246,81 @@ public class UiConfigService {
 
     private List<WorkspaceMenuRow> effectiveRows(String role) {
         return effectiveRows(
-                menuItemRepository.findAllByOrderBySortOrderAsc(),
+                tenantCatalogue(),
                 workspaceMenuRepository.findByRole(role),
                 role);
+    }
+
+    /**
+     * The catalogue as this tenant sees it: items whose module the tenant does not have are gone, so
+     * are items the operator hid, and what remains carries the operator's labels and ordering.
+     *
+     * <p>Removed rather than hidden. A workspace overlay can switch a hidden item back on, and an
+     * item the tenant has no module for must not be switchable back on by the tenant's own admin —
+     * the gateway would 404 it. Items that are not in this list do not exist as far as the tenant
+     * is concerned.
+     *
+     * <p>The label and order overrides are applied by returning modified copies, so everything
+     * downstream — the workspace editor, each member's resolved menu — sees the operator's wording
+     * as though it were the catalogue's own. That is what makes a renamed tab stay renamed after a
+     * workspace admin edits some unrelated item on the same screen.
+     *
+     * <p>An empty module table means "not yet synced", not "no modules". Filtering everything away
+     * on a missing sync would take a tenant's whole navigation with it, so the unfiltered
+     * catalogue is the safer reading of an absent answer. Overrides get no such treatment: an empty
+     * override table genuinely means the operator has decided nothing.
+     */
+    private List<MenuItemDefinition> tenantCatalogue() {
+        List<MenuItemDefinition> catalogue = menuItemRepository.findAllByOrderBySortOrderAsc();
+
+        Map<String, TenantMenuOverrideRow> overrides = tenantMenuOverrideRepository.findAll().stream()
+                .collect(Collectors.toMap(TenantMenuOverrideRow::getItemKey, Function.identity(),
+                        (a, b) -> a));
+
+        List<TenantModule> modules = tenantModuleRepository.findAll();
+        Set<String> enabled = modules.stream()
+                .map(TenantModule::getModuleKey)
+                .collect(Collectors.toSet());
+        boolean moduleFilterKnown = !modules.isEmpty();
+
+        return catalogue.stream()
+                .filter(item -> {
+                    TenantMenuOverrideRow override = overrides.get(item.getItemKey());
+                    return override == null || override.isVisible();
+                })
+                .filter(item -> !moduleFilterKnown
+                        || item.getRequiredModule() == null
+                        || enabled.contains(item.getRequiredModule()))
+                .map(item -> applyOverride(item, overrides.get(item.getItemKey())))
+                .sorted(Comparator.comparingInt(MenuItemDefinition::getSortOrder))
+                .toList();
+    }
+
+    /**
+     * The catalogue item as this tenant's operator has reshaped it.
+     *
+     * <p>A copy, not a mutation. These entities come from a JPA query inside an open transaction, so
+     * setting a label on one would be flushed back to {@code ui_menu_items} as a change to the
+     * shipped catalogue itself — one tenant's renamed tab silently becoming everyone's.
+     */
+    private MenuItemDefinition applyOverride(MenuItemDefinition item,
+                                             TenantMenuOverrideRow override) {
+        if (override == null
+                || (override.getLabelOverride() == null && override.getSortOrder() == null)) {
+            return item;
+        }
+        MenuItemDefinition copy = new MenuItemDefinition();
+        org.springframework.beans.BeanUtils.copyProperties(item, copy);
+        // Belt and braces on top of "we never save this": without an id it cannot be mistaken for a
+        // managed row by a later merge, so the shipped catalogue cannot be edited by accident.
+        copy.setId(null);
+        if (override.getLabelOverride() != null) {
+            copy.setLabel(override.getLabelOverride());
+        }
+        if (override.getSortOrder() != null) {
+            copy.setSortOrder(override.getSortOrder());
+        }
+        return copy;
     }
 
     /**

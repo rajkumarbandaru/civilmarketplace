@@ -12,8 +12,11 @@ import org.springframework.data.elasticsearch.annotations.FieldType;
 /**
  * Read model of the service catalogue (booking-service's ServiceCategory) — backs the
  * ServicesPage grid's search box and category filtering.
+ *
+ * <p>Per-tenant index, on the same terms as {@link ProfileDocument}: a tenant's catalogue comes
+ * from its own booking-service schema, so it must not share an index with another tenant's.
  */
-@Document(indexName = "services")
+@Document(indexName = "#{@tenantIndex.services()}", createIndex = false)
 @Data
 @Builder
 @NoArgsConstructor

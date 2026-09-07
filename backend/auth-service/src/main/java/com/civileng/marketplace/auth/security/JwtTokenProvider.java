@@ -39,7 +39,13 @@ public class JwtTokenProvider {
         this.secretKey = Keys.hmacShaKeyFor(keyBytes);
     }
 
-    public String generateAccessToken(String userId, String email, String role, String name) {
+    /**
+     * The {@code tenant} claim binds a token to the workspace it was issued for. The gateway
+     * refuses a token whose claim does not match the tenant it resolved from the request host,
+     * so this is what stops one workspace's admin from replaying their token against another.
+     */
+    public String generateAccessToken(String userId, String email, String role, String name,
+                                      String tenant) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + accessTokenExpiration);
 
@@ -48,19 +54,21 @@ public class JwtTokenProvider {
                 .claim("email", email)
                 .claim("role", role)
                 .claim("name", name)
+                .claim("tenant", tenant)
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .signWith(secretKey)
                 .compact();
     }
 
-    public String generateRefreshToken(String userId) {
+    public String generateRefreshToken(String userId, String tenant) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + refreshTokenExpiration);
 
         return Jwts.builder()
                 .subject(userId)
                 .claim("type", "refresh")
+                .claim("tenant", tenant)
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .signWith(secretKey)

@@ -1,7 +1,8 @@
 package com.civileng.marketplace.support.controller;
 
+import com.civileng.marketplace.web.common.StaffRoles;
 import com.civileng.marketplace.support.dto.AssignRequest;
-import com.civileng.marketplace.support.exception.AccessDeniedException;
+import com.civileng.marketplace.web.common.AccessDeniedException;
 import com.civileng.marketplace.support.model.SupportTicket;
 import com.civileng.marketplace.support.service.SupportService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -13,7 +14,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Set;
 
 /** Staff queue and ticket assignment. */
 @RestController
@@ -22,8 +22,6 @@ import java.util.Set;
 @Tag(name = "Admin Support", description = "Staff ticket queue and assignment")
 public class AdminSupportController {
 
-    private static final Set<String> ADMIN_ROLES =
-            Set.of("SUPER_ADMIN", "ADMIN", "SUB_ADMIN", "REGIONAL_ADMIN");
 
     private final SupportService supportService;
 
@@ -49,7 +47,7 @@ public class AdminSupportController {
     }
 
     private void requireAdmin(String role) {
-        if (role == null || !ADMIN_ROLES.contains(role)) {
+        if (!StaffRoles.isStaff(role)) {
             throw new AccessDeniedException("Admin role required");
         }
     }

@@ -1,5 +1,6 @@
 package com.civileng.marketplace.booking.controller;
 
+import com.civileng.marketplace.web.common.client.UserNameResolver;
 import com.civileng.marketplace.booking.model.Booking;
 import com.civileng.marketplace.booking.model.BookingStatus;
 import com.civileng.marketplace.booking.model.BookingType;
@@ -7,7 +8,7 @@ import com.civileng.marketplace.booking.model.ServiceCategory;
 import com.civileng.marketplace.booking.repository.BookingRepository;
 import com.civileng.marketplace.booking.repository.ServiceCategoryRepository;
 import com.civileng.marketplace.booking.service.BookingService;
-import com.civileng.marketplace.booking.service.UserNameResolver;
+import com.civileng.marketplace.booking.service.CatalogueService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -66,6 +67,13 @@ class AdminBookingControllerTest {
 
     @MockBean
     private UserNameResolver userNameResolver;
+
+    /**
+     * Not exercised here, but the controller has taken it as a constructor argument since the
+     * service catalogue moved behind it — without the mock the slice cannot build the controller.
+     */
+    @MockBean
+    private CatalogueService catalogueService;
 
     private Booking sampleBooking;
     private ServiceCategory sampleCategory;
@@ -318,7 +326,7 @@ class AdminBookingControllerTest {
         @Test
         @DisplayName("GET /admin/categories - returns all categories")
         void getAllCategories_ReturnsList() throws Exception {
-            when(serviceCategoryRepository.findAll()).thenReturn(List.of(sampleCategory));
+            when(serviceCategoryRepository.findAllByOrderByNameAsc()).thenReturn(List.of(sampleCategory));
 
             mockMvc.perform(get("/api/v1/bookings/admin/categories"))
                     .andExpect(status().isOk())

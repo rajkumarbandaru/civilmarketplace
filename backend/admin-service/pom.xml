@@ -13,6 +13,11 @@
     <description>Admin Panel Backend - User management, category CRUD, booking ops, analytics, revenue</description>
     <dependencies>
         <dependency>
+            <groupId>com.civileng.marketplace</groupId>
+            <artifactId>web-common</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
@@ -89,6 +94,11 @@
             <groupId>org.testcontainers</groupId>
             <artifactId>mysql</artifactId>
             <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.civileng.marketplace</groupId>
+            <artifactId>tenant-common</artifactId>
+            <version>${project.version}</version>
         </dependency>
     </dependencies>
     <build>

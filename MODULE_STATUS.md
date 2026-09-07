@@ -27,6 +27,7 @@ RAJKUMAR is the platform going forward; CEP is reference-only.
 | 8 | Support/Helpdesk | ✅ Done | new `support-service` (port 8098) | `SupportTicket` + `TicketMessage` (Flyway V1, DB `civil_engineer_support`). Reporter creates/lists tickets, reply thread reuses messaging-service's shape, admin assign + status transitions (OPEN→IN_PROGRESS→RESOLVED/CLOSED), terminal tickets reject new replies. Fourth audit producer. Verified live through the gateway with real JWTs incl. non-party 403, reporter-cannot-self-resolve 403, assign auto-transitioning to IN_PROGRESS, and the hash-chained audit trail for create/assign/resolve. |
 | 9 | Audit logging | ✅ Done (KYC only so far) | new `audit-service` (port 8095) + `audit-common` starter | Kafka-based, append-only, hash-chained. `user-service`'s KYC flow instrumented as the first producer. Verified live incl. tamper detection. **Only KYC is instrumented — see below for what's still unaudited.** |
 | 10 | UI-config | ✅ Done | `admin-service` (`admin/uiconfig`) + frontend | Backend, admin console and member shell (`Navbar`) all built and verified live incl. Super-Admin-edit → member-reflects, member appearance self-service, and the admin/member permission split. Fifth audit producer. Details below. |
+| 11 | Multi-tenancy | ✅ Done (backend) | new `tenant-common` + `tenant-service` (port 8099), all 11 DB-backed services | Schema-per-tenant. Tenant resolved from the request subdomain by the gateway, cross-checked against a `tenant` JWT claim, injected downstream as `X-Tenant-Id`. Every service's rows live in `<prefix>_<tenantKey>`; Flyway runs once per tenant schema at boot and on a `tenant.events` Kafka message, so onboarding needs no restart. Verified live: 4 tenants × 11 schemas, same email registered independently per tenant, cross-tenant token replay 403, client-supplied `X-Tenant-Id` stripped, module gating 404, per-tenant audit trail. **Two pre-existing bugs found — see below.** |
 
 ## Codebase conventions (read before building the next module)
 
@@ -67,9 +68,11 @@ RAJKUMAR is the platform going forward; CEP is reference-only.
   took at startup. Password/OTP login is unaffected, and social login switches itself on
   automatically if credentials are ever supplied. The full gateway login path (login → JWT →
   gateway-injected `X-User-*` headers → downstream service) is now verified working end-to-end.
-- **Port note:** `api-gateway`'s host port is `8087` (via `HOST_PORT_GATEWAY`), not the container's
-  internal 8080 — 8080 is already taken on this host by an unrelated `projectile_ui` container.
-  `review-service` is on 8089, `project-service` on 8096.
+- **Port note:** `api-gateway`'s host port comes from `HOST_PORT_GATEWAY` in `docker/.env`, which
+  is **8080** as of 2026-08-21 — check that file rather than trusting this line. It was 8087 for a
+  while, when 8080 was taken on this host by an unrelated `projectile_ui` container; that container
+  is gone and the default (`${HOST_PORT_GATEWAY:-8080}`) applies again. `review-service` is on 8089,
+  `project-service` on 8096.
 
 ## Escrow / milestone — verified live 2026-08-12
 
@@ -652,14 +655,15 @@ SUPER_ADMIN — see its own password in the table.**
 Log in through the gateway to get a JWT, then pass it as `Authorization: Bearer <token>`:
 
 ```bash
-curl -s -X POST http://localhost:8087/api/v1/auth/login \
+curl -s -X POST http://localhost:8080/api/v1/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"customer@civileng.test","password":"Password123!"}'
 ```
 
 The gateway's JWT filter turns that token into the `X-User-Id`/`X-User-Role`/`X-User-Email`/
-`X-User-Name` headers every downstream service reads — always test through port 8087 rather than
-hand-setting those headers against a service's own port, or you bypass the auth path entirely.
+`X-User-Name` headers every downstream service reads — always test through the gateway (see the
+port note above) rather than hand-setting those headers against a service's own port, or you bypass
+the auth path entirely.
 
 ## Adding a new microservice — checklist (learned the hard way building `review-service`)
 
@@ -691,3 +695,612 @@ Missing any of these produces a confusing startup failure rather than an obvious
 
 Also: `@Valid` on a `@RequestBody` runs *before* the controller body, so a DTO field you intend to
 populate from a `@PathVariable` must not be `@NotNull` on the DTO — validation fails first.
+
+## Multi-tenancy — verified live 2026-08-18
+
+Schema-per-tenant, subdomain-resolved, with a per-tenant module set. Tenants are white-label
+platform operators: `acme` (civil marketplace), `hostelfee` (Hostel Fee Collection Platform,
+`FEE_COLLECTION` vertical), `bhoomi` (Bhoomi360, `PROPERTY` vertical), plus the `platform`
+operator tenant that owns tenant administration.
+
+**Why schema-per-tenant rather than a `tenant_id` column:** a missed query filter in a shared
+schema is a silent cross-tenant read, and there are ~45 entities across 11 services to get right.
+A wrong schema name fails loudly instead. The cost is that Flyway must run per tenant per service
+and cross-tenant reporting cannot `JOIN` — see the open items below.
+
+- **`tenant-common`** — the whole runtime, added to a service with one dependency plus a
+  `platform.tenant` config block. `TenantContext` (ThreadLocal, no ambient default),
+  `TenantHeaderFilter` (400s an untenanted request), a Hibernate
+  `MultiTenantConnectionProvider` that switches the connection catalog per checkout **and resets
+  it on release** (a pooled connection handed back still pointing at tenant A is exactly how the
+  next tenant reads the wrong data), per-tenant Flyway, a `tenant.events` listener, a Feign
+  interceptor, Kafka producer/record interceptors, and `CrossTenantRunner` for scheduled jobs.
+- **`tenant-service` (8099)** — the registry, deliberately *not* tenant-scoped. Other services
+  read its database over plain JDBC at boot rather than over HTTP: they need the tenant list
+  before their EntityManagerFactory exists, and an HTTP dependency would put tenant-service in
+  every service's startup path.
+- **Tenant administration is gated on the operator tenant, not on a role.** A tenant's own
+  SUPER_ADMIN must not be able to create or suspend a sibling tenant; `platform` + `SUPER_ADMIN`
+  is required. Verified: 403 for a SUPER_ADMIN of `acme`, 403 for a non-admin of `platform`.
+- **Off-request paths all had to be handled explicitly**, and each was a real hole:
+  `@Scheduled` jobs (escrow auto-release, announcement release) now fan out via
+  `CrossTenantRunner` or they would only ever serve the bootstrap tenant; Kafka records carry the
+  tenant as a header stamped by a `ProducerInterceptor` and bound by a `RecordInterceptor`; Feign
+  calls propagate the header because service-to-service traffic does not pass the gateway.
+  A record with **no** tenant header is dropped rather than processed, since defaulting it would
+  write one tenant's data into another's schema.
+- **Grants** — schemas are created at runtime, so fixed per-database grants cannot cover them.
+  `docker/database/init/02-tenant-grants.sql` adds pattern grants for `civil\_engineer\_%` and
+  `admin\_db\_%` (admin-service is the one service outside the common prefix).
+
+**Pre-existing bug found and FIXED (2026-08-18):** notification-service's migration set was not
+reproducible from scratch. `V1` creates `email_templates` with an old shape
+(`template_name`/`body_html`/`is_active`) and `V3` — which defines the real one the entity maps —
+guards its `CREATE` with `IF NOT EXISTS`, so on a fresh schema V3 silently keeps V1's table and
+the service fails at runtime with `Unknown column 'active'`. The legacy single-tenant database
+escaped it because V1 was applied there before that block was added to the file. Fixed additively
+in `V7__fix_email_templates_shape.sql` rather than by editing an applied migration. Nothing was
+lost: V3 deliberately seeds no rows (built-ins load from the classpath), and V1's seed used
+columns the code never reads.
+
+**Pre-existing bug found and FIXED (2026-08-18):** `audit-common` builds its own `ProducerFactory`
+from scratch, so `spring.kafka.producer.*` never reaches it. Audit events therefore arrived at
+audit-service with no tenant header and were dropped. The interceptor is now wired into that
+factory by class name, guarded by a classpath check so audit-common still works in a service
+without tenant-common.
+
+**Build trap:** Maven does **not** repackage a service's fat jar when only a dependency
+(`tenant-common`, `audit-common`) changed — `classes/` is unchanged, so the jar plugin considers
+the jar up to date and the service silently ships the old library. Always `mvn clean install`
+after touching a shared module, then rebuild images.
+
+**Config trap:** `config-repo/auth-service.yml` is a multi-document YAML with an
+`on-profile: social` document after a `---`. Appending config to the end of that file lands it in
+the inactive profile and it is never served. Check for `---` before appending to any config-repo
+file.
+
+**Not built (deliberate, and why):**
+
+1. **No cross-tenant admin views.** Schema-per-tenant cannot `JOIN` across tenants, so the
+   operator console's "all tables with a tenant filter" needs a fan-out query layer that runs a
+   query per schema and merges/pages in memory. Not started.
+2. **The `FEE_COLLECTION` and `PROPERTY` verticals are registry entries only.** Their module keys
+   (`residents`, `feeplans`, `invoices`, `collections`, `properties`, `listings`, `leases`,
+   `valuations`, `landrecords`) exist in `PlatformModule` and are gated at the gateway, but no
+   entities, services or UI have been built behind them.
+3. **No tenant-aware frontend.** The shell does not yet read `/api/v1/tenant-resolution` for
+   per-tenant branding or hide menu items for disabled modules.
+4. **The legacy single-tenant schemas still exist** (`civil_engineer_users`, etc.) and hold the
+   pre-multi-tenancy data. Nothing reads them now; no migration of that data into a tenant schema
+   has been done.
+
+## Tenant administration UI — built 2026-08-18
+
+`tenant-service` had exposed the operator API since multi-tenancy went in, but nothing in the
+console called it: onboarding a tenant meant a hand-written curl request, and the
+`platform`-SUPER_ADMIN rule was something an operator had to be told rather than shown. The
+console now has a **System → Tenants** tab.
+
+- `frontend/src/services/tenantApi.ts` — client for the four operator endpoints, plus the
+  `PlatformModule` / `Vertical` / `TenantStatus` mirrors the screen renders from.
+- `frontend/src/pages/admin/TenantManagement.tsx` — list, create dialog, and a per-tenant
+  status + module editor.
+- `admin-service` Flyway `V18` seeds the `admin-tenants` menu row (System group, sort 175, so it
+  sits immediately before Workspaces — the two get confused, and a tenant contains workspaces).
+- Route and `FALLBACK_NAV` entry added in `App.tsx` and `AdminLayout.tsx`.
+
+**Tenants vs workspaces.** Worth stating because the naming invites the mistake: a *tenant* is a
+whole customer with its own schemas and subdomain; a *workspace* is one role inside a tenant, and
+"Workspaces" only configures that role's menu and theme.
+
+**The 403 is the authorization, not the menu row.** `default_roles` is `SUPER_ADMIN`, but
+tenant-service independently requires `X-Tenant-Id` be `platform` — so a tenant's own Super Admin
+sees the tab and gets a 403 from every call behind it. The screen renders that 403 as an
+explanation rather than an empty table, which is the honest presentation: hiding the tab client-side
+would imply the rule is about the role when it is about the tenant.
+
+**Module editing deliberately omits the horizontal set.** `auth`, `users`, `payments`,
+`notifications`, `support`, `admin`, `audit` and `messaging` render as read-only chips. They are
+shown, because an operator asking "what does this tenant have?" wants the whole answer, but they
+are not checkboxes — switching off `auth` breaks the tenant outright and should not be one
+misclick away from the modules the operator came to change. The PUT always re-sends them.
+
+**Verified live** through the gateway with a real `platform` SUPER_ADMIN token: menu row served in
+`/api/v1/ui-config/me`, `GET /tenants` 200, `POST /tenants` 201 (created `uitest` on the
+`FEE_COLLECTION` vertical, default modules resolved from the vertical), `PUT
+/tenants/uitest/modules` 200, `PATCH /tenants/uitest/status` 200, and `GET /tenants` as an ADMIN
+403. `tsc --noEmit` and the production bundle both build clean.
+
+**Left behind:** the test tenants `uitest` (SUSPENDED), `brandy`, `brandytwo` and `plainco` are
+still there, with schemas provisioned in all 11 services. There is no delete endpoint — dropping
+one means removing the row and its 11 schemas by hand.
+
+## Gateway truncated every proxied response — FIXED 2026-08-18
+
+Symptom in the browser: `net::ERR_INCOMPLETE_CHUNKED_ENCODING`, with logins appearing to fail
+intermittently. A third pre-existing multi-tenancy bug, alongside the two recorded above.
+
+`TenantResolutionGlobalFilter.filter()` ended with a `.switchIfEmpty(... reject ...)` placed
+*after* the `flatMap` that calls `chain.filter()`. `chain.filter()` returns `Mono<Void>`, which
+completes **empty on every successful proxied request** — so the "no workspace is served at this
+host" rejection fired after the downstream response was already committed. `reject()` then called
+`add()` on the now-read-only response headers, threw `UnsupportedOperationException`, and Netty
+closed the connection mid-body. Every response through the gateway was being truncated; only
+responses the browser parsed strictly showed it.
+
+Fixed in three parts:
+
+1. The no-tenant branch moved *inside* the `flatMap` (via an `Optional` wrap), so it cannot be
+   reached by a request that succeeded. This is the actual fix — a `switchIfEmpty` after a
+   `Mono<Void>` is always wrong, because "completed empty" is what success looks like there.
+2. `reject()` returns early if the response is already committed, logging instead of corrupting
+   the stream. Defense in depth for the next filter that gets this wrong.
+3. The `Host` header's port is stripped before the tenant lookup. `localhost:8080` was never
+   going to match a tenant keyed by hostname, so every local request paid a tenant-service round
+   trip and a 400 before falling back.
+
+
+## Tenant branding at onboarding — built 2026-08-18
+
+The create form now also takes the tenant's **logo, colours and UI styling**, and the tenant's
+console comes up wearing them the first time anyone signs in.
+
+**Why this needed a path through Kafka rather than a second API call.** The obvious
+implementation — create the tenant, then POST its theme — cannot work here, and the reason is
+worth writing down. The operator filling the form is on the `platform` tenant; the new tenant's
+`admin_db_<key>` schema does not exist yet, because provisioning is asynchronous; and the gateway
+strips any caller-supplied `X-Tenant-Id`, which is what stops a header being a cross-tenant write.
+So there is no request the operator could make that lands in the new tenant's schema. The branding
+travels on the `tenant.events` message instead and is applied by admin-service the moment Flyway
+has built the schema.
+
+**The pieces:**
+
+- `tenant-common`: `TenantBranding` (the shape, plus validation), carried on `TenantEventMessage`.
+- `tenant-common`: `TenantProvisionedCallback`, a hook `TenantProvisioningListener` runs after a
+  successful migrate. Each callback is isolated — a service failing to seed its own optional rows
+  must not turn a provisioned tenant into a logged failure.
+- `tenant-service`: nine nullable columns on `tenants` (Flyway `V2`), validated on create and
+  echoed back on every read.
+- `admin-service`: `TenantThemeSeeder` implements the callback and writes the tenant's `PLATFORM`
+  theme row, inside `TenantContext.runAs` because the Kafka thread carries no tenant.
+- `frontend`: the create dialog is now two tabs — Identity and Branding — with colour pickers, a
+  live logo preview, and the style dropdowns. The tenant detail screen shows what a tenant was
+  onboarded with, read-only.
+
+**Validation is in tenant-common, not just the form.** An unknown UI style would be stored happily
+and then silently fall back to the default at render time — "saved but did nothing", which is
+expensive to diagnose. `TenantBranding.validate()` refuses it at the boundary with the field named,
+so it is a 400 on create.
+
+**The closed sets are duplicated, and that duplication is tested.** tenant-common cannot depend on
+admin-service, so `TenantBranding` restates `UI_STYLES`, `BUTTON_STYLES`, `LAYOUT_STYLES`,
+`COLOR_MODES` and `DENSITIES`. `TenantBrandingOptionsTest` (admin-service, 5 tests) asserts each
+list equals admin-service's original, so adding a style in one place and forgetting the other
+fails the build instead of producing a tenant nobody can explain.
+
+**Bug found and fixed while testing this:** the seeder's first version skipped when a `PLATFORM`
+theme row already existed — which is *always*, because admin-service's own `V2__uiconfig.sql`
+seeds one for every schema. Branding was accepted, stored, published, and then silently dropped.
+The row's `version` is the signal that actually works: `UiConfigService.updateTheme` bumps it on
+every save, so version 1 means untouched default and anything higher means the tenant has chosen
+for itself. The seeder now overwrites at version 1 and sets it to 2, which also makes a redelivered
+provisioning event a no-op.
+
+**Seeding only, never re-pushing.** Branding rides the creation event alone, deliberately: a
+status change re-publishing it would overwrite a tenant's own colours every time an operator
+suspended and reactivated them. The detail screen therefore shows branding read-only and points at
+the tenant's own Theme & UI style screen, which owns it from provisioning onward.
+
+**Also fixed:** `Tenant.createdAt` was `insertable = false`, so a create returned `createdAt: null`
+and the caller had to re-read the tenant to learn when it was made. Now `@CreationTimestamp`, and
+the console shows a Created column and a created timestamp on the detail header. Separately,
+Lombok's `isEmpty()` on `TenantBranding` was serialising as an `"empty": false` field on every
+tenant response — `@JsonIgnore`d.
+
+**Verified live** through the gateway: branded create 201 with every field echoed back and the
+theme row landing in `admin_db_brandytwo` (all nine values, `brand_name` defaulted to the tenant
+name, version 2); unbranded create leaving `admin_db_plainco` on the shipped default at version 1;
+`primaryColor: "blue"` → 400 naming the field; `uiStyle: "neon"` → 400 listing the allowed values.
+`tsc --noEmit`, the production bundle, and the 5 drift tests all pass.
+
+## Tenant console review pass — 2026-08-18
+
+Eight issues found by reviewing the built screens against real screenshots, all fixed.
+
+**1. Branding could not be changed after creation.** The largest gap: every tenant created before
+branding existed (`acme`, `platform`, `bhoomi`, `hostelfee`) had no path to branding at all. Now
+`PUT /api/v1/tenants/{key}/branding` (operator-only), and an **Edit branding** dialog on the tenant
+detail screen.
+
+The interesting part is the guard. Seeding a tenant that has never touched its theme is harmless;
+replacing colours a tenant chose for themselves is not — and the operator cannot tell which one
+they are about to do, because the theme lives in the tenant's schema. So admin-service exposes
+`GET /api/v1/admin/tenant-theme/{key}` (same operator-only rule, returns only a version and a
+boolean — never the tenant's actual colours), and the dialog says plainly which case this is before
+the operator commits. The `tenant.events` message carries a `brandingUpdate` flag so
+`TenantThemeSeeder` knows an explicit edit may overwrite where a creation seed may not.
+
+`TenantContext.callAs` was added alongside `runAs` for this — reading one value out of another
+tenant's schema, with the same restore-what-was-bound contract.
+
+**2. The colour swatches lied.** An empty colour field rendered a blue swatch, which reads as
+"primary is already blue" when nothing is set. Unset now shows a muted hatched tile, and a set
+colour gets a clear button to go back to inheriting.
+
+**3. "Create tenant" greyed out without saying why.** With an invalid email and the Branding tab
+open, the button was dead and nothing on screen explained it. The blocking reason is now named next
+to the button, clicking it jumps to the offending tab, and the tab carrying the error is marked.
+
+**4. `PENDING` was offered as a status button.** It means "created but not yet provisioned" — a
+state the platform sets and clears itself. Offering it let an operator move a live tenant into a
+state that describes something untrue and changes nothing. Removed from the buttons; still rendered
+as a status.
+
+**5. No preview.** Nine dropdowns and three hex fields described a result the operator could not
+see — they cannot sign in as the tenant to check. There is now a live miniature of the shell
+(sidebar placement, colours, density, radius, button fill) beside the controls, labelled
+approximate.
+
+**6. The vertical picker hid its consequences.** Choosing one silently decides a dozen modules;
+they are now listed as chips under the dropdown at the moment the choice is made.
+
+**7. Header printed the key twice** (`acme · acme · ops@acme.test`) because subdomain equals key
+for most tenants. Subdomain and custom domain now show only when they differ.
+
+**8. Cramped dialog** — `sm` with everything in one column. Now `md`, two columns, preview beside
+the controls.
+
+**Also:** the tenant list gained a search box (name, key, subdomain, contact — an operator chasing
+a ticket usually has the email, not the key) and a status filter; and **Save modules** now confirms,
+naming the modules being removed, because removing one starts 404ing that tenant's users
+mid-session.
+
+**Bug found while testing this:** the new theme-status endpoint threw `ResponseStatusException`,
+which admin-service's `GlobalExceptionHandler` does not recognise — so an unauthorised caller got a
+500 instead of a 403. The service has its own `AccessDeniedException` mapped to 403; using the
+framework's exception in a codebase with its own handler chain silently produced the wrong status.
+
+**Verified live** through the gateway: `theme-status` reporting `customised:false` for a
+never-touched tenant and `true` for a seeded one; branding set on `acme` (which had none) landing
+in `admin_db_acme` with version 2; an overwrite of `brandytwo`'s already-customised theme landing
+at version 3; `primaryColor: "red"` → 400; and both new endpoints returning 403 to an ADMIN.
+`tsc --noEmit`, the production bundle, and the 5 drift tests all pass.
+
+**Still not built:** there is no tenant delete. The test tenants `uitest`, `brandy`, `brandytwo`
+and `plainco` remain, each with schemas in 11 services; removing one means dropping the row and its
+schemas by hand.
+
+## Tenant colours in the list — 2026-08-18
+
+The list now shows each tenant's chosen colours: a **Brand** column with the logo and up to three
+swatches (primary, accent, sidebar, each with the hex on hover), and the tenant's primary colour as
+a stripe down the left edge of its row. A tenant with no branding reads "Platform theme" rather
+than showing an empty cell.
+
+Colour is the fastest way to tell tenants apart once there are more than a handful — an operator
+recognises "the green one" well before they read a key.
+
+**The colour is applied as an edge, not to text or chips**, deliberately: a tenant-chosen colour is
+arbitrary, and using it for foreground or fill would fight the console's own light/dark theme and
+could land unreadable. The edge is legible whatever the tenant picked.
+
+**Caveat worth knowing:** these swatches show what an *operator* set as the tenant's branding, which
+is what tenant-service stores. A tenant that has since changed its own theme will not be reflected
+here — the tenant's live theme lives in its own schema, and the operator console only reads a
+version from it (`GET /api/v1/admin/tenant-theme/{key}`), never the colours.
+
+**Extended 2026-08-18:** the colour now runs across the whole row, not just the edge — the tenant's
+primary washed over the row background, a filled dot beside the name, the full-strength left edge,
+and the Configure action in the same colour. The row reads as that tenant's row at a glance.
+
+The wash is deliberately faint (7% in light, 14% in dark, roughly doubled on hover). Stronger than
+that and the row's own text stops meeting contrast against a colour the *operator* picked, not the
+designer — the name and contact still have to be readable on every row. For the same reason the
+name itself is never coloured; the dot carries the identity instead.
+
+`rowAccent()` trims a stored colour to six digits before it reaches MUI's `alpha()`, which cannot
+parse the `#RRGGBBAA` form the columns allow and would throw — taking the whole list down rather
+than one cell.
+
+## search-service tenant isolation — built 2026-08-19
+
+The last isolation gap. search-service is the only store on the platform that is not MySQL, so it
+inherits nothing from `tenant-common`'s schema-per-tenant layer — its indices were platform-wide
+and a search from tenant A would have returned tenant B's profiles.
+
+**Isolation is one index per tenant**, not a tenant field filtered in the query. `profiles_acme`,
+`services_acme`. A query physically cannot reach another tenant's documents; a filter would put the
+boundary at the mercy of every future edit to the nine query builders, and one forgotten `filter`
+would be a cross-tenant read that no test would notice.
+
+- `search/config/TenantIndex.java` — the only place a tenant becomes an index name. Derived from
+  `TenantContext.require()`, which throws when nothing is bound, so background work that forgot
+  `runAs` fails loudly instead of resolving to a shared index.
+- Both documents moved to `indexName = "#{@tenantIndex...}"`, `createIndex = false` — there is no
+  single index to create at startup, and startup has no tenant bound.
+- The two `ElasticsearchRepository` interfaces are **deleted**. Spring Data repositories resolve
+  their index once, from the entity; every read and write now goes through `ElasticsearchOperations`
+  with explicit `IndexCoordinates`, so the tenant a write lands in is visible at the call site.
+- `ReindexService` sweeps per tenant via `CrossTenantRunner`. Its Feign reads were previously made
+  with no tenant header at all — which the tenanted services correctly answer with 400 — so the
+  index it left behind was pre-tenancy data.
+- `SearchTenantProvisioner implements TenantProvisionedCallback`: a new tenant's indices are built
+  the moment it goes ACTIVE, instead of being unsearchable until the next 5-minute sweep. This is
+  why `spring.kafka.bootstrap-servers` is now set for this service.
+- `POST /api/v1/admin/search/reindex` rebuilds the caller's own tenant only. The cross-tenant sweep
+  stays on the scheduler — a tenant admin must not be able to spend the platform's reindex budget
+  on, or learn document counts of, another tenant.
+- A tenant queried before its first reindex has no index; `NoSuchIndexException` is served as an
+  empty result set rather than a 500, so a newly onboarded tenant does not look broken.
+- `platform.tenant.enabled=true` with a `registry` block but **no `schema-prefix`** — the tenant
+  context, header filter and Feign propagation, none of the MySQL schema layer. The MySQL driver is
+  a runtime dependency purely so `TenantRegistry`'s plain-JDBC read of the tenant list works.
+- Compose: search-service gains `mysql` + `kafka` deps and `TENANT_DB_*`.
+
+**Verified live 2026-08-19.** Per-tenant indices exist with genuinely different contents
+(`services_platform` 21 docs vs `services_brandy` 10; `profiles_platform` carries two users
+`profiles_brandy` does not). Through the gateway: a brandy token on `platform.localhost` is 403
+("Token is not valid for this workspace"); `acme.localhost` — which has no `search` module — is 404
+before authentication even runs; a client-supplied `X-Tenant-Id: platform` on `brandy.localhost` is
+stripped and still returns brandy's 10; and a direct call to :8092 with no tenant header is 400
+rather than a silent shared read.
+
+### Follow-ups — closed 2026-08-20
+
+The three loose ends left after the build above (backlog replay, a SUSPENDED tenant's indices, the
+pre-tenancy platform-wide indices) are fixed. A fourth, a real race, turned up while verifying.
+
+- **Tenant-event backlog replay.** `tenant-common`'s consumer was `auto-offset-reset=earliest` on a
+  group with no committed offsets, so every service re-provisioned every tenant that had ever
+  existed on boot — in search-service's case a full reindex per tenant several times over, on top
+  of the startup sweep. Now `latest`. Safe because every consumer already reconciles the whole
+  tenant list at startup (schema bootstrap elsewhere, the reindex sweep here); the events only need
+  to carry tenants created *while the service is running*, which is exactly what they now do.
+  This is a `tenant-common` change, so the other services pick it up on their next image build.
+- **`IndexPruner`** deletes any `profiles*`/`services*` index no active tenant owns, at the end of
+  each sweep. That covers both a suspended/deleted tenant's leftovers and the pre-tenancy
+  platform-wide `profiles`/`services`. Safe to delete because the indices are a read replica — a
+  tenant returning to ACTIVE is rebuilt by the provisioning callback and the next sweep. It refuses
+  to run when the registry read fails *or comes back empty*, which is far more likely to be a bad
+  read than a platform with no tenants and would otherwise delete everything. It only considers
+  names this service creates; anything else in the cluster is left alone.
+- **Race found: a new tenant's first index build outran the services it reads from.** All the
+  services provision the same tenant from the same Kafka message at the same moment, so
+  search-service was calling auth-service against a schema Flyway had not migrated yet and taking
+  the 500 as a failed provision — the tenant then had no index until the 5-minute sweep.
+  `SearchTenantProvisioner` now runs off the listener thread and retries
+  (`search.provision-retries: 5`, `provision-retry-delay-seconds: 15`), with the sweep still the
+  backstop. `spring.task.scheduling.pool.size: 2` so a retry and the sweep do not queue behind each
+  other.
+
+**Verified live 2026-08-20.** Boot logged exactly one reindex per tenant and zero replayed
+provisioning events (previously several rounds of both), and pruned `profiles`, `services`,
+`profiles_uitest`, `services_uitest` — leaving exactly the 16 indices the 8 active tenants own. A
+tenant created against the running stack reproduced the race (attempt 1 got auth-service's 500) and
+succeeded on attempt 2, 15s later. Suspending two test tenants had their four indices pruned by the
+next sweep. Search through the gateway still returns platform's profiles and services.
+
+## Admin surface: role gate, duplicate removal, `web-common` — 2026-08-21
+
+Started as a de-duplication pass and turned up a hole first.
+
+**The hole.** Nothing checked the caller's role on the admin surface. The gateway's
+`JwtAuthGatewayFilterFactory` *injected* `X-User-Role` but never enforced it, and all nine
+controllers under `admin.controller` — users, bookings, invoices, categories, dashboard, analytics,
+revenue, reports, service catalogue — had no check of their own. booking-service's own
+`AdminBookingController` had none either and went straight to the repository. Any member with a
+valid token for the workspace could list and delete users, cancel or complete any booking, and edit
+the service catalogue. Only the newer packages (`uiconfig`, `settings`, `content`) were guarded,
+which is why the admin/member split verified in the UI-config section held while this did not: the
+check was per-handler and opting in had simply been forgotten as controllers were added.
+
+**Two layers, both required.**
+
+- **Gateway** — `JwtAuthGatewayFilterFactory` now refuses `/api/v1/admin/**` for a non-staff role,
+  matched on a segment boundary so a future `/api/v1/administrators` is unaffected. Placed on the
+  prefix rather than per route, so a new admin route is gated the moment it is added.
+- **Service** — `web-common`'s `AdminRoleInterceptor`, bound to configurable path patterns
+  (`platform.web.admin-guard.path-patterns`). Patterns rather than one constant because the prefix
+  is not uniform: booking-service mounts its staff endpoints under `/api/v1/bookings/admin/**`.
+
+Neither suffices alone. Every service also listens on its own port inside the Docker network, where
+nothing strips a caller-supplied `X-User-Role`; and the service-level check trusts a header only the
+gateway makes trustworthy. Verified both ways — see below.
+
+**Duplicate admin surfaces removed from the edge.** Every admin operation was reachable twice:
+through admin-service's console API at `/api/v1/admin/**`, and directly on the owning service at
+`/api/v1/bookings/admin/**`, `/api/v1/auth/admin/**`, `/api/v1/payments/admin/**`,
+`/api/v1/users/admin/{profiles,stats}`. admin-service's versions are pure Feign passthrough, and
+the console has always used them; the second set was a second public door onto the same operations.
+`InternalOnlyPathFilter` (a gateway `GlobalFilter` at `HIGHEST_PRECEDENCE`) now 404s them from
+outside — 404 and not 403, because whether an internal endpoint exists is not an outside caller's
+business. They are not deleted: admin-service reaches them over Feign and that is why they exist.
+
+`/api/v1/users/admin/kyc/**` is deliberately **not** blocked. Only `profiles` and `stats` are
+duplicated; KYC review has no console proxy, so blocking the prefix wholesale would have left no way
+to approve a KYC document at all.
+
+**`IdentityFeignInterceptor`** is what makes the gating possible. admin-service's Feign clients
+previously arrived anonymous, so gating booking-service or payment-service would have broken the
+console. It copies `X-User-*` onto outbound calls, skipping any header a client already sets
+explicitly (admin-service's `AuthServiceClient` names `X-User-Role` itself). Modelled on
+`tenant-common`'s `TenantFeignInterceptor` and complementary to it — that one carries which
+workspace, this one carries who. Deliberately adds nothing when there is no inbound request:
+a scheduled sweep has no caller, and inventing one would let a job pass a check no human authorised.
+
+**New module `web-common`.** Replaces:
+
+- **13 copies of `GlobalExceptionHandler`** — ten were byte-identical bar the package and which
+  local `AccessDeniedException` they imported. Those ten now use `PlatformExceptionHandler`.
+  auth-, booking- and admin-service keep their own: their body shape (`ErrorResponse`,
+  `ApiResponse`) is one their callers already depend on. `platform.web.error-handler: false` opts
+  them out.
+- **11 copies of `AccessDeniedException`** (ten classes plus one nested inside user-service's
+  `AdminKycController`).
+- **16 copies of the `ADMIN_ROLES` set**, hand-written in every controller that gated on it — a role
+  added to auth-service's seed data would have had to be found in each. Now `StaffRoles`. The
+  gateway keeps its own copy: it is WebFlux and cannot depend on a `spring-boot-starter-web` module.
+
+**Three latent defects found and fixed while verifying:**
+
+1. **Every unmatched path was a 500.** `NoResourceFoundException` fell through to the
+   `@ExceptionHandler(Exception.class)` catch-all in all 13 handlers, so a mistyped URL read as a
+   server fault — and `/actuator/prometheus`, which these services do not expose, answered 500 to
+   every scrape rather than 404.
+2. **A bad path variable was a 500.** `/api/v1/bookings/nope` against a `Long` id raised
+   `MethodArgumentTypeMismatchException` into the same catch-all. Now 400.
+3. **`@ConditionalOnClass` on a `@Bean` method does not prevent class loading.** The first cut of
+   `WebCommonAutoConfiguration` guarded the Feign interceptor that way and tenant-service — which
+   has no Feign — died on `ClassNotFoundException: feign.RequestInterceptor` at startup. A
+   method-level condition is evaluated only after Spring reflects over the configuration class, and
+   that resolves every `@Bean` return type first. Both optional pieces are now nested
+   `@Configuration` classes carrying a *class-level* `@ConditionalOnClass`, checked from ASM
+   metadata before the class is loaded. Worth remembering for any future starter in this codebase.
+
+**Two stale tests fixed** (both failing on `main` before this work, unrelated to it):
+`AdminProfileControllerTest` was missing a `@MockBean` for `KycDocumentRepository`, which the
+controller has taken since KYC shipped; `AdminBookingControllerTest` was missing one for
+`CatalogueService` and still stubbed `findAll()` after the controller moved to
+`findAllByOrderByNameAsc()`.
+
+**Verified live 2026-08-21** through the gateway with real JWTs, 42/42 checks: all nine console
+endpoints 403 for a CUSTOMER and 200 for an ADMIN; the seven duplicated edge paths 404; the other
+services' admin surfaces (support, announcements, projects, escrow, audit) still 403/200 correctly;
+member and public surfaces (`ui-config/me`, `catalogue`, `notifications`, `support/tickets`,
+`projects`, `wallets/me`) unchanged; KYC review still reachable at 200 for an ADMIN and 403 for a
+CUSTOMER; unmatched routes 404 and bad path variables 400. Both layers checked independently — on
+booking-service's and admin-service's own ports with the gateway bypassed, a forged
+`X-User-Role: CUSTOMER` and a missing header are both 403 while `ADMIN` is 200. Backend build green
+across all 21 modules with all 76 tests passing.
+
+**Not done (deliberate):**
+
+1. **The BFF's extra hop stays.** Collapsing admin-service's passthrough into the owning services
+   would remove a network hop but also the one place a console-wide role check and audit trail can
+   live. The duplication removed here is the second *public door*, not the proxy.
+2. **Tenant branding vs admin-service's `ui_theme_config`** — the remaining real duplication, and a
+   data-model change rather than an HTTP-layer one. Untouched.
+3. **The five-copy Feign clients** (`UserServiceClient`, `BookingServiceClient`, `AuthServiceClient`
+   and their fallback factories) are still per-service. They differ in which method subset each
+   service needs, so consolidating them means designing one interface per callee rather than
+   deleting duplicates — a larger change than this pass.
+
+## Duplicate removal, round two — 2026-08-21
+
+The first pass took the exception layer. This one takes the rest. Duplicate class *names* across
+`src/main` went from 14 to 4, and the 4 that remain are deliberate.
+
+**What was actually duplicated, and what only looked it.** The distinction mattered more than the
+count. Four names were carried by classes doing genuinely different jobs, which made the codebase
+look more duplicated than it was and hid the real duplicates among them.
+
+Consolidated into `web-common`:
+
+| Was | Now | Note |
+|---|---|---|
+| `UserNameResolver` ×2 (booking, payment) | `web.common.client.UserNameResolver` | Byte-identical bar comments. Its test went with it; the two service copies covered the same cases with different fixtures. |
+| `UserServiceClient` ×2 (booking, payment) | `UserNameClient` | Identical `getUserName` interface. |
+| `UserServiceClientFallbackFactory` ×2 | `UserNameClientFallbackFactory` | Identical bar a log message. |
+| `BookingServiceClient` ×2 (review, messaging) | `BookingLookupClient` | Identical `getBooking` interface. |
+| `BookingServiceClientFallbackFactory` ×2 | `BookingLookupClientFallbackFactory` | Both `bookingId -> null`. |
+| `BookingDto` ×3 (messaging, review, project) | `web.common.client.BookingDto` | Three partial views of one upstream contract. Union of fields; `@JsonIgnoreProperties` makes the narrower callers' nulls harmless. |
+| `AuthServiceClient` ×2 (search, notification) | `UserDirectoryClient` | Same endpoint, different signatures — notification's was a superset. That one shipped; search passes null for the two filters. |
+| `StatusChangeRequest` ×2 (project, support) | `web.common.dto.StatusChangeRequest` | Differed only in `@NotNull` vs `@NotBlank`. `@NotBlank` is strictly stronger on a String, so that is the one kept. |
+
+Renamed, because they were never duplicates — same name, different code:
+
+`search`'s `UserServiceClient` → `UserProfileClient`; `support`'s → `MaterialRatesClient`;
+`search`'s `BookingServiceClient` → `ServiceCatalogueClient`; `project`'s → `ProjectBookingsClient`;
+`project`'s `PaymentServiceClient` → `ProjectEscrowClient`; `tenant`'s `KafkaProducerConfig` →
+`TenantTopicConfig` (it declares a topic; auth's configures a producer factory). Fallback factories
+renamed to match.
+
+**Kept duplicated, deliberately:** the three `GlobalExceptionHandler`s (auth, booking, admin serve
+a body shape their callers depend on) and the three `Admin*Controller` pairs (the BFF proxy and the
+owning service's endpoint — that pairing *is* the architecture the previous section established).
+admin-service keeps its own `<Callee>ServiceClient` family: as the BFF, "the client for service X"
+is exactly what those are, and nothing else collides with the names now.
+
+**Wiring note.** Feign clients in a shared package are not found by a service's default scan, and
+`@Component` on a fallback factory there is silently ignored. Each consuming service names
+`com.civileng.marketplace.web.common.client` in `@EnableFeignClients(basePackages = ...)`, and the
+factories are declared as beans by `SharedClientConfiguration` rather than annotated. Missing the
+first is a startup failure naming the missing client bean; missing the second is a runtime failure
+when the fallback is needed, which is worse — hence beans, not stereotypes.
+
+**A real regression this work exposed, and the fix.** The staff-role gate from the previous section
+broke search-service's reindex, and the earlier verification missed it because it only exercised
+request paths, never the scheduler. `IdentityFeignInterceptor` deliberately propagates nothing when
+there is no inbound request — a background job must not borrow a passer-by's identity — so the
+reindex sweep and the announcement job arrived at auth-, user- and booking-service with no role and
+were refused. The profile index would have quietly emptied.
+
+Fixed with `platform.web.admin-guard.exclude-path-patterns`, naming the specific read endpoints
+those jobs call: auth's `/users` and `/users/*/name`, user's `/profiles`, `/profiles/*`, `/stats`,
+booking's `/categories`. Safe because `InternalOnlyPathFilter` already makes those prefixes
+unreachable from the gateway — they are service-to-service reads with no external door, and the
+externally reachable equivalents on admin-service stay gated. The list is specific read paths on
+purpose: a wildcard would take the mutating endpoints with it.
+
+**Verified live 2026-08-21**, 44/45 checks (the one miss was a wrong test URL, re-checked green):
+the role gate and the sealed internal paths behave exactly as the previous section recorded; every
+consolidated class exercised through a real request — `UserNameResolver` via `/admin/bookings` and
+`/admin/invoices`, `BookingDto` via review-, messaging- and project-service, `UserDirectoryClient`
+via announcements and via a forced reindex, `StatusChangeRequest` via support, `ProjectEscrowClient`
+via wallets, `ServiceCatalogueClient` via search. `POST /api/v1/admin/search/reindex` completed
+"9 profiles, 21 services in 965 ms" with **zero** refusals logged at auth-, user- or
+booking-service, where before the fix auth-service alone logged 41. Backend build green across all
+21 modules, 71 tests passing.
+
+## Duplicate removal, frontend — 2026-08-21
+
+Same pass, UI side. The frontend had few duplicate *file names* (two `index.ts`), so the
+duplication was all in repeated logic — and in two places the copies had drifted into a visible
+inconsistency.
+
+**`utils/currency.ts` — replaces six money formatters.** `RevenuePage`, `AdminDashboard`,
+`BookingManagement`, `InvoicesPage`, `AnalyticsPage` and `bookingPricing.formatRupees` each had
+their own. Two divergences mattered:
+
+1. **Compact form stopped at lakh in three of them.** `RevenuePage` reached crore; `AdminDashboard`
+   and `AnalyticsPage` did not. The same ₹1,20,00,000 read as "₹120.0L" on the dashboard and
+   "₹1.20Cr" on the revenue screen.
+2. **Three used the browser's default locale.** `BookingManagement`'s `₹${amount.toLocaleString()}`
+   grouped as 100,000 rather than the 1,00,000 an Indian reader expects — and the lakh/crore
+   grouping is the point of this app's numbers, not something to leave to the reader's browser.
+
+There was also a raw `₹{booking.totalAmount}` on the member dashboard with no formatting at all, so
+a booking read as `₹123900` there and `₹1,23,900` on the admin screen. `formatCurrency` (exact,
+`en-IN`) and `formatCompactCurrency` (Cr/L/K) now serve both, and `formatRupees` stays as a named
+re-export because the booking flow imports it in a dozen places and the name reads better next to
+the pricing maths.
+
+**`utils/statusColors.ts` — replaces four colour maps.** `DashboardPage`'s booking-status map knew
+five of the thirteen statuses a booking can hold, against `BookingManagement`'s full set. A booking
+in ASSIGNED, DISPUTED or AWAITING_PAYMENT rendered neutral grey on the member dashboard and a real
+colour on the admin screen — the same booking, two readings, with grey implying "nothing to see".
+The full map serves both now. `UserManagement`'s map is a different vocabulary (account statuses)
+and is kept as its own export; support-ticket colours already lived in one place
+(`supportApi.statusColor`) and were left there.
+
+**Eight screens were bypassing the date preference.** `utils/datetime.ts` and `useDateTime()`
+already existed so that the timezone and date format chosen in settings take effect everywhere —
+but `EmailLogPage`, `AlertsPage`, `MaterialPricesPage`, `ServiceCatalogueManagement` and
+`TenantManagement` called `toLocaleDateString`/`toLocaleString` directly and silently ignored it.
+All now go through the hook. Two of the helpers were module-level functions that could not call a
+hook; `InAppPreview` was converted to a block body to do so.
+
+One call is deliberately left on browser-local time and now says so: `formatClock` in
+`EmailLogPage`, the clock on a chat bubble inside the SMS/WhatsApp phone mockups. Those frames show
+how the message looked on the recipient's handset, and a handset shows local time. The in-app
+preview next to them is read inside this app, so that one does use the workspace timezone — the
+distinction is the reason the comment is there.
+
+**Verified live 2026-08-21** in Chrome against the deployed stack. Admin bookings render
+`₹1,00,000` with lakh grouping where the old browser-locale formatter gave `₹100,000`. The member
+dashboard shows a booking in ASSIGNED as violet — grey before this change — and its Amount column
+now groups. Dates render `17/08/2026` from the configured `DD/MM/YYYY` on both member and admin
+screens. `tsc --noEmit` clean, production build clean, and the deployed container serves the shared
+chunks (`currency-BEHlZtdj.js` byte-identical to the local build, `statusColors-*.js` present, and
+the `DashboardPage` chunk no longer contains a raw `₹` literal).

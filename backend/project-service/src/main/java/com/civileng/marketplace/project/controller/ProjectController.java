@@ -1,5 +1,6 @@
 package com.civileng.marketplace.project.controller;
 
+import com.civileng.marketplace.web.common.dto.StatusChangeRequest;
 import com.civileng.marketplace.project.dto.*;
 import com.civileng.marketplace.project.model.Milestone;
 import com.civileng.marketplace.project.model.Project;

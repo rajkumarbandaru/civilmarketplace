@@ -9,7 +9,10 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
 @EnableDiscoveryClient
-@EnableFeignClients
+// This service's only Feign client is the shared UserNameClient — booking-service and
+// payment-service each used to declare an identical copy of it in their own client package,
+// which is now empty and gone.
+@EnableFeignClients(basePackages = "com.civileng.marketplace.web.common.client")
 @EnableJpaAuditing
 @EnableScheduling
 public class BookingServiceApplication {

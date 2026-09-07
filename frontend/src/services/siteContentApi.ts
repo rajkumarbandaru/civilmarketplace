@@ -1,4 +1,5 @@
 import api from './api';
+import { API_ORIGIN } from './apiBase';
 
 /**
  * The public site's editable copy — every heading, paragraph, link and image on the landing page
@@ -98,7 +99,7 @@ export const resolveMediaUrl = (url: string | null | undefined): string | undefi
   if (!url) return undefined;
   if (/^(https?:)?\/\//i.test(url) || url.startsWith('data:')) return url;
   if (url.startsWith('/api/')) {
-    const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+    const base = API_ORIGIN;
     return `${base}${url}`;
   }
   return url;

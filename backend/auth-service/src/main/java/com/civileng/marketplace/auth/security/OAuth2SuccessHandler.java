@@ -2,6 +2,7 @@ package com.civileng.marketplace.auth.security;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import com.civileng.marketplace.tenant.common.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -43,8 +44,8 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         String userId = asString(attributes.get("userId"));
         String role = asString(attributes.get("role"));
 
-        String accessToken = jwtTokenProvider.generateAccessToken(userId, email, role, name);
-        String refreshToken = jwtTokenProvider.generateRefreshToken(userId);
+        String accessToken = jwtTokenProvider.generateAccessToken(userId, email, role, name, TenantContext.require());
+        String refreshToken = jwtTokenProvider.generateRefreshToken(userId, TenantContext.require());
 
         String targetUrl = UriComponentsBuilder
                 .fromUriString(primaryRedirectUri())

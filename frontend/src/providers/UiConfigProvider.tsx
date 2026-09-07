@@ -1,5 +1,7 @@
-import React, { createContext, useContext, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { landingPathFor } from '../components/AdminRoute';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { useAppSelector } from '../hooks';
@@ -32,6 +34,11 @@ interface UiConfigContextValue {
    * workspace, so one saved preference reaches every screen at once.
    */
   dateTime: DateTimePreferences;
+  /**
+   * The operator-chosen landing screen for this tenant, or null for the shipped route. Exposed as
+   * well as acted on, so a screen that offers its own "go home" can agree with where sign-in lands.
+   */
+  landingPath: string | null;
 }
 
 const UiConfigContext = createContext<UiConfigContextValue>({
@@ -43,6 +50,7 @@ const UiConfigContext = createContext<UiConfigContextValue>({
   // Signed out, and before the first fetch resolves: the browser's own zone and the site default,
   // which is what a visitor saw before this preference existed.
   dateTime: { timezone: null, dateFormat: null },
+  landingPath: null,
 });
 
 export const useUiConfig = () => useContext(UiConfigContext);
@@ -118,6 +126,7 @@ export const UiConfigProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         timezone: data?.timezone ?? null,
         dateFormat: data?.dateFormat ?? null,
       },
+      landingPath: data?.landingPath ?? null,
     }),
     [data, isAuthenticated, isLoading, isError, queryClient, queryKey]
   );
@@ -126,10 +135,46 @@ export const UiConfigProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     <UiConfigContext.Provider value={value}>
       <ThemeProvider theme={muiTheme}>
         <CssBaseline />
+        <TenantLandingRedirect landingPath={value.landingPath} role={user?.role} />
         {children}
       </ThemeProvider>
     </UiConfigContext.Provider>
   );
+};
+
+/**
+ * Sends the member to the tenant's own landing screen, once, just after sign-in.
+ *
+ * The redirect cannot happen at sign-in itself: the landing path arrives on the UI-config snapshot,
+ * which is fetched only once there is a session to fetch it for. So the login flow keeps sending
+ * people to their role's default route and this moves them when the answer arrives.
+ *
+ * Two guards keep it from being a hijack. It only fires while the member is standing on that role
+ * default, so a deep link, a bookmark, or a refresh on any other page is left alone — being bounced
+ * to the tenant's landing screen mid-task would be indistinguishable from a bug. And it fires once
+ * per session, so navigating back to the dashboard on purpose stays possible.
+ */
+const TenantLandingRedirect: React.FC<{
+  landingPath: string | null;
+  role?: string | null;
+}> = ({ landingPath, role }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const done = useRef(false);
+
+  useEffect(() => {
+    if (done.current || !landingPath) return;
+
+    const roleDefault = landingPathFor(role);
+    if (location.pathname !== roleDefault || landingPath === roleDefault) return;
+
+    done.current = true;
+    // replace, so Back goes where the member came from rather than to a route that immediately
+    // redirects them forward again.
+    navigate(landingPath, { replace: true });
+  }, [landingPath, role, location.pathname, navigate]);
+
+  return null;
 };
 
 /**

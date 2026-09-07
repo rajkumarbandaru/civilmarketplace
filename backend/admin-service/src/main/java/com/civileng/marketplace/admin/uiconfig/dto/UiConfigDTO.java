@@ -31,7 +31,16 @@ public final class UiConfigDTO {
              * <p>Null means "use the browser's own zone / locale default".
              */
             String timezone,
-            String dateFormat) {
+            String dateFormat,
+            /**
+             * Where this tenant's console should open, chosen by the operator. Null means the
+             * shipped dashboard.
+             *
+             * <p>On the shell snapshot rather than fetched separately because the redirect has to
+             * happen on the very first paint — a second request would land the member on the
+             * dashboard first and then move them, which reads as a misclick rather than a setting.
+             */
+            String landingPath) {
     }
 
     /** One side-menu entry as the client should render it, after every overlay is applied. */

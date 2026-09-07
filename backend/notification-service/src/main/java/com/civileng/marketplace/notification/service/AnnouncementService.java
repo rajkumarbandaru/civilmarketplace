@@ -3,7 +3,7 @@ package com.civileng.marketplace.notification.service;
 import com.civileng.marketplace.audit.common.AuditAction;
 import com.civileng.marketplace.audit.common.AuditEventMessage;
 import com.civileng.marketplace.audit.common.AuditPublisher;
-import com.civileng.marketplace.notification.client.AuthServiceClient;
+import com.civileng.marketplace.web.common.client.UserDirectoryClient;
 import com.civileng.marketplace.notification.dto.AnnouncementDto.CreateAnnouncementRequest;
 import com.civileng.marketplace.notification.model.Announcement;
 import com.civileng.marketplace.notification.model.AnnouncementStatus;
@@ -43,7 +43,7 @@ public class AnnouncementService {
 
     private final AnnouncementRepository announcementRepository;
     private final NotificationService notificationService;
-    private final AuthServiceClient authServiceClient;
+    private final UserDirectoryClient userDirectoryClient;
     private final AuditPublisher auditPublisher;
 
     /**
@@ -200,7 +200,7 @@ public class AnnouncementService {
         int page = 0;
         int totalPages = 1;
         while (page < totalPages && page < MAX_PAGES_PER_ROLE) {
-            Map<String, Object> response = authServiceClient.getUsers(page, PAGE_SIZE, role, "ACTIVE");
+            Map<String, Object> response = userDirectoryClient.getUsers(page, PAGE_SIZE, role, "ACTIVE");
             List<Map<String, Object>> users = (List<Map<String, Object>>) response.getOrDefault("data", List.of());
             for (Map<String, Object> user : users) {
                 into.add(((Number) user.get("id")).longValue());

@@ -2,7 +2,9 @@ import { Google, Apple, Facebook } from '@mui/icons-material';
 
 // Same base the axios client uses — social login is a full-page browser redirect
 // through the gateway rather than an XHR, so it cannot go through `api`.
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8087';
+import { API_ORIGIN } from './apiBase';
+
+const API_BASE_URL = API_ORIGIN;
 
 export type SocialProvider = 'google' | 'apple' | 'facebook';
 

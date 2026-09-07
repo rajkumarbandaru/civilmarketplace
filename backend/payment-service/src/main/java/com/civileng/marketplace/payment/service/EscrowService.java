@@ -162,7 +162,7 @@ public class EscrowService {
         EscrowHold hold = refreshFunding(require(escrowId));
 
         if (!actorIsAdmin && !hold.getPayerId().equals(actorId)) {
-            throw new com.civileng.marketplace.payment.exception.AccessDeniedException(
+            throw new com.civileng.marketplace.web.common.AccessDeniedException(
                     "Only the payer may release this escrow");
         }
         return doRelease(hold, actorId, actorIsAdmin ? "Released by admin" : "Released by payer");
@@ -211,7 +211,7 @@ public class EscrowService {
     public EscrowHold refund(Long escrowId, Long actorId, boolean actorIsAdmin, String reason) {
         EscrowHold hold = refreshFunding(require(escrowId));
         if (!actorIsAdmin && !hold.getPayerId().equals(actorId)) {
-            throw new com.civileng.marketplace.payment.exception.AccessDeniedException(
+            throw new com.civileng.marketplace.web.common.AccessDeniedException(
                     "Only the payer or an admin may refund this escrow");
         }
         if (hold.getStatus() == EscrowStatus.DISPUTED && !actorIsAdmin) {
@@ -254,7 +254,7 @@ public class EscrowService {
     public EscrowHold dispute(Long escrowId, Long actorId, String reason) {
         EscrowHold hold = refreshFunding(require(escrowId));
         if (!hold.getPayerId().equals(actorId) && !hold.getPayeeId().equals(actorId)) {
-            throw new com.civileng.marketplace.payment.exception.AccessDeniedException(
+            throw new com.civileng.marketplace.web.common.AccessDeniedException(
                     "Only a party to this escrow may dispute it");
         }
         if (hold.getStatus() != EscrowStatus.HELD) {
@@ -339,7 +339,7 @@ public class EscrowService {
         EscrowHold hold = refreshFunding(require(escrowId));
         if (!actorIsAdmin && !hold.getPayerId().equals(actorId)
                 && !hold.getPayeeId().equals(actorId)) {
-            throw new com.civileng.marketplace.payment.exception.AccessDeniedException(
+            throw new com.civileng.marketplace.web.common.AccessDeniedException(
                     "You are not a party to this escrow");
         }
         return hold;

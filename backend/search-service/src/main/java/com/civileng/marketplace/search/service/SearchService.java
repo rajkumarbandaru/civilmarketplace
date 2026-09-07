@@ -3,11 +3,13 @@ package com.civileng.marketplace.search.service;
 import co.elastic.clients.elasticsearch._types.SortOrder;
 import co.elastic.clients.elasticsearch._types.query_dsl.Query;
 import co.elastic.clients.json.JsonData;
+import com.civileng.marketplace.search.config.TenantIndex;
 import com.civileng.marketplace.search.document.ProfileDocument;
 import com.civileng.marketplace.search.document.ServiceDocument;
 import com.civileng.marketplace.search.dto.ProfileSearchRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.elasticsearch.NoSuchIndexException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.elasticsearch.client.elc.ElasticsearchTemplate;
 import org.springframework.data.elasticsearch.client.elc.NativeQuery;
@@ -21,12 +23,21 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Reads the search indices for the tenant bound to the current request.
+ *
+ * <p>Every query names its index explicitly through {@link TenantIndex}. That is the isolation
+ * boundary for this service — it has no relational store, so it gets none of the schema-per-tenant
+ * routing the rest of the platform relies on, and a tenant filter inside the query would put the
+ * boundary at the mercy of every future edit to these builders.
+ */
 @Service
 @Slf4j
 @RequiredArgsConstructor
 public class SearchService {
 
     private final ElasticsearchTemplate elasticsearchTemplate;
+    private final TenantIndex tenantIndex;
 
     public Map<String, Object> searchProfiles(ProfileSearchRequest request) {
         List<Query> must = new ArrayList<>();
@@ -77,8 +88,13 @@ public class SearchService {
 
         applySort(builder, request.getSort());
 
-        SearchHits<ProfileDocument> hits =
-                elasticsearchTemplate.search(builder.build(), ProfileDocument.class);
+        SearchHits<ProfileDocument> hits;
+        try {
+            hits = elasticsearchTemplate.search(
+                    builder.build(), ProfileDocument.class, tenantIndex.profilesIndex());
+        } catch (NoSuchIndexException e) {
+            return notYetIndexed(tenantIndex.profiles(), request.getPage(), request.getSize());
+        }
 
         return toResponse(hits, request.getPage(), request.getSize());
     }
@@ -119,14 +135,36 @@ public class SearchService {
                     .filter(f -> f.term(t -> t.field("active").value(true)))));
         }
 
-        SearchHits<ServiceDocument> hits = elasticsearchTemplate.search(
-                NativeQuery.builder()
-                        .withQuery(query)
-                        .withPageable(PageRequest.of(page, size))
-                        .build(),
-                ServiceDocument.class);
+        SearchHits<ServiceDocument> hits;
+        try {
+            hits = elasticsearchTemplate.search(
+                    NativeQuery.builder()
+                            .withQuery(query)
+                            .withPageable(PageRequest.of(page, size))
+                            .build(),
+                    ServiceDocument.class, tenantIndex.servicesIndex());
+        } catch (NoSuchIndexException e) {
+            return notYetIndexed(tenantIndex.services(), page, size);
+        }
 
         return toResponse(hits, page, size);
+    }
+
+    /**
+     * A tenant whose first reindex has not run yet has no index. That is an empty result set, not a
+     * failure — returning 500 until the next sweep would make a newly onboarded tenant look broken.
+     * Logged at warn because the same shape would also be how a wrongly-deleted index presents.
+     */
+    private Map<String, Object> notYetIndexed(String index, int page, int size) {
+        log.warn("Index '{}' does not exist yet; serving an empty result set", index);
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("success", true);
+        response.put("data", List.of());
+        response.put("page", page);
+        response.put("size", size);
+        response.put("totalElements", 0L);
+        response.put("totalPages", 0);
+        return response;
     }
 
     private <T> Map<String, Object> toResponse(SearchHits<T> hits, int page, int size) {

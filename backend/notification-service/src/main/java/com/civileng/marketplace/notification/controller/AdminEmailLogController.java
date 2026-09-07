@@ -1,8 +1,9 @@
 package com.civileng.marketplace.notification.controller;
 
+import com.civileng.marketplace.web.common.StaffRoles;
 import com.civileng.marketplace.notification.dto.EmailLogDto.LogResponse;
 import com.civileng.marketplace.notification.dto.EmailLogDto.LogSummary;
-import com.civileng.marketplace.notification.exception.AccessDeniedException;
+import com.civileng.marketplace.web.common.AccessDeniedException;
 import com.civileng.marketplace.notification.model.EmailStatus;
 import com.civileng.marketplace.notification.model.NotificationChannel;
 import com.civileng.marketplace.notification.service.EmailLogService;
@@ -33,8 +34,6 @@ import java.util.Set;
         description = "Delivery status of every notification, on every channel")
 public class AdminEmailLogController {
 
-    private static final Set<String> ADMIN_ROLES =
-            Set.of("SUPER_ADMIN", "ADMIN", "SUB_ADMIN", "REGIONAL_ADMIN");
 
     private final EmailLogService emailLogService;
 
@@ -132,7 +131,7 @@ public class AdminEmailLogController {
     }
 
     private void requireAdmin(String role) {
-        if (role == null || !ADMIN_ROLES.contains(role)) {
+        if (!StaffRoles.isStaff(role)) {
             throw new AccessDeniedException("Admin role required");
         }
     }

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { userStatusColor } from '../../utils/statusColors';
 import {
   Box, Card, Typography, TextField, InputAdornment, Table, TableBody, TableCell,
   TableContainer, TableHead, TableRow, TablePagination, Chip, Avatar, IconButton,
@@ -16,11 +17,6 @@ const roleColors: Record<string, string> = {
   CUSTOMER: '#667eea', CIVIL_ENGINEER: '#10b981', ARCHITECT: '#f59e0b',
   SURVEYOR: '#8b5cf6', WORKER: '#06b6d4', CONTRACTOR: '#ef4444', ADMIN: '#1e293b',
   SUPER_ADMIN: '#dc2626', SUB_ADMIN: '#0891b2',
-};
-
-const statusColors: Record<string, string> = {
-  ACTIVE: '#10b981', PENDING: '#f59e0b', SUSPENDED: '#ef4444',
-  BANNED: '#dc2626', INACTIVE: '#94a3b8', PENDING_VERIFICATION: '#f59e0b',
 };
 
 const UserManagement: React.FC = () => {
@@ -219,7 +215,7 @@ const UserManagement: React.FC = () => {
                     </TableCell>
                     <TableCell>
                       <Chip label={user.status} size="small"
-                        sx={{ bgcolor: `${statusColors[user.status] || '#94a3b8'}15`, color: statusColors[user.status] || '#94a3b8', fontWeight: 600, fontSize: '0.75rem' }} />
+                        sx={{ bgcolor: `${userStatusColor(user.status)}15`, color: userStatusColor(user.status), fontWeight: 600, fontSize: '0.75rem' }} />
                     </TableCell>
                     <TableCell><Typography variant="body2">{user.city || 'N/A'}</Typography></TableCell>
                     <TableCell><Typography variant="body2" sx={{ fontWeight: 600 }}>{user.bookings || 0}</Typography></TableCell>

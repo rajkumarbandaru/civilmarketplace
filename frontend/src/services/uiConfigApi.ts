@@ -53,6 +53,12 @@ export interface UiConfigSnapshot {
   timezone: string | null;
   /** A key from `DATE_FORMAT_KEYS`, or null for the site default. */
   dateFormat: string | null;
+  /**
+   * The screen the operator has set this tenant's console to open on, or null for the shipped
+   * landing route. Already filtered to what this member's role can actually reach — admin-service
+   * drops it rather than sending a role to a screen its menu has no entry for.
+   */
+  landingPath: string | null;
 }
 
 export interface AppearanceSettings {

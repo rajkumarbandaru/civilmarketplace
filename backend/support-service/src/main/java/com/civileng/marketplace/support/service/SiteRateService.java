@@ -1,7 +1,7 @@
 package com.civileng.marketplace.support.service;
 
 import com.civileng.marketplace.support.client.SearchServiceClient;
-import com.civileng.marketplace.support.client.UserServiceClient;
+import com.civileng.marketplace.support.client.MaterialRatesClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -34,7 +34,7 @@ import java.util.concurrent.atomic.AtomicReference;
 public class SiteRateService {
 
     private final SearchServiceClient searchClient;
-    private final UserServiceClient userClient;
+    private final MaterialRatesClient userClient;
 
     /**
      * Roles that are admin or demand side. They have no service rate to publish, and including

@@ -1,6 +1,7 @@
 package com.civileng.marketplace.search.controller;
 
-import com.civileng.marketplace.search.exception.AccessDeniedException;
+import com.civileng.marketplace.web.common.StaffRoles;
+import com.civileng.marketplace.web.common.AccessDeniedException;
 import com.civileng.marketplace.search.service.ReindexService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -11,7 +12,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Set;
 
 @RestController
 @RequestMapping("/api/v1/admin/search")
@@ -20,21 +20,24 @@ import java.util.Set;
 @Tag(name = "Admin Search", description = "Admin endpoints for the search index")
 public class AdminSearchController {
 
-    private static final Set<String> ADMIN_ROLES =
-            Set.of("SUPER_ADMIN", "ADMIN", "SUB_ADMIN", "REGIONAL_ADMIN");
 
     private final ReindexService reindexService;
 
+    /**
+     * Rebuilds only the caller's own tenant's indices. A tenant's admin must not be able to spend
+     * the platform's reindex budget on, or learn the document counts of, anyone else's tenant; the
+     * cross-tenant sweep stays on the scheduler.
+     */
     @PostMapping("/reindex")
-    @Operation(summary = "Trigger a full rebuild of the search index")
+    @Operation(summary = "Rebuild this tenant's search indices")
     public ResponseEntity<Map<String, Object>> reindex(
             @RequestHeader(value = "X-User-Role", required = false) String role) {
-        if (role == null || !ADMIN_ROLES.contains(role)) {
+        if (!StaffRoles.isStaff(role)) {
             throw new AccessDeniedException("Admin role required");
         }
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("success", true);
-        result.putAll(reindexService.reindexAll());
+        result.putAll(reindexService.reindexCurrentTenant());
         return ResponseEntity.ok(result);
     }
 }

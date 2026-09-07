@@ -19,16 +19,29 @@ import java.util.List;
 public class GatewayConfig {
 
     /**
-     * Browser origins allowed to call the API. The frontend's host port is configurable
-     * (HOST_PORT_FRONTEND, currently 3007), so this must be overridable — a mismatch here
-     * surfaces as a CORS failure on login rather than anything obviously gateway-related.
-     * Both localhost and 127.0.0.1 forms are needed: they are distinct origins to a browser.
+     * Browser origins allowed to call the API, as patterns.
+     *
+     * <p>Patterns rather than a fixed list because every tenant is served on its own hostname:
+     * {@code acme.localhost:3000} and {@code hostelfee.localhost:3000} are distinct origins to a
+     * browser, and enumerating them would mean a gateway redeploy every time a tenant is onboarded.
+     * The failure this causes is badly disguised — Spring rejects the unlisted origin with a bare
+     * 403 and an empty body, which the console can only render as "you do not have permission",
+     * on the login call, before anyone has been authenticated at all.
+     *
+     * <p>Must be {@code setAllowedOriginPatterns}, not {@code setAllowedOrigins}: a wildcard in the
+     * latter is rejected outright when {@code allowCredentials} is true. Exact origins are still
+     * valid patterns, so the previously listed hosts keep working unchanged.
+     *
+     * <p>The frontend's host port is configurable (HOST_PORT_FRONTEND), so this stays overridable.
+     * Both localhost and 127.0.0.1 forms are needed: they are distinct origins to a browser, and
+     * 127.0.0.1 takes no subdomains, which is why only the localhost forms carry a wildcard.
      */
-    @Value("${cors.allowed-origins:http://localhost:3000,http://127.0.0.1:3000,"
-            + "http://localhost:3007,http://127.0.0.1:3007,"
-            + "http://localhost:5173,http://127.0.0.1:5173,"
-            + "https://app.civilengineer.com}")
-    private List<String> allowedOrigins;
+    @Value("${cors.allowed-origin-patterns:http://localhost:3000,http://127.0.0.1:3000,"
+            + "http://*.localhost:3000,"
+            + "http://localhost:3007,http://127.0.0.1:3007,http://*.localhost:3007,"
+            + "http://localhost:5173,http://127.0.0.1:5173,http://*.localhost:5173,"
+            + "https://app.civilengineer.com,https://*.civilengineer.com}")
+    private List<String> allowedOriginPatterns;
 
     @Bean
     public RouteLocator customRouteLocator(RouteLocatorBuilder builder,
@@ -148,13 +161,38 @@ public class GatewayConfig {
                         .filters(f -> f.stripPrefix(0)
                                 .filter(jwtAuthFilter.apply(new JwtAuthGatewayFilterFactory.Config())))
                         .uri("lb://admin-service"))
+                // Host → tenant lookup. Public and unfiltered: the login screen needs the
+                // workspace's name and branding before any token exists, and it discloses
+                // nothing beyond the URL the visitor already typed.
+                .route("tenant-resolution", r -> r
+                        .path("/api/v1/tenant-resolution/**")
+                        .filters(f -> f.stripPrefix(0))
+                        .uri("lb://tenant-service"))
+                // Tenant administration. Behind the JWT filter; tenant-service additionally
+                // requires the caller be a SUPER_ADMIN of the operator tenant.
+                .route("tenant-service", r -> r
+                        .path("/api/v1/tenants/**")
+                        .filters(f -> f.stripPrefix(0)
+                                .filter(jwtAuthFilter.apply(new JwtAuthGatewayFilterFactory.Config())))
+                        .uri("lb://tenant-service"))
                 .build();
+    }
+
+    /**
+     * Load-balanced so {@link com.civileng.marketplace.gateway.tenant.TenantDirectory} can reach
+     * tenant-service through Eureka by name rather than a pinned host.
+     */
+    @Bean
+    @org.springframework.cloud.client.loadbalancer.LoadBalanced
+    public org.springframework.web.reactive.function.client.WebClient.Builder
+            loadBalancedWebClientBuilder() {
+        return org.springframework.web.reactive.function.client.WebClient.builder();
     }
 
     @Bean
     public CorsWebFilter corsWebFilter() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(allowedOrigins);
+        config.setAllowedOriginPatterns(allowedOriginPatterns);
         config.setAllowedMethods(List.of(
                 HttpMethod.GET.name(),
                 HttpMethod.POST.name(),

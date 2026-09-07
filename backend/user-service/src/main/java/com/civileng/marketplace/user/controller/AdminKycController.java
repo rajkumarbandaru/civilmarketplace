@@ -11,11 +11,11 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import com.civileng.marketplace.web.common.StaffRoles;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 @RestController
 @RequestMapping("/api/v1/users/admin/kyc")
@@ -24,8 +24,6 @@ import java.util.Set;
 @Tag(name = "Admin KYC Management", description = "Admin endpoints for KYC document review")
 public class AdminKycController {
 
-    private static final Set<String> ADMIN_ROLES =
-            Set.of("SUPER_ADMIN", "ADMIN", "SUB_ADMIN", "REGIONAL_ADMIN");
 
     private final KycService kycService;
 
@@ -71,15 +69,6 @@ public class AdminKycController {
     }
 
     private void requireAdmin(String role) {
-        if (role == null || !ADMIN_ROLES.contains(role)) {
-            throw new AccessDeniedException("Admin role required");
-        }
-    }
-
-    @ResponseStatus(HttpStatus.FORBIDDEN)
-    public static class AccessDeniedException extends RuntimeException {
-        public AccessDeniedException(String message) {
-            super(message);
-        }
+        StaffRoles.requireStaff(role);
     }
 }

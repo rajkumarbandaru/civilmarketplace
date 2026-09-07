@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useDateTime } from '../../providers/UiConfigProvider';
 import {
   Alert, Avatar, Box, Button, Card, Chip, Dialog, DialogActions, DialogContent, DialogTitle,
   FormControl, FormControlLabel, Grid, IconButton, InputAdornment, InputLabel, MenuItem, Rating,
@@ -56,6 +57,7 @@ const errorMessage = (err: unknown, fallback: string): string => {
 };
 
 const ServiceCatalogueManagement: React.FC = () => {
+  const { formatDate } = useDateTime();
   const [services, setServices] = useState<AdminServiceOffering[]>([]);
   const [categories, setCategories] = useState<AdminCategory[]>([]);
   const [loading, setLoading] = useState(true);
@@ -324,9 +326,7 @@ const ServiceCatalogueManagement: React.FC = () => {
                     </TableCell>
                     <TableCell sx={{ whiteSpace: 'nowrap' }}>
                       <Typography variant="caption" sx={{ color: '#94a3b8' }}>
-                        {service.createdAt
-                          ? new Date(service.createdAt).toLocaleDateString()
-                          : '—'}
+                        {formatDate(service.createdAt)}
                       </Typography>
                     </TableCell>
                     <TableCell align="right">

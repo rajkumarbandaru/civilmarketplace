@@ -1,0 +1,2 @@
+com.civileng.marketplace.tenant.common.TenantAutoConfiguration
+com.civileng.marketplace.tenant.common.TenantSchemaAutoConfiguration

@@ -1,10 +1,10 @@
 package com.civileng.marketplace.payment.controller;
 
+import com.civileng.marketplace.web.common.client.UserNameResolver;
 import com.civileng.marketplace.payment.model.Payment;
 import com.civileng.marketplace.payment.model.PaymentMethod;
 import com.civileng.marketplace.payment.model.PaymentStatus;
 import com.civileng.marketplace.payment.repository.PaymentRepository;
-import com.civileng.marketplace.payment.service.UserNameResolver;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

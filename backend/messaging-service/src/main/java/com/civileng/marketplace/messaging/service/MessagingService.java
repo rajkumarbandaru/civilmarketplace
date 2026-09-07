@@ -1,7 +1,7 @@
 package com.civileng.marketplace.messaging.service;
 
-import com.civileng.marketplace.messaging.client.BookingDto;
-import com.civileng.marketplace.messaging.client.BookingServiceClient;
+import com.civileng.marketplace.web.common.client.BookingDto;
+import com.civileng.marketplace.web.common.client.BookingLookupClient;
 import com.civileng.marketplace.messaging.model.Message;
 import com.civileng.marketplace.messaging.model.MessageThread;
 import com.civileng.marketplace.messaging.repository.MessageRepository;
@@ -26,7 +26,7 @@ public class MessagingService {
 
     private final MessageThreadRepository threadRepository;
     private final MessageRepository messageRepository;
-    private final BookingServiceClient bookingServiceClient;
+    private final BookingLookupClient bookingLookupClient;
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
     /**
@@ -68,7 +68,7 @@ public class MessagingService {
     }
 
     private MessageThread createThread(Long bookingId, Long requesterId) {
-        BookingDto booking = bookingServiceClient.getBooking(bookingId);
+        BookingDto booking = bookingLookupClient.getBooking(bookingId);
         if (booking == null) {
             throw new IllegalArgumentException("Booking not found or booking-service unavailable");
         }

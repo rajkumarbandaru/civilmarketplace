@@ -28,8 +28,15 @@ spring:
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        # Stamps the producing thread's tenant onto every record as an X-Tenant-Id header, which
+        # the consuming side binds before the listener runs. Without it a consumer would write
+        # into whichever schema happened to be the bootstrap tenant.
+        "[interceptor.classes]": com.civileng.marketplace.tenant.common.TenantKafkaProducerInterceptor
   flyway:
-    enabled: true
+    # Off deliberately: tenant-common runs Flyway once per tenant schema. Boot's own Flyway would
+    # migrate only the single legacy schema named in the datasource URL, where no tenant's data is.
+    enabled: false
     baseline-on-migrate: true
     locations: classpath:db/migration
   data:
@@ -91,6 +98,33 @@ springdoc:
 # Redirect URI to register with each provider:
 #   {gateway-base}/login/oauth2/code/{google|facebook}
 # ---------------------------------------------------------------------------
+# Schema-per-tenant. Each tenant's users live in civil_engineer_auth_<tenantKey>; the datasource
+# URL's own schema is only the connection default and holds no live data once this is on.
+platform:
+  # Shared HTTP layer (web-common).
+  web:
+    # This service answers in its own body shape, which its callers already
+    # depend on, so it keeps its own @RestControllerAdvice.
+    error-handler: false
+    admin-guard:
+      enabled: true
+      path-patterns:
+        - "/api/v1/auth/admin/**"
+      # Read-only endpoints the background jobs call with no caller to propagate
+      # (search-service's reindex sweep, notification-service's announcement job).
+      # Safe: InternalOnlyPathFilter already seals this prefix from the gateway.
+      exclude-path-patterns:
+        - "/api/v1/auth/admin/users"
+        - "/api/v1/auth/admin/users/*/name"
+  tenant:
+    enabled: true
+    schema-prefix: civil_engineer_auth
+    registry:
+      url: jdbc:mysql://mysql:3306/civil_engineer_tenants?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      username: ${TENANT_DB_USERNAME:civil_user}
+      password: ${TENANT_DB_PASSWORD:civil_pass}
+
+
 ---
 spring:
   config:

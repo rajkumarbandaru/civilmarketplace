@@ -11,8 +11,10 @@ import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Profile;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
+import com.civileng.marketplace.tenant.common.CrossTenantRunner;
 
 import java.util.List;
 import java.util.Map;
@@ -23,6 +25,11 @@ import java.util.Map;
  * <p>Guarded by {@code @Profile({"local","docker"})} so it can never run in any other
  * environment. Every account shares the password {@value #DEFAULT_PASSWORD}, except the
  * SUPER_ADMIN, which has its own real address and password (see {@link #SUPER_ADMIN_EMAIL}).
+ *
+ * <p>Runs once per active tenant. Emails are unique per schema rather than platform-wide, so the
+ * same dummy addresses exist independently in each tenant and signing in as
+ * {@code admin@civileng.test} on two different tenant hosts reaches two different accounts — which
+ * is what makes the tenancy visible from a browser.
  */
 @Component
 @Profile({"local", "docker"})
@@ -66,9 +73,45 @@ public class DevUserSeeder implements ApplicationRunner {
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
 
+    /**
+     * Optional so this still works in a single-schema setup. Present whenever
+     * {@code platform.tenant.enabled} is true, which is every real run of this service.
+     */
+    private final ObjectProvider<CrossTenantRunner> crossTenantRunner;
+
+    /**
+     * A transaction per tenant, opened inside the tenant's context rather than around the whole
+     * sweep. One outer {@code @Transactional} would bind a single connection — and therefore a
+     * single schema — for the entire run, so every tenant after the first would be seeded into the
+     * first one's tables.
+     */
+    private final TransactionTemplate transactionTemplate;
+
+    /**
+     * Seeds every active tenant, not just whichever schema the startup thread happened to hold.
+     *
+     * <p>This used to run once, unscoped. The result was that the bootstrap tenant got the full set
+     * of dummy accounts and every tenant onboarded afterwards got none — so a new tenant could not
+     * be signed into at all, and the multi-tenant behaviour that the rest of the platform is built
+     * around could not be demonstrated in a browser.
+     *
+     * <p>One tenant's failure is logged and the sweep continues, so a single tenant with a missing
+     * roles table cannot stop the rest from being seeded.
+     */
     @Override
-    @Transactional
     public void run(ApplicationArguments args) {
+        CrossTenantRunner runner = crossTenantRunner.getIfAvailable();
+        if (runner == null) {
+            // Single-schema setup: seed whatever the current context points at, as before.
+            transactionTemplate.executeWithoutResult(status -> seedCurrentTenant("default"));
+            return;
+        }
+        runner.forEachTenant("Dev user seeder", tenantKey ->
+                transactionTemplate.executeWithoutResult(status -> seedCurrentTenant(tenantKey)));
+    }
+
+    /** Seeds the tenant whose schema the calling thread is bound to. */
+    private void seedCurrentTenant(String tenantKey) {
         Map<String, Role> rolesByName = roleRepository.findAll().stream()
                 .collect(java.util.stream.Collectors.toMap(Role::getName, r -> r));
 
@@ -84,7 +127,8 @@ public class DevUserSeeder implements ApplicationRunner {
             }
             Role role = rolesByName.get(roleName);
             if (role == null) {
-                log.warn("Dev seeder: role {} not found, skipping {}", roleName, email);
+                log.warn("Dev seeder [{}]: role {} not found, skipping {}",
+                        tenantKey, roleName, email);
                 continue;
             }
 
@@ -102,11 +146,11 @@ public class DevUserSeeder implements ApplicationRunner {
         }
 
         if (created > 0) {
-            log.info("Dev seeder: created {} dummy accounts (password: {})",
-                    created, DEFAULT_PASSWORD);
+            log.info("Dev seeder [{}]: created {} dummy accounts (password: {})",
+                    tenantKey, created, DEFAULT_PASSWORD);
         } else {
-            log.info("Dev seeder: all {} dummy accounts already present",
-                    DUMMY_ACCOUNTS.size());
+            log.info("Dev seeder [{}]: all {} dummy accounts already present",
+                    tenantKey, DUMMY_ACCOUNTS.size());
         }
     }
 

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { formatCurrency } from '../../utils/currency';
 import {
   Box, Card, CardContent, Typography, Grid, Chip, Avatar, Table, TableBody, TableCell,
   TableContainer, TableHead, TableRow, TablePagination, TextField, InputAdornment,
@@ -18,7 +19,6 @@ import { SortableTableCell, useTableSort } from '../../components/admin/Sortable
 /** Kept as strings so a half-typed number is not coerced to 0 while the admin is still typing. */
 const EMPTY_RAISE_FORM = { bookingId: '', customerId: '', amount: '', description: '' };
 
-const formatCurrency = (amount: number) => `₹${amount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
 
 /** The badge colours are per status, not per theme, because they carry meaning of their own. */
 const STATUS_STYLE: Record<InvoiceStatus, { bg: string; color: string }> = {
