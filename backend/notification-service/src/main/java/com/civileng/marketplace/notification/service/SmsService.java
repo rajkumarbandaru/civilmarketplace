@@ -2,6 +2,7 @@ package com.civileng.marketplace.notification.service;
 
 import com.civileng.marketplace.notification.model.EmailStatus;
 import com.civileng.marketplace.notification.model.NotificationChannel;
+import com.civileng.marketplace.tenant.common.integration.IntegrationCapability;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -41,18 +42,22 @@ public class SmsService {
     private String twilioFrom;
 
     public void sendOtpSms(String phone, String otp) {
-        send(phone, "Your " + senderId + " verification code is " + otp
+        TwilioGateway.Route route = route();
+        deliver(phone, route, "Your " + route.senderLabel() + " verification code is " + otp
                 + ". It expires in 5 minutes. Do not share it with anyone.");
     }
 
     @Async
     public void sendBookingConfirmation(String phone, String bookingCode) {
-        send(phone, senderId + ": your booking " + bookingCode + " is confirmed.");
+        TwilioGateway.Route route = route();
+        deliver(phone, route, route.senderLabel() + ": your booking " + bookingCode + " is confirmed.");
     }
 
     @Async
     public void sendPaymentReceipt(String phone, String amount, String paymentCode) {
-        send(phone, senderId + ": payment of " + amount + " received. Ref " + paymentCode + ".");
+        TwilioGateway.Route route = route();
+        deliver(phone, route, route.senderLabel() + ": payment of " + amount + " received. Ref "
+                + paymentCode + ".");
     }
 
     /**
@@ -60,6 +65,19 @@ public class SmsService {
      * back or fail the business action that triggered it.
      */
     public void send(String phone, String message) {
+        deliver(phone, route(), message);
+    }
+
+    /**
+     * The current tenant's SMS account — its own DLT-registered sender, never the platform's. The
+     * operator tenant alone sends on the {@code app.sms.*} account.
+     */
+    private TwilioGateway.Route route() {
+        return twilioGateway.route(IntegrationCapability.SMS, "twilio".equalsIgnoreCase(provider),
+                twilioFrom, "senderId", senderId);
+    }
+
+    private void deliver(String phone, TwilioGateway.Route route, String message) {
         String to = phoneNumbers.toE164(phone);
         if (to == null) {
             // Nothing is recorded: with no usable number there is no recipient to file it under,
@@ -68,16 +86,17 @@ public class SmsService {
             return;
         }
 
-        if (!"twilio".equalsIgnoreCase(provider) || !twilioGateway.isConfigured()) {
-            log.info("[SMS:log] to={} message={}", PhoneNumbers.mask(to), message);
+        if (!route.sendable()) {
+            // The body is not logged: an OTP in a log line is a credential anyone with log access
+            // can use. The delivery log row (tenant schema, admin-only) keeps it for support.
+            log.info("[SMS:log] to={} ({})", PhoneNumbers.mask(to), route.skipReason());
             deliveryLog.record(NotificationChannel.SMS, SOURCE_KEY, to, message, message,
-                    EmailStatus.SKIPPED, "log", null,
-                    "No SMS provider configured - message was logged, not sent");
+                    EmailStatus.SKIPPED, "log", null, route.skipReason());
             return;
         }
 
         try {
-            String sid = twilioGateway.send(twilioFrom, to, message);
+            String sid = twilioGateway.send(route.account(), route.from(), to, message);
             log.info("[SMS:twilio] sent to={} sid={}", PhoneNumbers.mask(to), sid);
             // SENT, not DELIVERED: Twilio has accepted it. Handset delivery would need its own
             // status callback, which is not wired up.

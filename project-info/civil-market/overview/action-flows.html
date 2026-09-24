@@ -1,0 +1,1319 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Action Flows</title>
+<style>
+:root{--bg:#f5f6f8;--fg:#1d2430;--mut:#5d6878;--card:#fff;--line:#e2e6ec;--acc:#4f46e5;--code:#f1f3f7;
+ --user:#fde68a;--ui:#bfdbfe;--edge:#c7d2fe;--gw:#ddd6fe;--plat:#e5e7eb;--svc:#bbf7d0;--data:#fed7aa;--bus:#fbcfe8;--ext:#fecaca}
+@media (prefers-color-scheme:dark){:root{--bg:#0f141b;--fg:#e6e9ef;--mut:#9aa4b2;--card:#171d26;--line:#2a3340;--acc:#8b86ff;--code:#1f2733;
+ --user:#6b5a1a;--ui:#1e3a5f;--edge:#2e3470;--gw:#3f2f6b;--plat:#374151;--svc:#1f4d33;--data:#6b3d17;--bus:#6b2346;--ext:#6b2323}}
+*{box-sizing:border-box}
+body{margin:0;font:14.5px/1.55 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--fg)}
+.top{padding:22px 20px 16px;border-bottom:1px solid var(--line);background:var(--card)}
+.top h1{margin:0;font-size:22px} .top p{margin:6px 0 0;color:var(--mut);max-width:900px}
+.wrap{display:grid;grid-template-columns:270px 1fr;gap:0;max-width:1400px;margin:0 auto}
+aside{position:sticky;top:0;align-self:start;height:100vh;overflow:auto;padding:16px;border-right:1px solid var(--line)}
+aside input{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--fg);font:inherit}
+.ng{margin-top:14px} .ngt{font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--mut);font-weight:600}
+aside ul{list-style:none;margin:6px 0 0;padding:0} aside li a{display:block;padding:4px 8px;border-radius:6px;color:var(--fg);text-decoration:none;font-size:13.5px}
+aside li a:hover,aside li a.act{background:var(--code);color:var(--acc)}
+main{padding:18px 22px 80px;min-width:0}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 18px}
+.tag{display:inline-block;padding:1px 8px;border-radius:999px;font-size:12px;white-space:nowrap;color:var(--fg)}
+.tag.user{background:var(--user)}.tag.ui{background:var(--ui)}.tag.edge{background:var(--edge)}.tag.gw{background:var(--gw)}
+.tag.plat{background:var(--plat)}.tag.svc{background:var(--svc)}.tag.data{background:var(--data)}.tag.bus{background:var(--bus)}.tag.ext{background:var(--ext)}
+.journey{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:8px}
+.journey h2{margin:0 0 10px;font-size:16px}
+.jr{display:flex;flex-wrap:wrap;gap:8px}
+.js{display:flex;align-items:center;gap:8px;padding:6px 10px;border:1px solid var(--line);border-radius:999px;text-decoration:none;color:var(--fg);font-size:13px;background:var(--bg)}
+.js:hover{border-color:var(--acc)} .jn{background:var(--acc);color:#fff;border-radius:999px;min-width:20px;height:20px;display:inline-grid;place-items:center;font-size:11.5px}
+.gh{font-size:17px;margin:30px 0 10px;padding-top:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin:0 0 16px;scroll-margin-top:12px}
+.card header{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px;justify-content:space-between}
+.card h3{margin:0;font-size:17px} .who{color:var(--mut);font-size:13px}
+.meta{display:grid;grid-template-columns:1fr 1fr;gap:6px 18px;margin:10px 0}
+.meta dt{font-size:11.5px;text-transform:uppercase;color:var(--mut);letter-spacing:.04em} .meta dd{margin:0}
+code{background:var(--code);padding:1px 6px;border-radius:5px;font-size:12.5px;word-break:break-word}
+.tabs{display:flex;gap:4px;margin:8px 0}
+.tabs button{border:1px solid var(--line);background:var(--bg);color:var(--fg);padding:4px 12px;border-radius:7px;cursor:pointer;font:inherit;font-size:13px}
+.tabs button.on{background:var(--acc);border-color:var(--acc);color:#fff}
+.tw{overflow-x:auto} table{border-collapse:collapse;width:100%;font-size:13.5px}
+th{text-align:left;font-size:11.5px;text-transform:uppercase;color:var(--mut);font-weight:600;border-bottom:1px solid var(--line);padding:6px 8px}
+td{border-bottom:1px solid var(--line);padding:6px 8px;vertical-align:top}
+td.n{color:var(--mut);width:28px} tr.note td{background:var(--code);font-style:italic}
+.arr{color:var(--mut)} .br{font-size:11.5px;background:var(--code);border-radius:5px;padding:0 5px;color:var(--acc)}
+.diagram{overflow-x:auto;padding:6px 0} .mermaid{margin:0;background:transparent}
+.res{margin-top:10px;padding:8px 12px;border-left:3px solid #16a34a;background:var(--code);border-radius:0 8px 8px 0}
+.err,.nt{margin-top:8px;font-size:13.5px} .err ul,.nt ul{margin:4px 0 0;padding-left:20px}
+.err b{color:#dc2626} .nt b{color:var(--acc)}
+.hide{display:none!important}
+@media (max-width:860px){.wrap{grid-template-columns:1fr} aside{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line)}
+ .meta{grid-template-columns:1fr} main{padding:14px 16px 60px}}
+</style></head><body>
+<div class="top"><h1>Action Flows: Civil Engineering Marketplace</h1>
+<p>Every user action, traced end to end: which screen, which API call, how the gateway handles it, which service and database it touches, which Kafka events fire, and what the user sees. Built from the frontend API modules, the gateway routes and the backend controllers/Kafka listeners. Each card has a step table and a sequence diagram.</p></div>
+<div class="wrap">
+<aside><input id="q" type="search" placeholder="Filter actions (e.g. kafka, payment, 403)"><div class="ng"><div class="ngt">Visitor (not logged in)</div><ul><li><a href="#landing" data-id="landing">Open the landing page</a></li><li><a href="#browse" data-id="browse">Browse services by category</a></li><li><a href="#register" data-id="register">Register a new account</a></li><li><a href="#login" data-id="login">Log in with email + password</a></li><li><a href="#otp" data-id="otp">Log in with OTP</a></li><li><a href="#social" data-id="social">Log in with Google / Facebook</a></li></ul></div><div class="ng"><div class="ngt">Customer</div><ul><li><a href="#book" data-id="book">Book a service</a></li><li><a href="#mybookings" data-id="mybookings">View my bookings</a></li><li><a href="#pay" data-id="pay">Pay for a booking (Razorpay)</a></li><li><a href="#track" data-id="track">Track the worker live</a></li><li><a href="#review" data-id="review">Review a completed booking</a></li><li><a href="#notifications" data-id="notifications">Notifications bell</a></li><li><a href="#ticket" data-id="ticket">Raise a support ticket</a></li><li><a href="#askai" data-id="askai">Ask AI assistant</a></li><li><a href="#appearance" data-id="appearance">Change my appearance</a></li></ul></div><div class="ng"><div class="ngt">Worker / provider</div><ul><li><a href="#jobs" data-id="jobs">See my assigned jobs</a></li><li><a href="#location" data-id="location">Share live location</a></li><li><a href="#status" data-id="status">Update job status / complete</a></li><li><a href="#materials" data-id="materials">Supplier: publish material prices</a></li></ul></div><div class="ng"><div class="ngt">Admin</div><ul><li><a href="#admindash" data-id="admindash">Admin dashboard</a></li><li><a href="#users" data-id="users">Manage users</a></li><li><a href="#catalogue" data-id="catalogue">Manage categories and services</a></li><li><a href="#adminbookings" data-id="adminbookings">Manage bookings</a></li><li><a href="#revenue" data-id="revenue">Revenue, analytics, reports, invoices</a></li><li><a href="#theme" data-id="theme">Change platform theme / workspaces</a></li><li><a href="#content" data-id="content">Edit landing page content</a></li><li><a href="#announce" data-id="announce">Send an announcement</a></li><li><a href="#emails" data-id="emails">Email templates and email log</a></li><li><a href="#supportq" data-id="supportq">Work the support queue</a></li><li><a href="#audit" data-id="audit">Audit log and integrity check</a></li><li><a href="#tenants" data-id="tenants">Onboard a new tenant (workspace)</a></li></ul></div><div class="ng"><div class="ngt">System (background)</div><ul><li><a href="#refresh" data-id="refresh">Automatic token refresh</a></li><li><a href="#auditpipe" data-id="auditpipe">Audit event pipeline</a></li><li><a href="#boot" data-id="boot">A service starts up</a></li></ul></div><div class="ng"><div class="ngt">Backend only (no screen yet)</div><ul><li><a href="#escrow" data-id="escrow">Escrow: fund, release, dispute</a></li><li><a href="#kyc" data-id="kyc">KYC verification</a></li><li><a href="#messaging" data-id="messaging">Booking chat</a></li><li><a href="#projects" data-id="projects">Projects and milestones</a></li><li><a href="#search" data-id="search">Search professionals</a></li></ul></div></aside>
+<main>
+<div class="legend"><span class="tag user">User</span><span class="tag ui">Browser / React</span><span class="tag edge">nginx</span><span class="tag gw">Gateway</span><span class="tag plat">Eureka / Config</span><span class="tag svc">Microservice</span><span class="tag data">Database / cache</span><span class="tag bus">Kafka</span><span class="tag ext">External</span></div>
+<section class="journey"><h2>Complete customer journey (click a step)</h2><div class="jr"><a class="js" href="#landing"><span class="jn">1</span><span>Visitor opens the site</span></a><a class="js" href="#register"><span class="jn">2</span><span>Registers</span></a><a class="js" href="#login"><span class="jn">3</span><span>Logs in</span></a><a class="js" href="#browse"><span class="jn">4</span><span>Browses services</span></a><a class="js" href="#book"><span class="jn">5</span><span>Books a service</span></a><a class="js" href="#pay"><span class="jn">6</span><span>Pays with Razorpay</span></a><a class="js" href="#jobs"><span class="jn">7</span><span>Worker gets the job</span></a><a class="js" href="#location"><span class="jn">8</span><span>Worker travels, shares location</span></a><a class="js" href="#track"><span class="jn">9</span><span>Customer tracks</span></a><a class="js" href="#status"><span class="jn">10</span><span>Worker completes</span></a><a class="js" href="#review"><span class="jn">11</span><span>Customer reviews</span></a><a class="js" href="#ticket"><span class="jn">12</span><span>Raises a ticket if needed</span></a><a class="js" href="#supportq"><span class="jn">13</span><span>Admin resolves</span></a></div></section>
+<p style="color:var(--mut);font-size:13px;margin:10px 0 0">Every "API Gateway" step does the same checks: tenant from the Host subdomain (X-Tenant-Id), block internal-only paths, and on protected routes verify the JWT, match its tenant claim, add X-User-Id / Email / Role / Name, apply the Redis rate limit.</p>
+<h2 class="gh" data-group="Visitor (not logged in)">Visitor (not logged in)</h2>
+<article class="card" id="landing" data-text="open the landing page anyone /  (pages/homepage.tsx) browser opens http://localhost:3000 or http://&lt;tenant&gt;.localhost:3000 landing page renders with this tenant&#x27;s branding, editable copy and service list, no login needed. u nx get /  (index.html + hashed /assets/*.js) nx ui react boots: main.tsx, providers, router ui nx get /api/v1/tenant-resolution/... nx gw proxy, host header kept gw gw tenant from host, public route (no jwt) gw ten lb://tenant-service (via eureka) ten ui tenant name + branding ui nx get /api/v1/content/site nx gw proxy, host header kept gw gw tenant from host, public route (no jwt) gw adm lb://admin-service (via eureka) adm db read site sections / items / media (admin_db_&lt;tenant&gt;) adm ui hero text, footer, images ui nx get /api/v1/catalogue nx gw proxy, host header kept gw gw tenant from host, public route (no jwt) gw book lb://booking-service (via eureka) book db active categories + services book ui service catalogue">
+  <header><h3>Open the landing page</h3><span class="who">Anyone</span></header>
+  <dl class="meta">
+    <div><dt>Screen</dt><dd><code>/  (pages/HomePage.tsx)</code></dd></div>
+    <div><dt>Trigger</dt><dd>Browser opens http://localhost:3000 or http://&lt;tenant&gt;.localhost:3000</dd></div>
+  </dl>
+  <div class="tabs"><button class="on" data-v="steps">Steps</button><button data-v="diagram">Diagram</button></div>
+  <div class="view steps"><div class="tw"><table><thead><tr><th>#</th><th>From</th><th>To</th><th>What happens</th></tr></thead><tbody><tr><td class="n">1</td><td><span class="tag user">User</span></td><td><span class="arr">→</span> <span class="tag edge">Frontend nginx :3000</span></td><td>GET /  (index.html + hashed /assets/*.js)</td></tr><tr><td class="n">2</td><td><span class="tag edge">Frontend nginx :3000</span></td><td><span class="arr">→</span> <span class="tag ui">React UI</span></td><td>React boots: main.tsx, providers, router</td></tr><tr><td class="n">3</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag edge">Frontend nginx :3000</span></td><td>GET /api/v1/tenant-resolution/...</td></tr><tr><td class="n">4</td><td><span class="tag edge">Frontend nginx :3000</span></td><td><span class="arr">→</span> <span class="tag gw">API Gateway :8080</span></td><td>proxy, Host header kept</td></tr><tr><td class="n">5</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">↺</span> <span class="tag gw">API Gateway :8080</span></td><td>Tenant from Host, public route (no JWT)</td></tr><tr><td class="n">6</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">→</span> <span class="tag svc">tenant-service</span></td><td>lb://tenant-service (via Eureka)</td></tr><tr><td class="n">7</td><td><span class="tag svc">tenant-service</span></td><td><span class="arr">→</span> <span class="tag ui">React UI</span></td><td>tenant name + branding</td></tr><tr><td class="n">8</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag edge">Frontend nginx :3000</span></td><td>GET /api/v1/content/site</td></tr><tr><td class="n">9</td><td><span class="tag edge">Frontend nginx :3000</span></td><td><span class="arr">→</span> <span class="tag gw">API Gateway :8080</span></td><td>proxy, Host header kept</td></tr><tr><td class="n">10</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">↺</span> <span class="tag gw">API Gateway :8080</span></td><td>Tenant from Host, public route (no JWT)</td></tr><tr><td class="n">11</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">→</span> <span class="tag svc">admin-service</span></td><td>lb://admin-service (via Eureka)</td></tr><tr><td class="n">12</td><td><span class="tag svc">admin-service</span></td><td><span class="arr">→</span> <span class="tag data">MySQL</span></td><td>read site sections / items / media (admin_db_&lt;tenant&gt;)</td></tr><tr><td class="n">13</td><td><span class="tag svc">admin-service</span></td><td><span class="arr">→</span> <span class="tag ui">React UI</span></td><td>hero text, footer, images</td></tr><tr><td class="n">14</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag edge">Frontend nginx :3000</span></td><td>GET /api/v1/catalogue</td></tr><tr><td class="n">15</td><td><span class="tag edge">Frontend nginx :3000</span></td><td><span class="arr">→</span> <span class="tag gw">API Gateway :8080</span></td><td>proxy, Host header kept</td></tr><tr><td class="n">16</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">↺</span> <span class="tag gw">API Gateway :8080</span></td><td>Tenant from Host, public route (no JWT)</td></tr><tr><td class="n">17</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">→</span> <span class="tag svc">booking-service</span></td><td>lb://booking-service (via Eureka)</td></tr><tr><td class="n">18</td><td><span class="tag svc">booking-service</span></td><td><span class="arr">→</span> <span class="tag data">MySQL</span></td><td>active categories + services</td></tr><tr><td class="n">19</td><td><span class="tag svc">booking-service</span></td><td><span class="arr">→</span> <span class="tag ui">React UI</span></td><td>service catalogue</td></tr></tbody></table></div></div>
+  <div class="view diagram" hidden><pre class="mermaid">sequenceDiagram
+    autonumber
+    actor U as User
+    participant NX as Frontend nginx :3000
+    participant UI as React UI
+    participant GW as API Gateway :8080
+    participant TEN as tenant-service
+    participant ADM as admin-service
+    participant DB as MySQL
+    participant BOOK as booking-service
+    U-&gt;&gt;NX: GET /  (index.html + hashed /assets/*.js)
+    NX--&gt;&gt;UI: React boots: main.tsx, providers, router
+    UI-&gt;&gt;NX: GET /api/v1/tenant-resolution/...
+    NX-&gt;&gt;GW: proxy, Host header kept
+    GW-&gt;&gt;GW: Tenant from Host, public route (no JWT)
+    GW-&gt;&gt;TEN: lb://tenant-service (via Eureka)
+    TEN--&gt;&gt;UI: tenant name + branding
+    UI-&gt;&gt;NX: GET /api/v1/content/site
+    NX-&gt;&gt;GW: proxy, Host header kept
+    GW-&gt;&gt;GW: Tenant from Host, public route (no JWT)
+    GW-&gt;&gt;ADM: lb://admin-service (via Eureka)
+    ADM-&gt;&gt;DB: read site sections / items / media (admin_db_‹tenant›)
+    ADM--&gt;&gt;UI: hero text, footer, images
+    UI-&gt;&gt;NX: GET /api/v1/catalogue
+    NX-&gt;&gt;GW: proxy, Host header kept
+    GW-&gt;&gt;GW: Tenant from Host, public route (no JWT)
+    GW-&gt;&gt;BOOK: lb://booking-service (via Eureka)
+    BOOK-&gt;&gt;DB: active categories + services
+    BOOK--&gt;&gt;UI: service catalogue</pre></div>
+  <div class="res"><b>Result:</b> Landing page renders with this tenant&#x27;s branding, editable copy and service list, no login needed.</div>
+  <div class="err"><b>What can go wrong</b><ul><li>Blank sections: admin-service or booking-service is down, or not yet in Eureka (gateway 503).</li></ul></div>
+  
+</article>
+<article class="card" id="browse" data-text="browse services by category anyone /services, /services/:category click &quot;services&quot; or a category card category page lists services. &quot;book&quot; on a card goes to /book/:serviceid (asks to log in first). ui nx get /api/v1/catalogue nx gw proxy, host header kept gw gw tenant from host, public route (no jwt) gw book lb://booking-service (via eureka) book db categories + service offerings book ui list ui ui filter by :category on the client, show cards with price">
+  <header><h3>Browse services by category</h3><span class="who">Anyone</span></header>
+  <dl class="meta">
+    <div><dt>Screen</dt><dd><code>/services, /services/:category</code></dd></div>
+    <div><dt>Trigger</dt><dd>Click &quot;Services&quot; or a category card</dd></div>
+  </dl>
+  <div class="tabs"><button class="on" data-v="steps">Steps</button><button data-v="diagram">Diagram</button></div>
+  <div class="view steps"><div class="tw"><table><thead><tr><th>#</th><th>From</th><th>To</th><th>What happens</th></tr></thead><tbody><tr><td class="n">1</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag edge">Frontend nginx :3000</span></td><td>GET /api/v1/catalogue</td></tr><tr><td class="n">2</td><td><span class="tag edge">Frontend nginx :3000</span></td><td><span class="arr">→</span> <span class="tag gw">API Gateway :8080</span></td><td>proxy, Host header kept</td></tr><tr><td class="n">3</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">↺</span> <span class="tag gw">API Gateway :8080</span></td><td>Tenant from Host, public route (no JWT)</td></tr><tr><td class="n">4</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">→</span> <span class="tag svc">booking-service</span></td><td>lb://booking-service (via Eureka)</td></tr><tr><td class="n">5</td><td><span class="tag svc">booking-service</span></td><td><span class="arr">→</span> <span class="tag data">MySQL</span></td><td>categories + service offerings</td></tr><tr><td class="n">6</td><td><span class="tag svc">booking-service</span></td><td><span class="arr">→</span> <span class="tag ui">React UI</span></td><td>list</td></tr><tr><td class="n">7</td><td><span class="tag ui">React UI</span></td><td><span class="arr">↺</span> <span class="tag ui">React UI</span></td><td>filter by :category on the client, show cards with price</td></tr></tbody></table></div></div>
+  <div class="view diagram" hidden><pre class="mermaid">sequenceDiagram
+    autonumber
+    participant UI as React UI
+    participant NX as Frontend nginx :3000
+    participant GW as API Gateway :8080
+    participant BOOK as booking-service
+    participant DB as MySQL
+    UI-&gt;&gt;NX: GET /api/v1/catalogue
+    NX-&gt;&gt;GW: proxy, Host header kept
+    GW-&gt;&gt;GW: Tenant from Host, public route (no JWT)
+    GW-&gt;&gt;BOOK: lb://booking-service (via Eureka)
+    BOOK-&gt;&gt;DB: categories + service offerings
+    BOOK--&gt;&gt;UI: list
+    UI--&gt;&gt;UI: filter by :category on the client, show cards with price</pre></div>
+  <div class="res"><b>Result:</b> Category page lists services. &quot;Book&quot; on a card goes to /book/:serviceId (asks to log in first).</div>
+  
+  
+</article>
+<article class="card" id="register" data-text="register a new account new customer / worker / supplier /register  (pages/auth/registerpage.tsx) fill form and submit account created in the current tenant. the same email can exist separately in another tenant. ui nx get /api/v1/geo/countries nx gw proxy, host header kept gw gw tenant from host, public route (no jwt) gw user lb://user-service (via eureka) user ui countries, then /geo/countries/{code}/states and /cities for the address pickers u ui submit form (validated with react hook form + yup) ui ui authslice.register thunk ui nx post /api/v1/auth/register nx gw proxy, host header kept gw gw tenant from host, public route (no jwt) gw auth lb://auth-service (via eureka) auth db check email unique, bcrypt password, insert user (civil_engineer_auth_&lt;tenant&gt;) auth kf publish user.registered auth ui tokens / success kf noti consume user.registered noti mail welcome email (or just a log line when email_provider=log)">
+  <header><h3>Register a new account</h3><span class="who">New customer / worker / supplier</span></header>
+  <dl class="meta">
+    <div><dt>Screen</dt><dd><code>/register  (pages/auth/RegisterPage.tsx)</code></dd></div>
+    <div><dt>Trigger</dt><dd>Fill form and submit</dd></div>
+  </dl>
+  <div class="tabs"><button class="on" data-v="steps">Steps</button><button data-v="diagram">Diagram</button></div>
+  <div class="view steps"><div class="tw"><table><thead><tr><th>#</th><th>From</th><th>To</th><th>What happens</th></tr></thead><tbody><tr><td class="n">1</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag edge">Frontend nginx :3000</span></td><td>GET /api/v1/geo/countries</td></tr><tr><td class="n">2</td><td><span class="tag edge">Frontend nginx :3000</span></td><td><span class="arr">→</span> <span class="tag gw">API Gateway :8080</span></td><td>proxy, Host header kept</td></tr><tr><td class="n">3</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">↺</span> <span class="tag gw">API Gateway :8080</span></td><td>Tenant from Host, public route (no JWT)</td></tr><tr><td class="n">4</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">→</span> <span class="tag svc">user-service</span></td><td>lb://user-service (via Eureka)</td></tr><tr><td class="n">5</td><td><span class="tag svc">user-service</span></td><td><span class="arr">→</span> <span class="tag ui">React UI</span></td><td>countries, then /geo/countries/{code}/states and /cities for the address pickers</td></tr><tr><td class="n">6</td><td><span class="tag user">User</span></td><td><span class="arr">→</span> <span class="tag ui">React UI</span></td><td>submit form (validated with React Hook Form + Yup)</td></tr><tr><td class="n">7</td><td><span class="tag ui">React UI</span></td><td><span class="arr">↺</span> <span class="tag ui">React UI</span></td><td>authSlice.register thunk</td></tr><tr><td class="n">8</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag edge">Frontend nginx :3000</span></td><td>POST /api/v1/auth/register</td></tr><tr><td class="n">9</td><td><span class="tag edge">Frontend nginx :3000</span></td><td><span class="arr">→</span> <span class="tag gw">API Gateway :8080</span></td><td>proxy, Host header kept</td></tr><tr><td class="n">10</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">↺</span> <span class="tag gw">API Gateway :8080</span></td><td>Tenant from Host, public route (no JWT)</td></tr><tr><td class="n">11</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">→</span> <span class="tag svc">auth-service</span></td><td>lb://auth-service (via Eureka)</td></tr><tr><td class="n">12</td><td><span class="tag svc">auth-service</span></td><td><span class="arr">→</span> <span class="tag data">MySQL</span></td><td>check email unique, BCrypt password, INSERT user (civil_engineer_auth_&lt;tenant&gt;)</td></tr><tr><td class="n">13</td><td><span class="tag svc">auth-service</span></td><td><span class="arr">→</span> <span class="tag bus">Kafka</span></td><td>publish user.registered</td></tr><tr><td class="n">14</td><td><span class="tag svc">auth-service</span></td><td><span class="arr">→</span> <span class="tag ui">React UI</span></td><td>tokens / success</td></tr><tr><td class="n">15</td><td><span class="tag bus">Kafka</span></td><td><span class="arr">→</span> <span class="tag svc">notification-service</span></td><td>consume user.registered</td></tr><tr><td class="n">16</td><td><span class="tag svc">notification-service</span></td><td><span class="arr">→</span> <span class="tag ext">Email/SMS provider</span></td><td>welcome email (or just a log line when EMAIL_PROVIDER=log)</td></tr></tbody></table></div></div>
+  <div class="view diagram" hidden><pre class="mermaid">sequenceDiagram
+    autonumber
+    participant UI as React UI
+    participant NX as Frontend nginx :3000
+    participant GW as API Gateway :8080
+    participant USER as user-service
+    actor U as User
+    participant AUTH as auth-service
+    participant DB as MySQL
+    participant KF as Kafka
+    participant NOTI as notification-service
+    participant MAIL as Email/SMS provider
+    UI-&gt;&gt;NX: GET /api/v1/geo/countries
+    NX-&gt;&gt;GW: proxy, Host header kept
+    GW-&gt;&gt;GW: Tenant from Host, public route (no JWT)
+    GW-&gt;&gt;USER: lb://user-service (via Eureka)
+    USER--&gt;&gt;UI: countries, then /geo/countries/{code}/states and /cities for the address pickers
+    U-&gt;&gt;UI: submit form (validated with React Hook Form + Yup)
+    UI--&gt;&gt;UI: authSlice.register thunk
+    UI-&gt;&gt;NX: POST /api/v1/auth/register
+    NX-&gt;&gt;GW: proxy, Host header kept
+    GW-&gt;&gt;GW: Tenant from Host, public route (no JWT)
+    GW-&gt;&gt;AUTH: lb://auth-service (via Eureka)
+    AUTH-&gt;&gt;DB: check email unique, BCrypt password, INSERT user (civil_engineer_auth_‹tenant›)
+    AUTH-&gt;&gt;KF: publish user.registered
+    AUTH--&gt;&gt;UI: tokens / success
+    KF-&gt;&gt;NOTI: consume user.registered
+    NOTI-&gt;&gt;MAIL: welcome email (or just a log line when EMAIL_PROVIDER=log)</pre></div>
+  <div class="res"><b>Result:</b> Account created in the current tenant. The same email can exist separately in another tenant.</div>
+  <div class="err"><b>What can go wrong</b><ul><li>400 email already registered</li><li>400 validation error (GlobalExceptionHandler)</li></ul></div>
+  
+</article>
+<article class="card" id="login" data-text="log in with email + password any user /login  (pages/auth/loginpage.tsx) submit email + password user is signed in. every later request carries authorization: bearer &lt;accesstoken&gt;. u ui submit ui ui authslice.login thunk ui nx post /api/v1/auth/login nx gw proxy, host header kept gw gw tenant from host, public route (no jwt) gw auth lb://auth-service (via eureka) auth db load user in tenant schema, check password + lockout counter auth auth sign access jwt (sub, email, role, name, tenant) + refresh token with jwt_secret auth ui 200 accesstoken + refreshtoken + user ui ss save tokens (sessionstorage = per tab, so two accounts can be open in two tabs) ui nx get /api/v1/ui-config/me nx gw proxy, host header kept gw gw tenant from host, verify jwt + tenant claim, add x-user-* headers gw adm lb://admin-service (via eureka) adm ui effective theme + menu for this role/workspace ui u redirect: admins to /admin, others to /dashboard">
+  <header><h3>Log in with email + password</h3><span class="who">Any user</span></header>
+  <dl class="meta">
+    <div><dt>Screen</dt><dd><code>/login  (pages/auth/LoginPage.tsx)</code></dd></div>
+    <div><dt>Trigger</dt><dd>Submit email + password</dd></div>
+  </dl>
+  <div class="tabs"><button class="on" data-v="steps">Steps</button><button data-v="diagram">Diagram</button></div>
+  <div class="view steps"><div class="tw"><table><thead><tr><th>#</th><th>From</th><th>To</th><th>What happens</th></tr></thead><tbody><tr><td class="n">1</td><td><span class="tag user">User</span></td><td><span class="arr">→</span> <span class="tag ui">React UI</span></td><td>submit</td></tr><tr><td class="n">2</td><td><span class="tag ui">React UI</span></td><td><span class="arr">↺</span> <span class="tag ui">React UI</span></td><td>authSlice.login thunk</td></tr><tr><td class="n">3</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag edge">Frontend nginx :3000</span></td><td>POST /api/v1/auth/login</td></tr><tr><td class="n">4</td><td><span class="tag edge">Frontend nginx :3000</span></td><td><span class="arr">→</span> <span class="tag gw">API Gateway :8080</span></td><td>proxy, Host header kept</td></tr><tr><td class="n">5</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">↺</span> <span class="tag gw">API Gateway :8080</span></td><td>Tenant from Host, public route (no JWT)</td></tr><tr><td class="n">6</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">→</span> <span class="tag svc">auth-service</span></td><td>lb://auth-service (via Eureka)</td></tr><tr><td class="n">7</td><td><span class="tag svc">auth-service</span></td><td><span class="arr">→</span> <span class="tag data">MySQL</span></td><td>load user in tenant schema, check password + lockout counter</td></tr><tr><td class="n">8</td><td><span class="tag svc">auth-service</span></td><td><span class="arr">↺</span> <span class="tag svc">auth-service</span></td><td>sign access JWT (sub, email, role, name, tenant) + refresh token with JWT_SECRET</td></tr><tr><td class="n">9</td><td><span class="tag svc">auth-service</span></td><td><span class="arr">→</span> <span class="tag ui">React UI</span></td><td>200 accessToken + refreshToken + user</td></tr><tr><td class="n">10</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag ui">sessionStorage</span></td><td>save tokens (sessionStorage = per tab, so two accounts can be open in two tabs)</td></tr><tr><td class="n">11</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag edge">Frontend nginx :3000</span></td><td>GET /api/v1/ui-config/me</td></tr><tr><td class="n">12</td><td><span class="tag edge">Frontend nginx :3000</span></td><td><span class="arr">→</span> <span class="tag gw">API Gateway :8080</span></td><td>proxy, Host header kept</td></tr><tr><td class="n">13</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">↺</span> <span class="tag gw">API Gateway :8080</span></td><td>Tenant from Host, verify JWT + tenant claim, add X-User-* headers</td></tr><tr><td class="n">14</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">→</span> <span class="tag svc">admin-service</span></td><td>lb://admin-service (via Eureka)</td></tr><tr><td class="n">15</td><td><span class="tag svc">admin-service</span></td><td><span class="arr">→</span> <span class="tag ui">React UI</span></td><td>effective theme + menu for this role/workspace</td></tr><tr><td class="n">16</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag user">User</span></td><td>redirect: admins to /admin, others to /dashboard</td></tr></tbody></table></div></div>
+  <div class="view diagram" hidden><pre class="mermaid">sequenceDiagram
+    autonumber
+    actor U as User
+    participant UI as React UI
+    participant NX as Frontend nginx :3000
+    participant GW as API Gateway :8080
+    participant AUTH as auth-service
+    participant DB as MySQL
+    participant SS as sessionStorage
+    participant ADM as admin-service
+    U-&gt;&gt;UI: submit
+    UI--&gt;&gt;UI: authSlice.login thunk
+    UI-&gt;&gt;NX: POST /api/v1/auth/login
+    NX-&gt;&gt;GW: proxy, Host header kept
+    GW-&gt;&gt;GW: Tenant from Host, public route (no JWT)
+    GW-&gt;&gt;AUTH: lb://auth-service (via Eureka)
+    AUTH-&gt;&gt;DB: load user in tenant schema, check password + lockout counter
+    AUTH-&gt;&gt;AUTH: sign access JWT (sub, email, role, name, tenant) + refresh token with JWT_SECRET
+    AUTH--&gt;&gt;UI: 200 accessToken + refreshToken + user
+    UI-&gt;&gt;SS: save tokens (sessionStorage = per tab, so two accounts can be open in two tabs)
+    UI-&gt;&gt;NX: GET /api/v1/ui-config/me
+    NX-&gt;&gt;GW: proxy, Host header kept
+    GW-&gt;&gt;GW: Tenant from Host, verify JWT + tenant claim, add X-User-* headers
+    GW-&gt;&gt;ADM: lb://admin-service (via Eureka)
+    ADM--&gt;&gt;UI: effective theme + menu for this role/workspace
+    UI-&gt;&gt;U: redirect: admins to /admin, others to /dashboard</pre></div>
+  <div class="res"><b>Result:</b> User is signed in. Every later request carries Authorization: Bearer &lt;accessToken&gt;.</div>
+  <div class="err"><b>What can go wrong</b><ul><li>401 wrong password (no refresh attempted on /auth/* endpoints)</li><li>Account locked after repeated failures</li><li>403 empty body: origin not allowed by CORS or tenant mismatch</li></ul></div>
+  
+</article>
+<article class="card" id="otp" data-text="log in with otp any user /login/otp enter phone/email, then the code signed in without a password. ui nx post /api/v1/auth/otp/send nx gw proxy, host header kept gw gw tenant from host, public route (no jwt) gw auth lb://auth-service (via eureka) auth rd store otp with expiry auth kf publish otp.sent auth ui 200 otp sent kf noti consume otp.sent alt provider = log noti noti write otp to the service log else real provider noti mail send email / sms / whatsapp end u ui type the code ui nx post /api/v1/auth/otp/verify nx gw proxy, host header kept gw gw tenant from host, public route (no jwt) gw auth lb://auth-service (via eureka) auth rd compare + delete otp auth ui jwt tokens (same as password login from here)">
+  <header><h3>Log in with OTP</h3><span class="who">Any user</span></header>
+  <dl class="meta">
+    <div><dt>Screen</dt><dd><code>/login/otp</code></dd></div>
+    <div><dt>Trigger</dt><dd>Enter phone/email, then the code</dd></div>
+  </dl>
+  <div class="tabs"><button class="on" data-v="steps">Steps</button><button data-v="diagram">Diagram</button></div>
+  <div class="view steps"><div class="tw"><table><thead><tr><th>#</th><th>From</th><th>To</th><th>What happens</th></tr></thead><tbody><tr><td class="n">1</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag edge">Frontend nginx :3000</span></td><td>POST /api/v1/auth/otp/send</td></tr><tr><td class="n">2</td><td><span class="tag edge">Frontend nginx :3000</span></td><td><span class="arr">→</span> <span class="tag gw">API Gateway :8080</span></td><td>proxy, Host header kept</td></tr><tr><td class="n">3</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">↺</span> <span class="tag gw">API Gateway :8080</span></td><td>Tenant from Host, public route (no JWT)</td></tr><tr><td class="n">4</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">→</span> <span class="tag svc">auth-service</span></td><td>lb://auth-service (via Eureka)</td></tr><tr><td class="n">5</td><td><span class="tag svc">auth-service</span></td><td><span class="arr">→</span> <span class="tag data">Redis</span></td><td>store OTP with expiry</td></tr><tr><td class="n">6</td><td><span class="tag svc">auth-service</span></td><td><span class="arr">→</span> <span class="tag bus">Kafka</span></td><td>publish otp.sent</td></tr><tr><td class="n">7</td><td><span class="tag svc">auth-service</span></td><td><span class="arr">→</span> <span class="tag ui">React UI</span></td><td>200 OTP sent</td></tr><tr><td class="n">8</td><td><span class="tag bus">Kafka</span></td><td><span class="arr">→</span> <span class="tag svc">notification-service</span></td><td>consume otp.sent</td></tr><tr><td class="n">9</td><td><span class="tag svc">notification-service</span></td><td><span class="arr">↺</span> <span class="tag svc">notification-service</span></td><td><span class="br">if provider = log</span> write OTP to the service log</td></tr><tr><td class="n">10</td><td><span class="tag svc">notification-service</span></td><td><span class="arr">→</span> <span class="tag ext">Email/SMS provider</span></td><td><span class="br">else: real provider</span> send email / SMS / WhatsApp</td></tr><tr><td class="n">11</td><td><span class="tag user">User</span></td><td><span class="arr">→</span> <span class="tag ui">React UI</span></td><td>type the code</td></tr><tr><td class="n">12</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag edge">Frontend nginx :3000</span></td><td>POST /api/v1/auth/otp/verify</td></tr><tr><td class="n">13</td><td><span class="tag edge">Frontend nginx :3000</span></td><td><span class="arr">→</span> <span class="tag gw">API Gateway :8080</span></td><td>proxy, Host header kept</td></tr><tr><td class="n">14</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">↺</span> <span class="tag gw">API Gateway :8080</span></td><td>Tenant from Host, public route (no JWT)</td></tr><tr><td class="n">15</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">→</span> <span class="tag svc">auth-service</span></td><td>lb://auth-service (via Eureka)</td></tr><tr><td class="n">16</td><td><span class="tag svc">auth-service</span></td><td><span class="arr">→</span> <span class="tag data">Redis</span></td><td>compare + delete OTP</td></tr><tr><td class="n">17</td><td><span class="tag svc">auth-service</span></td><td><span class="arr">→</span> <span class="tag ui">React UI</span></td><td>JWT tokens (same as password login from here)</td></tr></tbody></table></div></div>
+  <div class="view diagram" hidden><pre class="mermaid">sequenceDiagram
+    autonumber
+    participant UI as React UI
+    participant NX as Frontend nginx :3000
+    participant GW as API Gateway :8080
+    participant AUTH as auth-service
+    participant RD as Redis
+    participant KF as Kafka
+    participant NOTI as notification-service
+    participant MAIL as Email/SMS provider
+    actor U as User
+    UI-&gt;&gt;NX: POST /api/v1/auth/otp/send
+    NX-&gt;&gt;GW: proxy, Host header kept
+    GW-&gt;&gt;GW: Tenant from Host, public route (no JWT)
+    GW-&gt;&gt;AUTH: lb://auth-service (via Eureka)
+    AUTH-&gt;&gt;RD: store OTP with expiry
+    AUTH-&gt;&gt;KF: publish otp.sent
+    AUTH--&gt;&gt;UI: 200 OTP sent
+    KF-&gt;&gt;NOTI: consume otp.sent
+    alt provider = log
+    NOTI-&gt;&gt;NOTI: write OTP to the service log
+    else real provider
+    NOTI-&gt;&gt;MAIL: send email / SMS / WhatsApp
+    end
+    U-&gt;&gt;UI: type the code
+    UI-&gt;&gt;NX: POST /api/v1/auth/otp/verify
+    NX-&gt;&gt;GW: proxy, Host header kept
+    GW-&gt;&gt;GW: Tenant from Host, public route (no JWT)
+    GW-&gt;&gt;AUTH: lb://auth-service (via Eureka)
+    AUTH-&gt;&gt;RD: compare + delete OTP
+    AUTH--&gt;&gt;UI: JWT tokens (same as password login from here)</pre></div>
+  <div class="res"><b>Result:</b> Signed in without a password.</div>
+  <div class="err"><b>What can go wrong</b><ul><li>400 wrong / expired OTP</li></ul></div>
+  <div class="nt"><b>Notes</b><ul><li>Locally, read the code with: docker compose logs --tail=50 notification-service</li></ul></div>
+</article>
+<article class="card" id="social" data-text="log in with google / facebook any user /login buttons, then /oauth2/redirect click &quot;continue with google&quot; signed in with a social account. ui gw browser navigates to /oauth2/authorization/google gw auth route auth-service (/oauth2/**, public) auth goo redirect to google consent goo gw callback /login/oauth2/code/google gw auth exchange code, find or create user auth ui redirect to /oauth2/redirect with tokens ui ss save tokens">
+  <header><h3>Log in with Google / Facebook</h3><span class="who">Any user</span></header>
+  <dl class="meta">
+    <div><dt>Screen</dt><dd><code>/login buttons, then /oauth2/redirect</code></dd></div>
+    <div><dt>Trigger</dt><dd>Click &quot;Continue with Google&quot;</dd></div>
+  </dl>
+  <div class="tabs"><button class="on" data-v="steps">Steps</button><button data-v="diagram">Diagram</button></div>
+  <div class="view steps"><div class="tw"><table><thead><tr><th>#</th><th>From</th><th>To</th><th>What happens</th></tr></thead><tbody><tr><td class="n">1</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag gw">API Gateway :8080</span></td><td>browser navigates to /oauth2/authorization/google</td></tr><tr><td class="n">2</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">→</span> <span class="tag svc">auth-service</span></td><td>route auth-service (/oauth2/**, public)</td></tr><tr><td class="n">3</td><td><span class="tag svc">auth-service</span></td><td><span class="arr">→</span> <span class="tag ext">Google OAuth</span></td><td>redirect to Google consent</td></tr><tr><td class="n">4</td><td><span class="tag ext">Google OAuth</span></td><td><span class="arr">→</span> <span class="tag gw">API Gateway :8080</span></td><td>callback /login/oauth2/code/google</td></tr><tr><td class="n">5</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">→</span> <span class="tag svc">auth-service</span></td><td>exchange code, find or create user</td></tr><tr><td class="n">6</td><td><span class="tag svc">auth-service</span></td><td><span class="arr">→</span> <span class="tag ui">React UI</span></td><td>redirect to /oauth2/redirect with tokens</td></tr><tr><td class="n">7</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag ui">sessionStorage</span></td><td>save tokens</td></tr></tbody></table></div></div>
+  <div class="view diagram" hidden><pre class="mermaid">sequenceDiagram
+    autonumber
+    participant UI as React UI
+    participant GW as API Gateway :8080
+    participant AUTH as auth-service
+    participant GOO as Google OAuth
+    participant SS as sessionStorage
+    UI-&gt;&gt;GW: browser navigates to /oauth2/authorization/google
+    GW-&gt;&gt;AUTH: route auth-service (/oauth2/**, public)
+    AUTH-&gt;&gt;GOO: redirect to Google consent
+    GOO-&gt;&gt;GW: callback /login/oauth2/code/google
+    GW-&gt;&gt;AUTH: exchange code, find or create user
+    AUTH--&gt;&gt;UI: redirect to /oauth2/redirect with tokens
+    UI-&gt;&gt;SS: save tokens</pre></div>
+  <div class="res"><b>Result:</b> Signed in with a social account.</div>
+  <div class="err"><b>What can go wrong</b><ul><li>Buttons do nothing: needs AUTH_PROFILE=docker,social and real client id/secret in docker/.env</li></ul></div>
+  <div class="nt"><b>Notes</b><ul><li>Without the social profile, auth-service starts with oauth2Login switched off (by design).</li></ul></div>
+</article><h2 class="gh" data-group="Customer">Customer</h2>
+<article class="card" id="book" data-text="book a service customer /book/:serviceid choose date, address, notes, then &quot;confirm booking&quot; booking exists and waits for payment and worker assignment. u ui submit booking form ui ui bookingslice.createbooking ui nx post /api/v1/bookings nx gw proxy, host header kept gw gw tenant from host, verify jwt + tenant claim, add x-user-* headers gw book lb://booking-service (via eureka) book book read x-user-id as the customer, generate booking code bk-&lt;timestamp&gt;-&lt;4 digits&gt; book db insert booking (civil_engineer_bookings_&lt;tenant&gt;), status pending / quotation_pending book ui 201 booking ui u go to payment: /bookings/:bookingid/pay">
+  <header><h3>Book a service</h3><span class="who">Customer</span></header>
+  <dl class="meta">
+    <div><dt>Screen</dt><dd><code>/book/:serviceId</code></dd></div>
+    <div><dt>Trigger</dt><dd>Choose date, address, notes, then &quot;Confirm booking&quot;</dd></div>
+  </dl>
+  <div class="tabs"><button class="on" data-v="steps">Steps</button><button data-v="diagram">Diagram</button></div>
+  <div class="view steps"><div class="tw"><table><thead><tr><th>#</th><th>From</th><th>To</th><th>What happens</th></tr></thead><tbody><tr><td class="n">1</td><td><span class="tag user">User</span></td><td><span class="arr">→</span> <span class="tag ui">React UI</span></td><td>submit booking form</td></tr><tr><td class="n">2</td><td><span class="tag ui">React UI</span></td><td><span class="arr">↺</span> <span class="tag ui">React UI</span></td><td>bookingSlice.createBooking</td></tr><tr><td class="n">3</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag edge">Frontend nginx :3000</span></td><td>POST /api/v1/bookings</td></tr><tr><td class="n">4</td><td><span class="tag edge">Frontend nginx :3000</span></td><td><span class="arr">→</span> <span class="tag gw">API Gateway :8080</span></td><td>proxy, Host header kept</td></tr><tr><td class="n">5</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">↺</span> <span class="tag gw">API Gateway :8080</span></td><td>Tenant from Host, verify JWT + tenant claim, add X-User-* headers</td></tr><tr><td class="n">6</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">→</span> <span class="tag svc">booking-service</span></td><td>lb://booking-service (via Eureka)</td></tr><tr><td class="n">7</td><td><span class="tag svc">booking-service</span></td><td><span class="arr">↺</span> <span class="tag svc">booking-service</span></td><td>read X-User-Id as the customer, generate booking code BK-&lt;timestamp&gt;-&lt;4 digits&gt;</td></tr><tr><td class="n">8</td><td><span class="tag svc">booking-service</span></td><td><span class="arr">→</span> <span class="tag data">MySQL</span></td><td>INSERT booking (civil_engineer_bookings_&lt;tenant&gt;), status PENDING / QUOTATION_PENDING</td></tr><tr><td class="n">9</td><td><span class="tag svc">booking-service</span></td><td><span class="arr">→</span> <span class="tag ui">React UI</span></td><td>201 booking</td></tr><tr><td class="n">10</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag user">User</span></td><td>go to payment: /bookings/:bookingId/pay</td></tr></tbody></table></div></div>
+  <div class="view diagram" hidden><pre class="mermaid">sequenceDiagram
+    autonumber
+    actor U as User
+    participant UI as React UI
+    participant NX as Frontend nginx :3000
+    participant GW as API Gateway :8080
+    participant BOOK as booking-service
+    participant DB as MySQL
+    U-&gt;&gt;UI: submit booking form
+    UI--&gt;&gt;UI: bookingSlice.createBooking
+    UI-&gt;&gt;NX: POST /api/v1/bookings
+    NX-&gt;&gt;GW: proxy, Host header kept
+    GW-&gt;&gt;GW: Tenant from Host, verify JWT + tenant claim, add X-User-* headers
+    GW-&gt;&gt;BOOK: lb://booking-service (via Eureka)
+    BOOK-&gt;&gt;BOOK: read X-User-Id as the customer, generate booking code BK-‹timestamp›-‹4 digits›
+    BOOK-&gt;&gt;DB: INSERT booking (civil_engineer_bookings_‹tenant›), status PENDING / QUOTATION_PENDING
+    BOOK--&gt;&gt;UI: 201 booking
+    UI-&gt;&gt;U: go to payment: /bookings/:bookingId/pay</pre></div>
+  <div class="res"><b>Result:</b> Booking exists and waits for payment and worker assignment.</div>
+  <div class="err"><b>What can go wrong</b><ul><li>401 not logged in</li><li>400 invalid date / missing fields</li></ul></div>
+  <div class="nt"><b>Notes</b><ul><li>notification-service has a listener for booking.created, but no service publishes that topic, so no &quot;booking created&quot; message is sent today.</li></ul></div>
+</article>
+<article class="card" id="mybookings" data-text="view my bookings customer /bookings open &quot;my bookings&quot; list with status (pending, assigned, in_progress, completed, cancelled...) and payment status. ui nx get /api/v1/bookings/customer?page=0&amp;size=.. nx gw proxy, host header kept gw gw tenant from host, verify jwt + tenant claim, add x-user-* headers gw book lb://booking-service (via eureka) book db select bookings where customer_id = x-user-id book ui page of bookings u ui open one ui nx get /api/v1/bookings/{id} nx gw proxy, host header kept gw gw tenant from host, verify jwt + tenant claim, add x-user-* headers gw book lb://booking-service (via eureka) book ui booking detail / invoice">
+  <header><h3>View my bookings</h3><span class="who">Customer</span></header>
+  <dl class="meta">
+    <div><dt>Screen</dt><dd><code>/bookings</code></dd></div>
+    <div><dt>Trigger</dt><dd>Open &quot;My bookings&quot;</dd></div>
+  </dl>
+  <div class="tabs"><button class="on" data-v="steps">Steps</button><button data-v="diagram">Diagram</button></div>
+  <div class="view steps"><div class="tw"><table><thead><tr><th>#</th><th>From</th><th>To</th><th>What happens</th></tr></thead><tbody><tr><td class="n">1</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag edge">Frontend nginx :3000</span></td><td>GET /api/v1/bookings/customer?page=0&amp;size=..</td></tr><tr><td class="n">2</td><td><span class="tag edge">Frontend nginx :3000</span></td><td><span class="arr">→</span> <span class="tag gw">API Gateway :8080</span></td><td>proxy, Host header kept</td></tr><tr><td class="n">3</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">↺</span> <span class="tag gw">API Gateway :8080</span></td><td>Tenant from Host, verify JWT + tenant claim, add X-User-* headers</td></tr><tr><td class="n">4</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">→</span> <span class="tag svc">booking-service</span></td><td>lb://booking-service (via Eureka)</td></tr><tr><td class="n">5</td><td><span class="tag svc">booking-service</span></td><td><span class="arr">→</span> <span class="tag data">MySQL</span></td><td>SELECT bookings WHERE customer_id = X-User-Id</td></tr><tr><td class="n">6</td><td><span class="tag svc">booking-service</span></td><td><span class="arr">→</span> <span class="tag ui">React UI</span></td><td>page of bookings</td></tr><tr><td class="n">7</td><td><span class="tag user">User</span></td><td><span class="arr">→</span> <span class="tag ui">React UI</span></td><td>open one</td></tr><tr><td class="n">8</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag edge">Frontend nginx :3000</span></td><td>GET /api/v1/bookings/{id}</td></tr><tr><td class="n">9</td><td><span class="tag edge">Frontend nginx :3000</span></td><td><span class="arr">→</span> <span class="tag gw">API Gateway :8080</span></td><td>proxy, Host header kept</td></tr><tr><td class="n">10</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">↺</span> <span class="tag gw">API Gateway :8080</span></td><td>Tenant from Host, verify JWT + tenant claim, add X-User-* headers</td></tr><tr><td class="n">11</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">→</span> <span class="tag svc">booking-service</span></td><td>lb://booking-service (via Eureka)</td></tr><tr><td class="n">12</td><td><span class="tag svc">booking-service</span></td><td><span class="arr">→</span> <span class="tag ui">React UI</span></td><td>booking detail / invoice</td></tr></tbody></table></div></div>
+  <div class="view diagram" hidden><pre class="mermaid">sequenceDiagram
+    autonumber
+    participant UI as React UI
+    participant NX as Frontend nginx :3000
+    participant GW as API Gateway :8080
+    participant BOOK as booking-service
+    participant DB as MySQL
+    actor U as User
+    UI-&gt;&gt;NX: GET /api/v1/bookings/customer?page=0&amp;size=..
+    NX-&gt;&gt;GW: proxy, Host header kept
+    GW-&gt;&gt;GW: Tenant from Host, verify JWT + tenant claim, add X-User-* headers
+    GW-&gt;&gt;BOOK: lb://booking-service (via Eureka)
+    BOOK-&gt;&gt;DB: SELECT bookings WHERE customer_id = X-User-Id
+    BOOK--&gt;&gt;UI: page of bookings
+    U-&gt;&gt;UI: open one
+    UI-&gt;&gt;NX: GET /api/v1/bookings/{id}
+    NX-&gt;&gt;GW: proxy, Host header kept
+    GW-&gt;&gt;GW: Tenant from Host, verify JWT + tenant claim, add X-User-* headers
+    GW-&gt;&gt;BOOK: lb://booking-service (via Eureka)
+    BOOK--&gt;&gt;UI: booking detail / invoice</pre></div>
+  <div class="res"><b>Result:</b> List with status (PENDING, ASSIGNED, IN_PROGRESS, COMPLETED, CANCELLED...) and payment status.</div>
+  
+  
+</article>
+<article class="card" id="pay" data-text="pay for a booking (razorpay) customer /bookings/:bookingid/pay  (services/paymentapi.ts, razorpaycheckout.ts) click &quot;pay now&quot; booking is marked paid and joins the assignment queue. customer gets a receipt. ui nx post /api/v1/payments/create-order nx gw proxy, host header kept gw gw tenant from host, verify jwt + tenant claim, add x-user-* headers gw pay lb://payment-service (via eureka) pay rzp create order (razorpay_key_id / secret) pay db insert payment pending + razorpayorderid pay kf publish payment.created pay ui order id + amount ui rzp open razorpay checkout popup (vite_razorpay_key_id, public key) rzp ui payment id + signature ui nx post /api/v1/payments/verify nx gw proxy, host header kept gw gw tenant from host, verify jwt + tenant claim, add x-user-* headers gw pay lb://payment-service (via eureka) pay pay verify hmac signature with the key secret pay db payment completed pay kf publish payment.completed pay ui 200 paid kf book paymenteventconsumer: booking paymentstatus = paid, quotation_pending becomes pending book kf publish booking.paid kf noti payment.completed + booking.paid: receipt / in-app notification">
+  <header><h3>Pay for a booking (Razorpay)</h3><span class="who">Customer</span></header>
+  <dl class="meta">
+    <div><dt>Screen</dt><dd><code>/bookings/:bookingId/pay  (services/paymentApi.ts, razorpayCheckout.ts)</code></dd></div>
+    <div><dt>Trigger</dt><dd>Click &quot;Pay now&quot;</dd></div>
+  </dl>
+  <div class="tabs"><button class="on" data-v="steps">Steps</button><button data-v="diagram">Diagram</button></div>
+  <div class="view steps"><div class="tw"><table><thead><tr><th>#</th><th>From</th><th>To</th><th>What happens</th></tr></thead><tbody><tr><td class="n">1</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag edge">Frontend nginx :3000</span></td><td>POST /api/v1/payments/create-order</td></tr><tr><td class="n">2</td><td><span class="tag edge">Frontend nginx :3000</span></td><td><span class="arr">→</span> <span class="tag gw">API Gateway :8080</span></td><td>proxy, Host header kept</td></tr><tr><td class="n">3</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">↺</span> <span class="tag gw">API Gateway :8080</span></td><td>Tenant from Host, verify JWT + tenant claim, add X-User-* headers</td></tr><tr><td class="n">4</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">→</span> <span class="tag svc">payment-service</span></td><td>lb://payment-service (via Eureka)</td></tr><tr><td class="n">5</td><td><span class="tag svc">payment-service</span></td><td><span class="arr">→</span> <span class="tag ext">Razorpay</span></td><td>create order (RAZORPAY_KEY_ID / SECRET)</td></tr><tr><td class="n">6</td><td><span class="tag svc">payment-service</span></td><td><span class="arr">→</span> <span class="tag data">MySQL</span></td><td>INSERT payment PENDING + razorpayOrderId</td></tr><tr><td class="n">7</td><td><span class="tag svc">payment-service</span></td><td><span class="arr">→</span> <span class="tag bus">Kafka</span></td><td>publish payment.created</td></tr><tr><td class="n">8</td><td><span class="tag svc">payment-service</span></td><td><span class="arr">→</span> <span class="tag ui">React UI</span></td><td>order id + amount</td></tr><tr><td class="n">9</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag ext">Razorpay</span></td><td>open Razorpay Checkout popup (VITE_RAZORPAY_KEY_ID, public key)</td></tr><tr><td class="n">10</td><td><span class="tag ext">Razorpay</span></td><td><span class="arr">→</span> <span class="tag ui">React UI</span></td><td>payment id + signature</td></tr><tr><td class="n">11</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag edge">Frontend nginx :3000</span></td><td>POST /api/v1/payments/verify</td></tr><tr><td class="n">12</td><td><span class="tag edge">Frontend nginx :3000</span></td><td><span class="arr">→</span> <span class="tag gw">API Gateway :8080</span></td><td>proxy, Host header kept</td></tr><tr><td class="n">13</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">↺</span> <span class="tag gw">API Gateway :8080</span></td><td>Tenant from Host, verify JWT + tenant claim, add X-User-* headers</td></tr><tr><td class="n">14</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">→</span> <span class="tag svc">payment-service</span></td><td>lb://payment-service (via Eureka)</td></tr><tr><td class="n">15</td><td><span class="tag svc">payment-service</span></td><td><span class="arr">↺</span> <span class="tag svc">payment-service</span></td><td>verify HMAC signature with the key secret</td></tr><tr><td class="n">16</td><td><span class="tag svc">payment-service</span></td><td><span class="arr">→</span> <span class="tag data">MySQL</span></td><td>payment COMPLETED</td></tr><tr><td class="n">17</td><td><span class="tag svc">payment-service</span></td><td><span class="arr">→</span> <span class="tag bus">Kafka</span></td><td>publish payment.completed</td></tr><tr><td class="n">18</td><td><span class="tag svc">payment-service</span></td><td><span class="arr">→</span> <span class="tag ui">React UI</span></td><td>200 paid</td></tr><tr><td class="n">19</td><td><span class="tag bus">Kafka</span></td><td><span class="arr">→</span> <span class="tag svc">booking-service</span></td><td>PaymentEventConsumer: booking paymentStatus = PAID, QUOTATION_PENDING becomes PENDING</td></tr><tr><td class="n">20</td><td><span class="tag svc">booking-service</span></td><td><span class="arr">→</span> <span class="tag bus">Kafka</span></td><td>publish booking.paid</td></tr><tr><td class="n">21</td><td><span class="tag bus">Kafka</span></td><td><span class="arr">→</span> <span class="tag svc">notification-service</span></td><td>payment.completed + booking.paid: receipt / in-app notification</td></tr></tbody></table></div></div>
+  <div class="view diagram" hidden><pre class="mermaid">sequenceDiagram
+    autonumber
+    participant UI as React UI
+    participant NX as Frontend nginx :3000
+    participant GW as API Gateway :8080
+    participant PAY as payment-service
+    participant RZP as Razorpay
+    participant DB as MySQL
+    participant KF as Kafka
+    participant BOOK as booking-service
+    participant NOTI as notification-service
+    UI-&gt;&gt;NX: POST /api/v1/payments/create-order
+    NX-&gt;&gt;GW: proxy, Host header kept
+    GW-&gt;&gt;GW: Tenant from Host, verify JWT + tenant claim, add X-User-* headers
+    GW-&gt;&gt;PAY: lb://payment-service (via Eureka)
+    PAY-&gt;&gt;RZP: create order (RAZORPAY_KEY_ID / SECRET)
+    PAY-&gt;&gt;DB: INSERT payment PENDING + razorpayOrderId
+    PAY-&gt;&gt;KF: publish payment.created
+    PAY--&gt;&gt;UI: order id + amount
+    UI-&gt;&gt;RZP: open Razorpay Checkout popup (VITE_RAZORPAY_KEY_ID, public key)
+    RZP--&gt;&gt;UI: payment id + signature
+    UI-&gt;&gt;NX: POST /api/v1/payments/verify
+    NX-&gt;&gt;GW: proxy, Host header kept
+    GW-&gt;&gt;GW: Tenant from Host, verify JWT + tenant claim, add X-User-* headers
+    GW-&gt;&gt;PAY: lb://payment-service (via Eureka)
+    PAY-&gt;&gt;PAY: verify HMAC signature with the key secret
+    PAY-&gt;&gt;DB: payment COMPLETED
+    PAY-&gt;&gt;KF: publish payment.completed
+    PAY--&gt;&gt;UI: 200 paid
+    KF-&gt;&gt;BOOK: PaymentEventConsumer: booking paymentStatus = PAID, QUOTATION_PENDING becomes PENDING
+    BOOK-&gt;&gt;KF: publish booking.paid
+    KF-&gt;&gt;NOTI: payment.completed + booking.paid: receipt / in-app notification</pre></div>
+  <div class="res"><b>Result:</b> Booking is marked PAID and joins the assignment queue. Customer gets a receipt.</div>
+  <div class="err"><b>What can go wrong</b><ul><li>Razorpay popup fails: test keys in docker/.env are placeholders on this machine</li><li>400 signature mismatch</li><li>Duplicate Kafka events are ignored (booking already PAID)</li></ul></div>
+  <div class="nt"><b>Notes</b><ul><li>Razorpay also calls /webhooks/** (public route) on payment-service as a server-side confirmation.</li></ul></div>
+</article>
+<article class="card" id="track" data-text="track the worker live customer /track/:bookingid  (pages/tracking/livetrackingpage.tsx) open &quot;track&quot; on an assigned booking map shows the worker moving and the eta. see &quot;share live location&quot; (worker) for the other side. ui nx get /api/v1/bookings/{id}/tracking nx gw proxy, host header kept gw gw tenant from host, verify jwt + tenant claim, add x-user-* headers gw book lb://booking-service (via eureka) book db latest worker location + eta book ui tracking snapshot (map, eta, distance) ui ui poll again every few seconds">
+  <header><h3>Track the worker live</h3><span class="who">Customer</span></header>
+  <dl class="meta">
+    <div><dt>Screen</dt><dd><code>/track/:bookingId  (pages/tracking/LiveTrackingPage.tsx)</code></dd></div>
+    <div><dt>Trigger</dt><dd>Open &quot;Track&quot; on an assigned booking</dd></div>
+  </dl>
+  <div class="tabs"><button class="on" data-v="steps">Steps</button><button data-v="diagram">Diagram</button></div>
+  <div class="view steps"><div class="tw"><table><thead><tr><th>#</th><th>From</th><th>To</th><th>What happens</th></tr></thead><tbody><tr><td class="n">1</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag edge">Frontend nginx :3000</span></td><td>GET /api/v1/bookings/{id}/tracking</td></tr><tr><td class="n">2</td><td><span class="tag edge">Frontend nginx :3000</span></td><td><span class="arr">→</span> <span class="tag gw">API Gateway :8080</span></td><td>proxy, Host header kept</td></tr><tr><td class="n">3</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">↺</span> <span class="tag gw">API Gateway :8080</span></td><td>Tenant from Host, verify JWT + tenant claim, add X-User-* headers</td></tr><tr><td class="n">4</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">→</span> <span class="tag svc">booking-service</span></td><td>lb://booking-service (via Eureka)</td></tr><tr><td class="n">5</td><td><span class="tag svc">booking-service</span></td><td><span class="arr">→</span> <span class="tag data">MySQL</span></td><td>latest worker location + ETA</td></tr><tr><td class="n">6</td><td><span class="tag svc">booking-service</span></td><td><span class="arr">→</span> <span class="tag ui">React UI</span></td><td>tracking snapshot (map, ETA, distance)</td></tr><tr><td class="n">7</td><td><span class="tag ui">React UI</span></td><td><span class="arr">↺</span> <span class="tag ui">React UI</span></td><td>poll again every few seconds</td></tr></tbody></table></div></div>
+  <div class="view diagram" hidden><pre class="mermaid">sequenceDiagram
+    autonumber
+    participant UI as React UI
+    participant NX as Frontend nginx :3000
+    participant GW as API Gateway :8080
+    participant BOOK as booking-service
+    participant DB as MySQL
+    UI-&gt;&gt;NX: GET /api/v1/bookings/{id}/tracking
+    NX-&gt;&gt;GW: proxy, Host header kept
+    GW-&gt;&gt;GW: Tenant from Host, verify JWT + tenant claim, add X-User-* headers
+    GW-&gt;&gt;BOOK: lb://booking-service (via Eureka)
+    BOOK-&gt;&gt;DB: latest worker location + ETA
+    BOOK--&gt;&gt;UI: tracking snapshot (map, ETA, distance)
+    UI--&gt;&gt;UI: poll again every few seconds</pre></div>
+  <div class="res"><b>Result:</b> Map shows the worker moving and the ETA. See &quot;Share live location&quot; (worker) for the other side.</div>
+  
+  
+</article>
+<article class="card" id="review" data-text="review a completed booking customer (or worker, reviews are two-way) /bookings/:bookingid/review  (services/reviewapi.ts) give stars + comment, submit rating shows on the worker&#x27;s profile. the reviewed party can post one response. ui nx post /api/v1/bookings/{id}/reviews nx gw proxy, host header kept gw gw tenant from host, verify jwt + tenant claim, add x-user-* headers gw rev lb://review-service (via eureka) gw gw route booking-reviews (matched before the general /bookings/** route) rev book feign: get booking {id} alt booking completed and caller is customer or worker rev db insert review (one per booking per reviewer) rev db recompute ratingsummary average rev ui 201 review else not completed / not a party / duplicate rev ui 400 or 403 end">
+  <header><h3>Review a completed booking</h3><span class="who">Customer (or worker, reviews are two-way)</span></header>
+  <dl class="meta">
+    <div><dt>Screen</dt><dd><code>/bookings/:bookingId/review  (services/reviewApi.ts)</code></dd></div>
+    <div><dt>Trigger</dt><dd>Give stars + comment, submit</dd></div>
+  </dl>
+  <div class="tabs"><button class="on" data-v="steps">Steps</button><button data-v="diagram">Diagram</button></div>
+  <div class="view steps"><div class="tw"><table><thead><tr><th>#</th><th>From</th><th>To</th><th>What happens</th></tr></thead><tbody><tr><td class="n">1</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag edge">Frontend nginx :3000</span></td><td>POST /api/v1/bookings/{id}/reviews</td></tr><tr><td class="n">2</td><td><span class="tag edge">Frontend nginx :3000</span></td><td><span class="arr">→</span> <span class="tag gw">API Gateway :8080</span></td><td>proxy, Host header kept</td></tr><tr><td class="n">3</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">↺</span> <span class="tag gw">API Gateway :8080</span></td><td>Tenant from Host, verify JWT + tenant claim, add X-User-* headers</td></tr><tr><td class="n">4</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">→</span> <span class="tag svc">review-service</span></td><td>lb://review-service (via Eureka)</td></tr><tr><td class="n">5</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">↺</span> <span class="tag gw">API Gateway :8080</span></td><td>route booking-reviews (matched before the general /bookings/** route)</td></tr><tr><td class="n">6</td><td><span class="tag svc">review-service</span></td><td><span class="arr">→</span> <span class="tag svc">booking-service</span></td><td>Feign: get booking {id}</td></tr><tr><td class="n">7</td><td><span class="tag svc">review-service</span></td><td><span class="arr">→</span> <span class="tag data">MySQL</span></td><td><span class="br">if booking COMPLETED and caller is customer or worker</span> INSERT review (one per booking per reviewer)</td></tr><tr><td class="n">8</td><td><span class="tag svc">review-service</span></td><td><span class="arr">→</span> <span class="tag data">MySQL</span></td><td><span class="br">if booking COMPLETED and caller is customer or worker</span> recompute RatingSummary average</td></tr><tr><td class="n">9</td><td><span class="tag svc">review-service</span></td><td><span class="arr">→</span> <span class="tag ui">React UI</span></td><td><span class="br">if booking COMPLETED and caller is customer or worker</span> 201 review</td></tr><tr><td class="n">10</td><td><span class="tag svc">review-service</span></td><td><span class="arr">→</span> <span class="tag ui">React UI</span></td><td><span class="br">else: not completed / not a party / duplicate</span> 400 or 403</td></tr></tbody></table></div></div>
+  <div class="view diagram" hidden><pre class="mermaid">sequenceDiagram
+    autonumber
+    participant UI as React UI
+    participant NX as Frontend nginx :3000
+    participant GW as API Gateway :8080
+    participant REV as review-service
+    participant BOOK as booking-service
+    participant DB as MySQL
+    UI-&gt;&gt;NX: POST /api/v1/bookings/{id}/reviews
+    NX-&gt;&gt;GW: proxy, Host header kept
+    GW-&gt;&gt;GW: Tenant from Host, verify JWT + tenant claim, add X-User-* headers
+    GW-&gt;&gt;REV: lb://review-service (via Eureka)
+    GW-&gt;&gt;GW: route booking-reviews (matched before the general /bookings/** route)
+    REV-&gt;&gt;BOOK: Feign: get booking {id}
+    alt booking COMPLETED and caller is customer or worker
+    REV-&gt;&gt;DB: INSERT review (one per booking per reviewer)
+    REV-&gt;&gt;DB: recompute RatingSummary average
+    REV--&gt;&gt;UI: 201 review
+    else not completed / not a party / duplicate
+    REV--&gt;&gt;UI: 400 or 403
+    end</pre></div>
+  <div class="res"><b>Result:</b> Rating shows on the worker&#x27;s profile. The reviewed party can post one response.</div>
+  
+  
+</article>
+<article class="card" id="notifications" data-text="notifications bell any logged-in user navbar bell  (services/notificationapi.ts) page load / click the bell badge clears. notifications come from kafka events and admin announcements. ui nx get /api/v1/notifications/unread-count nx gw proxy, host header kept gw gw tenant from host, verify jwt + tenant claim, add x-user-* headers gw noti lb://notification-service (via eureka) noti db count unread for x-user-id noti ui badge number u ui open bell ui nx get /api/v1/notifications nx gw proxy, host header kept gw gw tenant from host, verify jwt + tenant claim, add x-user-* headers gw noti lb://notification-service (via eureka) noti ui list u ui click one ui noti put /notifications/{id}/read  (or /read-all, delete /{id})">
+  <header><h3>Notifications bell</h3><span class="who">Any logged-in user</span></header>
+  <dl class="meta">
+    <div><dt>Screen</dt><dd><code>Navbar bell  (services/notificationApi.ts)</code></dd></div>
+    <div><dt>Trigger</dt><dd>Page load / click the bell</dd></div>
+  </dl>
+  <div class="tabs"><button class="on" data-v="steps">Steps</button><button data-v="diagram">Diagram</button></div>
+  <div class="view steps"><div class="tw"><table><thead><tr><th>#</th><th>From</th><th>To</th><th>What happens</th></tr></thead><tbody><tr><td class="n">1</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag edge">Frontend nginx :3000</span></td><td>GET /api/v1/notifications/unread-count</td></tr><tr><td class="n">2</td><td><span class="tag edge">Frontend nginx :3000</span></td><td><span class="arr">→</span> <span class="tag gw">API Gateway :8080</span></td><td>proxy, Host header kept</td></tr><tr><td class="n">3</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">↺</span> <span class="tag gw">API Gateway :8080</span></td><td>Tenant from Host, verify JWT + tenant claim, add X-User-* headers</td></tr><tr><td class="n">4</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">→</span> <span class="tag svc">notification-service</span></td><td>lb://notification-service (via Eureka)</td></tr><tr><td class="n">5</td><td><span class="tag svc">notification-service</span></td><td><span class="arr">→</span> <span class="tag data">MySQL</span></td><td>count unread for X-User-Id</td></tr><tr><td class="n">6</td><td><span class="tag svc">notification-service</span></td><td><span class="arr">→</span> <span class="tag ui">React UI</span></td><td>badge number</td></tr><tr><td class="n">7</td><td><span class="tag user">User</span></td><td><span class="arr">→</span> <span class="tag ui">React UI</span></td><td>open bell</td></tr><tr><td class="n">8</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag edge">Frontend nginx :3000</span></td><td>GET /api/v1/notifications</td></tr><tr><td class="n">9</td><td><span class="tag edge">Frontend nginx :3000</span></td><td><span class="arr">→</span> <span class="tag gw">API Gateway :8080</span></td><td>proxy, Host header kept</td></tr><tr><td class="n">10</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">↺</span> <span class="tag gw">API Gateway :8080</span></td><td>Tenant from Host, verify JWT + tenant claim, add X-User-* headers</td></tr><tr><td class="n">11</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">→</span> <span class="tag svc">notification-service</span></td><td>lb://notification-service (via Eureka)</td></tr><tr><td class="n">12</td><td><span class="tag svc">notification-service</span></td><td><span class="arr">→</span> <span class="tag ui">React UI</span></td><td>list</td></tr><tr><td class="n">13</td><td><span class="tag user">User</span></td><td><span class="arr">→</span> <span class="tag ui">React UI</span></td><td>click one</td></tr><tr><td class="n">14</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag svc">notification-service</span></td><td>PUT /notifications/{id}/read  (or /read-all, DELETE /{id})</td></tr></tbody></table></div></div>
+  <div class="view diagram" hidden><pre class="mermaid">sequenceDiagram
+    autonumber
+    participant UI as React UI
+    participant NX as Frontend nginx :3000
+    participant GW as API Gateway :8080
+    participant NOTI as notification-service
+    participant DB as MySQL
+    actor U as User
+    UI-&gt;&gt;NX: GET /api/v1/notifications/unread-count
+    NX-&gt;&gt;GW: proxy, Host header kept
+    GW-&gt;&gt;GW: Tenant from Host, verify JWT + tenant claim, add X-User-* headers
+    GW-&gt;&gt;NOTI: lb://notification-service (via Eureka)
+    NOTI-&gt;&gt;DB: count unread for X-User-Id
+    NOTI--&gt;&gt;UI: badge number
+    U-&gt;&gt;UI: open bell
+    UI-&gt;&gt;NX: GET /api/v1/notifications
+    NX-&gt;&gt;GW: proxy, Host header kept
+    GW-&gt;&gt;GW: Tenant from Host, verify JWT + tenant claim, add X-User-* headers
+    GW-&gt;&gt;NOTI: lb://notification-service (via Eureka)
+    NOTI--&gt;&gt;UI: list
+    U-&gt;&gt;UI: click one
+    UI-&gt;&gt;NOTI: PUT /notifications/{id}/read  (or /read-all, DELETE /{id})</pre></div>
+  <div class="res"><b>Result:</b> Badge clears. Notifications come from Kafka events and admin announcements.</div>
+  
+  
+</article>
+<article class="card" id="ticket" data-text="raise a support ticket any logged-in user /support  (services/supportapi.ts) create ticket, then chat in its thread ticket shows in the admin support queue. reporter cannot resolve it themselves. ui nx post /api/v1/support/tickets nx gw proxy, host header kept gw gw tenant from host, verify jwt + tenant claim, add x-user-* headers gw sup lb://support-service (via eureka) sup db insert ticket open (civil_engineer_support_&lt;tenant&gt;) sup kf publish audit.events (ticket created) sup ui ticket u ui reply ui sup post /support/tickets/{id}/messages ui sup get /support/tickets/{id}/messages (thread)">
+  <header><h3>Raise a support ticket</h3><span class="who">Any logged-in user</span></header>
+  <dl class="meta">
+    <div><dt>Screen</dt><dd><code>/support  (services/supportApi.ts)</code></dd></div>
+    <div><dt>Trigger</dt><dd>Create ticket, then chat in its thread</dd></div>
+  </dl>
+  <div class="tabs"><button class="on" data-v="steps">Steps</button><button data-v="diagram">Diagram</button></div>
+  <div class="view steps"><div class="tw"><table><thead><tr><th>#</th><th>From</th><th>To</th><th>What happens</th></tr></thead><tbody><tr><td class="n">1</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag edge">Frontend nginx :3000</span></td><td>POST /api/v1/support/tickets</td></tr><tr><td class="n">2</td><td><span class="tag edge">Frontend nginx :3000</span></td><td><span class="arr">→</span> <span class="tag gw">API Gateway :8080</span></td><td>proxy, Host header kept</td></tr><tr><td class="n">3</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">↺</span> <span class="tag gw">API Gateway :8080</span></td><td>Tenant from Host, verify JWT + tenant claim, add X-User-* headers</td></tr><tr><td class="n">4</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">→</span> <span class="tag svc">support-service</span></td><td>lb://support-service (via Eureka)</td></tr><tr><td class="n">5</td><td><span class="tag svc">support-service</span></td><td><span class="arr">→</span> <span class="tag data">MySQL</span></td><td>INSERT ticket OPEN (civil_engineer_support_&lt;tenant&gt;)</td></tr><tr><td class="n">6</td><td><span class="tag svc">support-service</span></td><td><span class="arr">→</span> <span class="tag bus">Kafka</span></td><td>publish audit.events (ticket created)</td></tr><tr><td class="n">7</td><td><span class="tag svc">support-service</span></td><td><span class="arr">→</span> <span class="tag ui">React UI</span></td><td>ticket</td></tr><tr><td class="n">8</td><td><span class="tag user">User</span></td><td><span class="arr">→</span> <span class="tag ui">React UI</span></td><td>reply</td></tr><tr><td class="n">9</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag svc">support-service</span></td><td>POST /support/tickets/{id}/messages</td></tr><tr><td class="n">10</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag svc">support-service</span></td><td>GET /support/tickets/{id}/messages (thread)</td></tr></tbody></table></div></div>
+  <div class="view diagram" hidden><pre class="mermaid">sequenceDiagram
+    autonumber
+    participant UI as React UI
+    participant NX as Frontend nginx :3000
+    participant GW as API Gateway :8080
+    participant SUP as support-service
+    participant DB as MySQL
+    participant KF as Kafka
+    actor U as User
+    UI-&gt;&gt;NX: POST /api/v1/support/tickets
+    NX-&gt;&gt;GW: proxy, Host header kept
+    GW-&gt;&gt;GW: Tenant from Host, verify JWT + tenant claim, add X-User-* headers
+    GW-&gt;&gt;SUP: lb://support-service (via Eureka)
+    SUP-&gt;&gt;DB: INSERT ticket OPEN (civil_engineer_support_‹tenant›)
+    SUP-&gt;&gt;KF: publish audit.events (ticket created)
+    SUP--&gt;&gt;UI: ticket
+    U-&gt;&gt;UI: reply
+    UI-&gt;&gt;SUP: POST /support/tickets/{id}/messages
+    UI-&gt;&gt;SUP: GET /support/tickets/{id}/messages (thread)</pre></div>
+  <div class="res"><b>Result:</b> Ticket shows in the admin support queue. Reporter cannot resolve it themselves.</div>
+  <div class="err"><b>What can go wrong</b><ul><li>403 not your ticket</li><li>400 reply on a RESOLVED/CLOSED ticket</li></ul></div>
+  
+</article>
+<article class="card" id="askai" data-text="ask ai assistant any logged-in user floating chat widget  (components/supportchatwidget.tsx, services/aiapi.ts) open widget, type a question chat answer. if the key is missing, the widget says the assistant is unavailable and tickets still work. ui nx get /api/v1/support/ai/status nx gw proxy, host header kept gw gw tenant from host, verify jwt + tenant claim, add x-user-* headers gw sup lb://support-service (via eureka) sup ui enabled? (gemini_api_key set and ai_assistant_enabled) u ui ask question ui nx post /api/v1/support/ai/chat nx gw proxy, host header kept gw gw tenant from host, verify jwt + tenant claim, add x-user-* headers gw sup lb://support-service (via eureka) sup gem prompt to gemini_model alt 503 high demand / 404 retired model sup gem retry with gemini_fallback_models in order end sup ui answer">
+  <header><h3>Ask AI assistant</h3><span class="who">Any logged-in user</span></header>
+  <dl class="meta">
+    <div><dt>Screen</dt><dd><code>Floating chat widget  (components/SupportChatWidget.tsx, services/aiApi.ts)</code></dd></div>
+    <div><dt>Trigger</dt><dd>Open widget, type a question</dd></div>
+  </dl>
+  <div class="tabs"><button class="on" data-v="steps">Steps</button><button data-v="diagram">Diagram</button></div>
+  <div class="view steps"><div class="tw"><table><thead><tr><th>#</th><th>From</th><th>To</th><th>What happens</th></tr></thead><tbody><tr><td class="n">1</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag edge">Frontend nginx :3000</span></td><td>GET /api/v1/support/ai/status</td></tr><tr><td class="n">2</td><td><span class="tag edge">Frontend nginx :3000</span></td><td><span class="arr">→</span> <span class="tag gw">API Gateway :8080</span></td><td>proxy, Host header kept</td></tr><tr><td class="n">3</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">↺</span> <span class="tag gw">API Gateway :8080</span></td><td>Tenant from Host, verify JWT + tenant claim, add X-User-* headers</td></tr><tr><td class="n">4</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">→</span> <span class="tag svc">support-service</span></td><td>lb://support-service (via Eureka)</td></tr><tr><td class="n">5</td><td><span class="tag svc">support-service</span></td><td><span class="arr">→</span> <span class="tag ui">React UI</span></td><td>enabled? (GEMINI_API_KEY set and AI_ASSISTANT_ENABLED)</td></tr><tr><td class="n">6</td><td><span class="tag user">User</span></td><td><span class="arr">→</span> <span class="tag ui">React UI</span></td><td>ask question</td></tr><tr><td class="n">7</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag edge">Frontend nginx :3000</span></td><td>POST /api/v1/support/ai/chat</td></tr><tr><td class="n">8</td><td><span class="tag edge">Frontend nginx :3000</span></td><td><span class="arr">→</span> <span class="tag gw">API Gateway :8080</span></td><td>proxy, Host header kept</td></tr><tr><td class="n">9</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">↺</span> <span class="tag gw">API Gateway :8080</span></td><td>Tenant from Host, verify JWT + tenant claim, add X-User-* headers</td></tr><tr><td class="n">10</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">→</span> <span class="tag svc">support-service</span></td><td>lb://support-service (via Eureka)</td></tr><tr><td class="n">11</td><td><span class="tag svc">support-service</span></td><td><span class="arr">→</span> <span class="tag ext">Google Gemini</span></td><td>prompt to GEMINI_MODEL</td></tr><tr><td class="n">12</td><td><span class="tag svc">support-service</span></td><td><span class="arr">→</span> <span class="tag ext">Google Gemini</span></td><td><span class="br">if 503 high demand / 404 retired model</span> retry with GEMINI_FALLBACK_MODELS in order</td></tr><tr><td class="n">13</td><td><span class="tag svc">support-service</span></td><td><span class="arr">→</span> <span class="tag ui">React UI</span></td><td>answer</td></tr></tbody></table></div></div>
+  <div class="view diagram" hidden><pre class="mermaid">sequenceDiagram
+    autonumber
+    participant UI as React UI
+    participant NX as Frontend nginx :3000
+    participant GW as API Gateway :8080
+    participant SUP as support-service
+    actor U as User
+    participant GEM as Google Gemini
+    UI-&gt;&gt;NX: GET /api/v1/support/ai/status
+    NX-&gt;&gt;GW: proxy, Host header kept
+    GW-&gt;&gt;GW: Tenant from Host, verify JWT + tenant claim, add X-User-* headers
+    GW-&gt;&gt;SUP: lb://support-service (via Eureka)
+    SUP--&gt;&gt;UI: enabled? (GEMINI_API_KEY set and AI_ASSISTANT_ENABLED)
+    U-&gt;&gt;UI: ask question
+    UI-&gt;&gt;NX: POST /api/v1/support/ai/chat
+    NX-&gt;&gt;GW: proxy, Host header kept
+    GW-&gt;&gt;GW: Tenant from Host, verify JWT + tenant claim, add X-User-* headers
+    GW-&gt;&gt;SUP: lb://support-service (via Eureka)
+    SUP-&gt;&gt;GEM: prompt to GEMINI_MODEL
+    alt 503 high demand / 404 retired model
+    SUP-&gt;&gt;GEM: retry with GEMINI_FALLBACK_MODELS in order
+    end
+    SUP--&gt;&gt;UI: answer</pre></div>
+  <div class="res"><b>Result:</b> Chat answer. If the key is missing, the widget says the assistant is unavailable and tickets still work.</div>
+  
+  <div class="nt"><b>Notes</b><ul><li>The Gemini key stays on the server (support-service). It is never a VITE_ variable.</li></ul></div>
+</article>
+<article class="card" id="appearance" data-text="change my appearance any logged-in user /settings/appearance pick colours / density / mode, save only this user&#x27;s view changes. admin/platform theme is unaffected. ui nx put /api/v1/ui-config/me/appearance nx gw proxy, host header kept gw gw tenant from host, verify jwt + tenant claim, add x-user-* headers gw adm lb://admin-service (via eureka) adm db save personal overrides adm ui new appearance ui ui rebuild mui theme, ui re-colours u ui &quot;reset&quot; ui adm delete /ui-config/me/appearance, back to the workspace theme">
+  <header><h3>Change my appearance</h3><span class="who">Any logged-in user</span></header>
+  <dl class="meta">
+    <div><dt>Screen</dt><dd><code>/settings/appearance</code></dd></div>
+    <div><dt>Trigger</dt><dd>Pick colours / density / mode, save</dd></div>
+  </dl>
+  <div class="tabs"><button class="on" data-v="steps">Steps</button><button data-v="diagram">Diagram</button></div>
+  <div class="view steps"><div class="tw"><table><thead><tr><th>#</th><th>From</th><th>To</th><th>What happens</th></tr></thead><tbody><tr><td class="n">1</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag edge">Frontend nginx :3000</span></td><td>PUT /api/v1/ui-config/me/appearance</td></tr><tr><td class="n">2</td><td><span class="tag edge">Frontend nginx :3000</span></td><td><span class="arr">→</span> <span class="tag gw">API Gateway :8080</span></td><td>proxy, Host header kept</td></tr><tr><td class="n">3</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">↺</span> <span class="tag gw">API Gateway :8080</span></td><td>Tenant from Host, verify JWT + tenant claim, add X-User-* headers</td></tr><tr><td class="n">4</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">→</span> <span class="tag svc">admin-service</span></td><td>lb://admin-service (via Eureka)</td></tr><tr><td class="n">5</td><td><span class="tag svc">admin-service</span></td><td><span class="arr">→</span> <span class="tag data">MySQL</span></td><td>save personal overrides</td></tr><tr><td class="n">6</td><td><span class="tag svc">admin-service</span></td><td><span class="arr">→</span> <span class="tag ui">React UI</span></td><td>new appearance</td></tr><tr><td class="n">7</td><td><span class="tag ui">React UI</span></td><td><span class="arr">↺</span> <span class="tag ui">React UI</span></td><td>rebuild MUI theme, UI re-colours</td></tr><tr><td class="n">8</td><td><span class="tag user">User</span></td><td><span class="arr">→</span> <span class="tag ui">React UI</span></td><td>&quot;Reset&quot;</td></tr><tr><td class="n">9</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag svc">admin-service</span></td><td>DELETE /ui-config/me/appearance, back to the workspace theme</td></tr></tbody></table></div></div>
+  <div class="view diagram" hidden><pre class="mermaid">sequenceDiagram
+    autonumber
+    participant UI as React UI
+    participant NX as Frontend nginx :3000
+    participant GW as API Gateway :8080
+    participant ADM as admin-service
+    participant DB as MySQL
+    actor U as User
+    UI-&gt;&gt;NX: PUT /api/v1/ui-config/me/appearance
+    NX-&gt;&gt;GW: proxy, Host header kept
+    GW-&gt;&gt;GW: Tenant from Host, verify JWT + tenant claim, add X-User-* headers
+    GW-&gt;&gt;ADM: lb://admin-service (via Eureka)
+    ADM-&gt;&gt;DB: save personal overrides
+    ADM--&gt;&gt;UI: new appearance
+    UI--&gt;&gt;UI: rebuild MUI theme, UI re-colours
+    U-&gt;&gt;UI: &#x27;Reset&#x27;
+    UI-&gt;&gt;ADM: DELETE /ui-config/me/appearance, back to the workspace theme</pre></div>
+  <div class="res"><b>Result:</b> Only this user&#x27;s view changes. Admin/platform theme is unaffected.</div>
+  
+  
+</article><h2 class="gh" data-group="Worker / provider">Worker / provider</h2>
+<article class="card" id="jobs" data-text="see my assigned jobs worker, engineer, architect, contractor... /dashboard, /track open dashboard / tracking worker sees jobs that an admin (or the flow) assigned with post /bookings/{id}/assign/{workerid}. ui nx get /api/v1/bookings/worker?page=0&amp;size=50 nx gw proxy, host header kept gw gw tenant from host, verify jwt + tenant claim, add x-user-* headers gw book lb://booking-service (via eureka) book db select bookings where worker_id = x-user-id book ui assigned jobs">
+  <header><h3>See my assigned jobs</h3><span class="who">Worker, engineer, architect, contractor...</span></header>
+  <dl class="meta">
+    <div><dt>Screen</dt><dd><code>/dashboard, /track</code></dd></div>
+    <div><dt>Trigger</dt><dd>Open dashboard / tracking</dd></div>
+  </dl>
+  <div class="tabs"><button class="on" data-v="steps">Steps</button><button data-v="diagram">Diagram</button></div>
+  <div class="view steps"><div class="tw"><table><thead><tr><th>#</th><th>From</th><th>To</th><th>What happens</th></tr></thead><tbody><tr><td class="n">1</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag edge">Frontend nginx :3000</span></td><td>GET /api/v1/bookings/worker?page=0&amp;size=50</td></tr><tr><td class="n">2</td><td><span class="tag edge">Frontend nginx :3000</span></td><td><span class="arr">→</span> <span class="tag gw">API Gateway :8080</span></td><td>proxy, Host header kept</td></tr><tr><td class="n">3</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">↺</span> <span class="tag gw">API Gateway :8080</span></td><td>Tenant from Host, verify JWT + tenant claim, add X-User-* headers</td></tr><tr><td class="n">4</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">→</span> <span class="tag svc">booking-service</span></td><td>lb://booking-service (via Eureka)</td></tr><tr><td class="n">5</td><td><span class="tag svc">booking-service</span></td><td><span class="arr">→</span> <span class="tag data">MySQL</span></td><td>SELECT bookings WHERE worker_id = X-User-Id</td></tr><tr><td class="n">6</td><td><span class="tag svc">booking-service</span></td><td><span class="arr">→</span> <span class="tag ui">React UI</span></td><td>assigned jobs</td></tr></tbody></table></div></div>
+  <div class="view diagram" hidden><pre class="mermaid">sequenceDiagram
+    autonumber
+    participant UI as React UI
+    participant NX as Frontend nginx :3000
+    participant GW as API Gateway :8080
+    participant BOOK as booking-service
+    participant DB as MySQL
+    UI-&gt;&gt;NX: GET /api/v1/bookings/worker?page=0&amp;size=50
+    NX-&gt;&gt;GW: proxy, Host header kept
+    GW-&gt;&gt;GW: Tenant from Host, verify JWT + tenant claim, add X-User-* headers
+    GW-&gt;&gt;BOOK: lb://booking-service (via Eureka)
+    BOOK-&gt;&gt;DB: SELECT bookings WHERE worker_id = X-User-Id
+    BOOK--&gt;&gt;UI: assigned jobs</pre></div>
+  <div class="res"><b>Result:</b> Worker sees jobs that an admin (or the flow) assigned with POST /bookings/{id}/assign/{workerId}.</div>
+  
+  
+</article>
+<article class="card" id="location" data-text="share live location assigned worker /track/:bookingid  (services/trackingapi.ts) worker&#x27;s browser sends gps position while travelling customer&#x27;s tracking page updates on its next poll. ui nx put /api/v1/bookings/{id}/tracking nx gw proxy, host header kept gw gw tenant from host, verify jwt + tenant claim, add x-user-* headers gw book lb://booking-service (via eureka) book book store position, compute eta + distance (traffic-aware if configured) book db save tracking point alt worker is close book kf publish booking.arriving kf noti notify customer &quot;your professional is arriving&quot; end book ui 200">
+  <header><h3>Share live location</h3><span class="who">Assigned worker</span></header>
+  <dl class="meta">
+    <div><dt>Screen</dt><dd><code>/track/:bookingId  (services/trackingApi.ts)</code></dd></div>
+    <div><dt>Trigger</dt><dd>Worker&#x27;s browser sends GPS position while travelling</dd></div>
+  </dl>
+  <div class="tabs"><button class="on" data-v="steps">Steps</button><button data-v="diagram">Diagram</button></div>
+  <div class="view steps"><div class="tw"><table><thead><tr><th>#</th><th>From</th><th>To</th><th>What happens</th></tr></thead><tbody><tr><td class="n">1</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag edge">Frontend nginx :3000</span></td><td>PUT /api/v1/bookings/{id}/tracking</td></tr><tr><td class="n">2</td><td><span class="tag edge">Frontend nginx :3000</span></td><td><span class="arr">→</span> <span class="tag gw">API Gateway :8080</span></td><td>proxy, Host header kept</td></tr><tr><td class="n">3</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">↺</span> <span class="tag gw">API Gateway :8080</span></td><td>Tenant from Host, verify JWT + tenant claim, add X-User-* headers</td></tr><tr><td class="n">4</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">→</span> <span class="tag svc">booking-service</span></td><td>lb://booking-service (via Eureka)</td></tr><tr><td class="n">5</td><td><span class="tag svc">booking-service</span></td><td><span class="arr">↺</span> <span class="tag svc">booking-service</span></td><td>store position, compute ETA + distance (traffic-aware if configured)</td></tr><tr><td class="n">6</td><td><span class="tag svc">booking-service</span></td><td><span class="arr">→</span> <span class="tag data">MySQL</span></td><td>save tracking point</td></tr><tr><td class="n">7</td><td><span class="tag svc">booking-service</span></td><td><span class="arr">→</span> <span class="tag bus">Kafka</span></td><td><span class="br">if worker is close</span> publish booking.arriving</td></tr><tr><td class="n">8</td><td><span class="tag bus">Kafka</span></td><td><span class="arr">→</span> <span class="tag svc">notification-service</span></td><td><span class="br">if worker is close</span> notify customer &quot;your professional is arriving&quot;</td></tr><tr><td class="n">9</td><td><span class="tag svc">booking-service</span></td><td><span class="arr">→</span> <span class="tag ui">React UI</span></td><td>200</td></tr></tbody></table></div></div>
+  <div class="view diagram" hidden><pre class="mermaid">sequenceDiagram
+    autonumber
+    participant UI as React UI
+    participant NX as Frontend nginx :3000
+    participant GW as API Gateway :8080
+    participant BOOK as booking-service
+    participant DB as MySQL
+    participant KF as Kafka
+    participant NOTI as notification-service
+    UI-&gt;&gt;NX: PUT /api/v1/bookings/{id}/tracking
+    NX-&gt;&gt;GW: proxy, Host header kept
+    GW-&gt;&gt;GW: Tenant from Host, verify JWT + tenant claim, add X-User-* headers
+    GW-&gt;&gt;BOOK: lb://booking-service (via Eureka)
+    BOOK-&gt;&gt;BOOK: store position, compute ETA + distance (traffic-aware if configured)
+    BOOK-&gt;&gt;DB: save tracking point
+    alt worker is close
+    BOOK-&gt;&gt;KF: publish booking.arriving
+    KF-&gt;&gt;NOTI: notify customer &#x27;your professional is arriving&#x27;
+    end
+    BOOK--&gt;&gt;UI: 200</pre></div>
+  <div class="res"><b>Result:</b> Customer&#x27;s tracking page updates on its next poll.</div>
+  
+  
+</article>
+<article class="card" id="status" data-text="update job status / complete worker or admin api (booking-service) start work, then mark complete booking completed. both sides can now leave a review. cancel: post /bookings/{id}/cancel. ui nx put /api/v1/bookings/{id}/status/in_progress nx gw proxy, host header kept gw gw tenant from host, verify jwt + tenant claim, add x-user-* headers gw book lb://booking-service (via eureka) book db status in_progress ui nx post /api/v1/bookings/{id}/complete nx gw proxy, host header kept gw gw tenant from host, verify jwt + tenant claim, add x-user-* headers gw book lb://booking-service (via eureka) book db status completed book kf publish booking.completed kf noti notify customer, ask for a review book ui 200">
+  <header><h3>Update job status / complete</h3><span class="who">Worker or admin</span></header>
+  <dl class="meta">
+    <div><dt>Screen</dt><dd><code>API (booking-service)</code></dd></div>
+    <div><dt>Trigger</dt><dd>Start work, then mark complete</dd></div>
+  </dl>
+  <div class="tabs"><button class="on" data-v="steps">Steps</button><button data-v="diagram">Diagram</button></div>
+  <div class="view steps"><div class="tw"><table><thead><tr><th>#</th><th>From</th><th>To</th><th>What happens</th></tr></thead><tbody><tr><td class="n">1</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag edge">Frontend nginx :3000</span></td><td>PUT /api/v1/bookings/{id}/status/IN_PROGRESS</td></tr><tr><td class="n">2</td><td><span class="tag edge">Frontend nginx :3000</span></td><td><span class="arr">→</span> <span class="tag gw">API Gateway :8080</span></td><td>proxy, Host header kept</td></tr><tr><td class="n">3</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">↺</span> <span class="tag gw">API Gateway :8080</span></td><td>Tenant from Host, verify JWT + tenant claim, add X-User-* headers</td></tr><tr><td class="n">4</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">→</span> <span class="tag svc">booking-service</span></td><td>lb://booking-service (via Eureka)</td></tr><tr><td class="n">5</td><td><span class="tag svc">booking-service</span></td><td><span class="arr">→</span> <span class="tag data">MySQL</span></td><td>status IN_PROGRESS</td></tr><tr><td class="n">6</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag edge">Frontend nginx :3000</span></td><td>POST /api/v1/bookings/{id}/complete</td></tr><tr><td class="n">7</td><td><span class="tag edge">Frontend nginx :3000</span></td><td><span class="arr">→</span> <span class="tag gw">API Gateway :8080</span></td><td>proxy, Host header kept</td></tr><tr><td class="n">8</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">↺</span> <span class="tag gw">API Gateway :8080</span></td><td>Tenant from Host, verify JWT + tenant claim, add X-User-* headers</td></tr><tr><td class="n">9</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">→</span> <span class="tag svc">booking-service</span></td><td>lb://booking-service (via Eureka)</td></tr><tr><td class="n">10</td><td><span class="tag svc">booking-service</span></td><td><span class="arr">→</span> <span class="tag data">MySQL</span></td><td>status COMPLETED</td></tr><tr><td class="n">11</td><td><span class="tag svc">booking-service</span></td><td><span class="arr">→</span> <span class="tag bus">Kafka</span></td><td>publish booking.completed</td></tr><tr><td class="n">12</td><td><span class="tag bus">Kafka</span></td><td><span class="arr">→</span> <span class="tag svc">notification-service</span></td><td>notify customer, ask for a review</td></tr><tr><td class="n">13</td><td><span class="tag svc">booking-service</span></td><td><span class="arr">→</span> <span class="tag ui">React UI</span></td><td>200</td></tr></tbody></table></div></div>
+  <div class="view diagram" hidden><pre class="mermaid">sequenceDiagram
+    autonumber
+    participant UI as React UI
+    participant NX as Frontend nginx :3000
+    participant GW as API Gateway :8080
+    participant BOOK as booking-service
+    participant DB as MySQL
+    participant KF as Kafka
+    participant NOTI as notification-service
+    UI-&gt;&gt;NX: PUT /api/v1/bookings/{id}/status/IN_PROGRESS
+    NX-&gt;&gt;GW: proxy, Host header kept
+    GW-&gt;&gt;GW: Tenant from Host, verify JWT + tenant claim, add X-User-* headers
+    GW-&gt;&gt;BOOK: lb://booking-service (via Eureka)
+    BOOK-&gt;&gt;DB: status IN_PROGRESS
+    UI-&gt;&gt;NX: POST /api/v1/bookings/{id}/complete
+    NX-&gt;&gt;GW: proxy, Host header kept
+    GW-&gt;&gt;GW: Tenant from Host, verify JWT + tenant claim, add X-User-* headers
+    GW-&gt;&gt;BOOK: lb://booking-service (via Eureka)
+    BOOK-&gt;&gt;DB: status COMPLETED
+    BOOK-&gt;&gt;KF: publish booking.completed
+    KF-&gt;&gt;NOTI: notify customer, ask for a review
+    BOOK--&gt;&gt;UI: 200</pre></div>
+  <div class="res"><b>Result:</b> Booking COMPLETED. Both sides can now leave a review. Cancel: POST /bookings/{id}/cancel.</div>
+  
+  
+</article>
+<article class="card" id="materials" data-text="supplier: publish material prices material supplier /material-prices  (services/materialapi.ts) add / edit / delete a price supplier prices feed the market rate ranges shown to users (and the ai site-rates context). ui nx get /api/v1/users/materials/catalogue nx gw proxy, host header kept gw gw tenant from host, verify jwt + tenant claim, add x-user-* headers gw user lb://user-service (via eureka) user ui material list ui nx post /api/v1/users/materials/my-prices nx gw proxy, host header kept gw gw tenant from host, verify jwt + tenant claim, add x-user-* headers gw user lb://user-service (via eureka) user db save supplier price (put / delete /my-prices/{id} to change) user ui saved ui user get /users/materials/rates (market min / max ranges)">
+  <header><h3>Supplier: publish material prices</h3><span class="who">Material supplier</span></header>
+  <dl class="meta">
+    <div><dt>Screen</dt><dd><code>/material-prices  (services/materialApi.ts)</code></dd></div>
+    <div><dt>Trigger</dt><dd>Add / edit / delete a price</dd></div>
+  </dl>
+  <div class="tabs"><button class="on" data-v="steps">Steps</button><button data-v="diagram">Diagram</button></div>
+  <div class="view steps"><div class="tw"><table><thead><tr><th>#</th><th>From</th><th>To</th><th>What happens</th></tr></thead><tbody><tr><td class="n">1</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag edge">Frontend nginx :3000</span></td><td>GET /api/v1/users/materials/catalogue</td></tr><tr><td class="n">2</td><td><span class="tag edge">Frontend nginx :3000</span></td><td><span class="arr">→</span> <span class="tag gw">API Gateway :8080</span></td><td>proxy, Host header kept</td></tr><tr><td class="n">3</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">↺</span> <span class="tag gw">API Gateway :8080</span></td><td>Tenant from Host, verify JWT + tenant claim, add X-User-* headers</td></tr><tr><td class="n">4</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">→</span> <span class="tag svc">user-service</span></td><td>lb://user-service (via Eureka)</td></tr><tr><td class="n">5</td><td><span class="tag svc">user-service</span></td><td><span class="arr">→</span> <span class="tag ui">React UI</span></td><td>material list</td></tr><tr><td class="n">6</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag edge">Frontend nginx :3000</span></td><td>POST /api/v1/users/materials/my-prices</td></tr><tr><td class="n">7</td><td><span class="tag edge">Frontend nginx :3000</span></td><td><span class="arr">→</span> <span class="tag gw">API Gateway :8080</span></td><td>proxy, Host header kept</td></tr><tr><td class="n">8</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">↺</span> <span class="tag gw">API Gateway :8080</span></td><td>Tenant from Host, verify JWT + tenant claim, add X-User-* headers</td></tr><tr><td class="n">9</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">→</span> <span class="tag svc">user-service</span></td><td>lb://user-service (via Eureka)</td></tr><tr><td class="n">10</td><td><span class="tag svc">user-service</span></td><td><span class="arr">→</span> <span class="tag data">MySQL</span></td><td>save supplier price (PUT / DELETE /my-prices/{id} to change)</td></tr><tr><td class="n">11</td><td><span class="tag svc">user-service</span></td><td><span class="arr">→</span> <span class="tag ui">React UI</span></td><td>saved</td></tr><tr><td class="n">12</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag svc">user-service</span></td><td>GET /users/materials/rates (market min / max ranges)</td></tr></tbody></table></div></div>
+  <div class="view diagram" hidden><pre class="mermaid">sequenceDiagram
+    autonumber
+    participant UI as React UI
+    participant NX as Frontend nginx :3000
+    participant GW as API Gateway :8080
+    participant USER as user-service
+    participant DB as MySQL
+    UI-&gt;&gt;NX: GET /api/v1/users/materials/catalogue
+    NX-&gt;&gt;GW: proxy, Host header kept
+    GW-&gt;&gt;GW: Tenant from Host, verify JWT + tenant claim, add X-User-* headers
+    GW-&gt;&gt;USER: lb://user-service (via Eureka)
+    USER--&gt;&gt;UI: material list
+    UI-&gt;&gt;NX: POST /api/v1/users/materials/my-prices
+    NX-&gt;&gt;GW: proxy, Host header kept
+    GW-&gt;&gt;GW: Tenant from Host, verify JWT + tenant claim, add X-User-* headers
+    GW-&gt;&gt;USER: lb://user-service (via Eureka)
+    USER-&gt;&gt;DB: save supplier price (PUT / DELETE /my-prices/{id} to change)
+    USER--&gt;&gt;UI: saved
+    UI-&gt;&gt;USER: GET /users/materials/rates (market min / max ranges)</pre></div>
+  <div class="res"><b>Result:</b> Supplier prices feed the market rate ranges shown to users (and the AI site-rates context).</div>
+  
+  
+</article><h2 class="gh" data-group="Admin">Admin</h2>
+<article class="card" id="admindash" data-text="admin dashboard admin / super_admin /admin  (pages/admin/admindashboard.tsx, services/adminapi.ts) open /admin kpi cards and charts. admin-service is an aggregator; the data lives in the other services. ui nx get /api/v1/admin/dashboard/stats nx gw proxy, host header kept gw gw tenant from host, verify jwt + tenant claim, add x-user-* headers gw adm lb://admin-service (via eureka) adm adm check x-user-role is an admin role adm auth feign: /api/v1/auth/admin/stats (user counts) adm book feign: /api/v1/bookings/admin/stats adm pay feign: /api/v1/payments/admin/revenue/summary adm ui stats, /dashboard/activity, /dashboard/cities">
+  <header><h3>Admin dashboard</h3><span class="who">ADMIN / SUPER_ADMIN</span></header>
+  <dl class="meta">
+    <div><dt>Screen</dt><dd><code>/admin  (pages/admin/AdminDashboard.tsx, services/adminApi.ts)</code></dd></div>
+    <div><dt>Trigger</dt><dd>Open /admin</dd></div>
+  </dl>
+  <div class="tabs"><button class="on" data-v="steps">Steps</button><button data-v="diagram">Diagram</button></div>
+  <div class="view steps"><div class="tw"><table><thead><tr><th>#</th><th>From</th><th>To</th><th>What happens</th></tr></thead><tbody><tr><td class="n">1</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag edge">Frontend nginx :3000</span></td><td>GET /api/v1/admin/dashboard/stats</td></tr><tr><td class="n">2</td><td><span class="tag edge">Frontend nginx :3000</span></td><td><span class="arr">→</span> <span class="tag gw">API Gateway :8080</span></td><td>proxy, Host header kept</td></tr><tr><td class="n">3</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">↺</span> <span class="tag gw">API Gateway :8080</span></td><td>Tenant from Host, verify JWT + tenant claim, add X-User-* headers</td></tr><tr><td class="n">4</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">→</span> <span class="tag svc">admin-service</span></td><td>lb://admin-service (via Eureka)</td></tr><tr><td class="n">5</td><td><span class="tag svc">admin-service</span></td><td><span class="arr">↺</span> <span class="tag svc">admin-service</span></td><td>check X-User-Role is an admin role</td></tr><tr><td class="n">6</td><td><span class="tag svc">admin-service</span></td><td><span class="arr">→</span> <span class="tag svc">auth-service</span></td><td>Feign: /api/v1/auth/admin/stats (user counts)</td></tr><tr><td class="n">7</td><td><span class="tag svc">admin-service</span></td><td><span class="arr">→</span> <span class="tag svc">booking-service</span></td><td>Feign: /api/v1/bookings/admin/stats</td></tr><tr><td class="n">8</td><td><span class="tag svc">admin-service</span></td><td><span class="arr">→</span> <span class="tag svc">payment-service</span></td><td>Feign: /api/v1/payments/admin/revenue/summary</td></tr><tr><td class="n">9</td><td><span class="tag svc">admin-service</span></td><td><span class="arr">→</span> <span class="tag ui">React UI</span></td><td>stats, /dashboard/activity, /dashboard/cities</td></tr></tbody></table></div></div>
+  <div class="view diagram" hidden><pre class="mermaid">sequenceDiagram
+    autonumber
+    participant UI as React UI
+    participant NX as Frontend nginx :3000
+    participant GW as API Gateway :8080
+    participant ADM as admin-service
+    participant AUTH as auth-service
+    participant BOOK as booking-service
+    participant PAY as payment-service
+    UI-&gt;&gt;NX: GET /api/v1/admin/dashboard/stats
+    NX-&gt;&gt;GW: proxy, Host header kept
+    GW-&gt;&gt;GW: Tenant from Host, verify JWT + tenant claim, add X-User-* headers
+    GW-&gt;&gt;ADM: lb://admin-service (via Eureka)
+    ADM-&gt;&gt;ADM: check X-User-Role is an admin role
+    ADM-&gt;&gt;AUTH: Feign: /api/v1/auth/admin/stats (user counts)
+    ADM-&gt;&gt;BOOK: Feign: /api/v1/bookings/admin/stats
+    ADM-&gt;&gt;PAY: Feign: /api/v1/payments/admin/revenue/summary
+    ADM--&gt;&gt;UI: stats, /dashboard/activity, /dashboard/cities</pre></div>
+  <div class="res"><b>Result:</b> KPI cards and charts. admin-service is an aggregator; the data lives in the other services.</div>
+  <div class="err"><b>What can go wrong</b><ul><li>403 role is not admin</li></ul></div>
+  <div class="nt"><b>Notes</b><ul><li>The internal paths (/api/v1/auth/admin, /api/v1/bookings/admin) are blocked at the gateway by InternalOnlyPathFilter, so only admin-service can call them, from inside Docker.</li></ul></div>
+</article>
+<article class="card" id="users" data-text="manage users admin / super_admin /admin/users  (usermanagement) search, edit, suspend or delete a user suspended users can no longer log in. ui nx get /api/v1/admin/users?search=.. nx gw proxy, host header kept gw gw tenant from host, verify jwt + tenant claim, add x-user-* headers gw adm lb://admin-service (via eureka) adm auth feign: get /api/v1/auth/admin/users auth db query users adm ui user table u ui suspend ui nx put /api/v1/admin/users/{id}/status nx gw proxy, host header kept gw gw tenant from host, verify jwt + tenant claim, add x-user-* headers gw adm lb://admin-service (via eureka) adm auth feign: put /api/v1/auth/admin/users/{id}/status auth db status suspended adm ui updated row">
+  <header><h3>Manage users</h3><span class="who">ADMIN / SUPER_ADMIN</span></header>
+  <dl class="meta">
+    <div><dt>Screen</dt><dd><code>/admin/users  (UserManagement)</code></dd></div>
+    <div><dt>Trigger</dt><dd>Search, edit, suspend or delete a user</dd></div>
+  </dl>
+  <div class="tabs"><button class="on" data-v="steps">Steps</button><button data-v="diagram">Diagram</button></div>
+  <div class="view steps"><div class="tw"><table><thead><tr><th>#</th><th>From</th><th>To</th><th>What happens</th></tr></thead><tbody><tr><td class="n">1</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag edge">Frontend nginx :3000</span></td><td>GET /api/v1/admin/users?search=..</td></tr><tr><td class="n">2</td><td><span class="tag edge">Frontend nginx :3000</span></td><td><span class="arr">→</span> <span class="tag gw">API Gateway :8080</span></td><td>proxy, Host header kept</td></tr><tr><td class="n">3</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">↺</span> <span class="tag gw">API Gateway :8080</span></td><td>Tenant from Host, verify JWT + tenant claim, add X-User-* headers</td></tr><tr><td class="n">4</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">→</span> <span class="tag svc">admin-service</span></td><td>lb://admin-service (via Eureka)</td></tr><tr><td class="n">5</td><td><span class="tag svc">admin-service</span></td><td><span class="arr">→</span> <span class="tag svc">auth-service</span></td><td>Feign: GET /api/v1/auth/admin/users</td></tr><tr><td class="n">6</td><td><span class="tag svc">auth-service</span></td><td><span class="arr">→</span> <span class="tag data">MySQL</span></td><td>query users</td></tr><tr><td class="n">7</td><td><span class="tag svc">admin-service</span></td><td><span class="arr">→</span> <span class="tag ui">React UI</span></td><td>user table</td></tr><tr><td class="n">8</td><td><span class="tag user">User</span></td><td><span class="arr">→</span> <span class="tag ui">React UI</span></td><td>suspend</td></tr><tr><td class="n">9</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag edge">Frontend nginx :3000</span></td><td>PUT /api/v1/admin/users/{id}/status</td></tr><tr><td class="n">10</td><td><span class="tag edge">Frontend nginx :3000</span></td><td><span class="arr">→</span> <span class="tag gw">API Gateway :8080</span></td><td>proxy, Host header kept</td></tr><tr><td class="n">11</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">↺</span> <span class="tag gw">API Gateway :8080</span></td><td>Tenant from Host, verify JWT + tenant claim, add X-User-* headers</td></tr><tr><td class="n">12</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">→</span> <span class="tag svc">admin-service</span></td><td>lb://admin-service (via Eureka)</td></tr><tr><td class="n">13</td><td><span class="tag svc">admin-service</span></td><td><span class="arr">→</span> <span class="tag svc">auth-service</span></td><td>Feign: PUT /api/v1/auth/admin/users/{id}/status</td></tr><tr><td class="n">14</td><td><span class="tag svc">auth-service</span></td><td><span class="arr">→</span> <span class="tag data">MySQL</span></td><td>status SUSPENDED</td></tr><tr><td class="n">15</td><td><span class="tag svc">admin-service</span></td><td><span class="arr">→</span> <span class="tag ui">React UI</span></td><td>updated row</td></tr></tbody></table></div></div>
+  <div class="view diagram" hidden><pre class="mermaid">sequenceDiagram
+    autonumber
+    participant UI as React UI
+    participant NX as Frontend nginx :3000
+    participant GW as API Gateway :8080
+    participant ADM as admin-service
+    participant AUTH as auth-service
+    participant DB as MySQL
+    actor U as User
+    UI-&gt;&gt;NX: GET /api/v1/admin/users?search=..
+    NX-&gt;&gt;GW: proxy, Host header kept
+    GW-&gt;&gt;GW: Tenant from Host, verify JWT + tenant claim, add X-User-* headers
+    GW-&gt;&gt;ADM: lb://admin-service (via Eureka)
+    ADM-&gt;&gt;AUTH: Feign: GET /api/v1/auth/admin/users
+    AUTH-&gt;&gt;DB: query users
+    ADM--&gt;&gt;UI: user table
+    U-&gt;&gt;UI: suspend
+    UI-&gt;&gt;NX: PUT /api/v1/admin/users/{id}/status
+    NX-&gt;&gt;GW: proxy, Host header kept
+    GW-&gt;&gt;GW: Tenant from Host, verify JWT + tenant claim, add X-User-* headers
+    GW-&gt;&gt;ADM: lb://admin-service (via Eureka)
+    ADM-&gt;&gt;AUTH: Feign: PUT /api/v1/auth/admin/users/{id}/status
+    AUTH-&gt;&gt;DB: status SUSPENDED
+    ADM--&gt;&gt;UI: updated row</pre></div>
+  <div class="res"><b>Result:</b> Suspended users can no longer log in.</div>
+  
+  
+</article>
+<article class="card" id="catalogue" data-text="manage categories and services admin /admin/categories  (categorymanagement) create / edit / toggle a category or service public catalogue (/catalogue) shows the change immediately. ui nx post /api/v1/admin/categories nx gw proxy, host header kept gw gw tenant from host, verify jwt + tenant claim, add x-user-* headers gw adm lb://admin-service (via eureka) adm book feign: post /api/v1/bookings/admin/categories book db save category adm ui saved ui adm post /admin/services, put /admin/services/{id}/status adm book feign: /api/v1/bookings/admin/services">
+  <header><h3>Manage categories and services</h3><span class="who">ADMIN</span></header>
+  <dl class="meta">
+    <div><dt>Screen</dt><dd><code>/admin/categories  (CategoryManagement)</code></dd></div>
+    <div><dt>Trigger</dt><dd>Create / edit / toggle a category or service</dd></div>
+  </dl>
+  <div class="tabs"><button class="on" data-v="steps">Steps</button><button data-v="diagram">Diagram</button></div>
+  <div class="view steps"><div class="tw"><table><thead><tr><th>#</th><th>From</th><th>To</th><th>What happens</th></tr></thead><tbody><tr><td class="n">1</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag edge">Frontend nginx :3000</span></td><td>POST /api/v1/admin/categories</td></tr><tr><td class="n">2</td><td><span class="tag edge">Frontend nginx :3000</span></td><td><span class="arr">→</span> <span class="tag gw">API Gateway :8080</span></td><td>proxy, Host header kept</td></tr><tr><td class="n">3</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">↺</span> <span class="tag gw">API Gateway :8080</span></td><td>Tenant from Host, verify JWT + tenant claim, add X-User-* headers</td></tr><tr><td class="n">4</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">→</span> <span class="tag svc">admin-service</span></td><td>lb://admin-service (via Eureka)</td></tr><tr><td class="n">5</td><td><span class="tag svc">admin-service</span></td><td><span class="arr">→</span> <span class="tag svc">booking-service</span></td><td>Feign: POST /api/v1/bookings/admin/categories</td></tr><tr><td class="n">6</td><td><span class="tag svc">booking-service</span></td><td><span class="arr">→</span> <span class="tag data">MySQL</span></td><td>save category</td></tr><tr><td class="n">7</td><td><span class="tag svc">admin-service</span></td><td><span class="arr">→</span> <span class="tag ui">React UI</span></td><td>saved</td></tr><tr><td class="n">8</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag svc">admin-service</span></td><td>POST /admin/services, PUT /admin/services/{id}/status</td></tr><tr><td class="n">9</td><td><span class="tag svc">admin-service</span></td><td><span class="arr">→</span> <span class="tag svc">booking-service</span></td><td>Feign: /api/v1/bookings/admin/services</td></tr></tbody></table></div></div>
+  <div class="view diagram" hidden><pre class="mermaid">sequenceDiagram
+    autonumber
+    participant UI as React UI
+    participant NX as Frontend nginx :3000
+    participant GW as API Gateway :8080
+    participant ADM as admin-service
+    participant BOOK as booking-service
+    participant DB as MySQL
+    UI-&gt;&gt;NX: POST /api/v1/admin/categories
+    NX-&gt;&gt;GW: proxy, Host header kept
+    GW-&gt;&gt;GW: Tenant from Host, verify JWT + tenant claim, add X-User-* headers
+    GW-&gt;&gt;ADM: lb://admin-service (via Eureka)
+    ADM-&gt;&gt;BOOK: Feign: POST /api/v1/bookings/admin/categories
+    BOOK-&gt;&gt;DB: save category
+    ADM--&gt;&gt;UI: saved
+    UI-&gt;&gt;ADM: POST /admin/services, PUT /admin/services/{id}/status
+    ADM-&gt;&gt;BOOK: Feign: /api/v1/bookings/admin/services</pre></div>
+  <div class="res"><b>Result:</b> Public catalogue (/catalogue) shows the change immediately.</div>
+  
+  
+</article>
+<article class="card" id="adminbookings" data-text="manage bookings admin /admin/bookings  (bookingmanagement) filter, change status, complete or cancel booking changes are visible to customer and worker. ui nx get /api/v1/admin/bookings?status=.. nx gw proxy, host header kept gw gw tenant from host, verify jwt + tenant claim, add x-user-* headers gw adm lb://admin-service (via eureka) adm book feign: get /api/v1/bookings/admin/all adm ui bookings table ui adm put /admin/bookings/{id}/status, post .../complete, post .../cancel adm book feign: same under /api/v1/bookings/admin/.. book kf booking.completed when completed">
+  <header><h3>Manage bookings</h3><span class="who">ADMIN</span></header>
+  <dl class="meta">
+    <div><dt>Screen</dt><dd><code>/admin/bookings  (BookingManagement)</code></dd></div>
+    <div><dt>Trigger</dt><dd>Filter, change status, complete or cancel</dd></div>
+  </dl>
+  <div class="tabs"><button class="on" data-v="steps">Steps</button><button data-v="diagram">Diagram</button></div>
+  <div class="view steps"><div class="tw"><table><thead><tr><th>#</th><th>From</th><th>To</th><th>What happens</th></tr></thead><tbody><tr><td class="n">1</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag edge">Frontend nginx :3000</span></td><td>GET /api/v1/admin/bookings?status=..</td></tr><tr><td class="n">2</td><td><span class="tag edge">Frontend nginx :3000</span></td><td><span class="arr">→</span> <span class="tag gw">API Gateway :8080</span></td><td>proxy, Host header kept</td></tr><tr><td class="n">3</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">↺</span> <span class="tag gw">API Gateway :8080</span></td><td>Tenant from Host, verify JWT + tenant claim, add X-User-* headers</td></tr><tr><td class="n">4</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">→</span> <span class="tag svc">admin-service</span></td><td>lb://admin-service (via Eureka)</td></tr><tr><td class="n">5</td><td><span class="tag svc">admin-service</span></td><td><span class="arr">→</span> <span class="tag svc">booking-service</span></td><td>Feign: GET /api/v1/bookings/admin/all</td></tr><tr><td class="n">6</td><td><span class="tag svc">admin-service</span></td><td><span class="arr">→</span> <span class="tag ui">React UI</span></td><td>bookings table</td></tr><tr><td class="n">7</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag svc">admin-service</span></td><td>PUT /admin/bookings/{id}/status, POST .../complete, POST .../cancel</td></tr><tr><td class="n">8</td><td><span class="tag svc">admin-service</span></td><td><span class="arr">→</span> <span class="tag svc">booking-service</span></td><td>Feign: same under /api/v1/bookings/admin/..</td></tr><tr><td class="n">9</td><td><span class="tag svc">booking-service</span></td><td><span class="arr">→</span> <span class="tag bus">Kafka</span></td><td>booking.completed when completed</td></tr></tbody></table></div></div>
+  <div class="view diagram" hidden><pre class="mermaid">sequenceDiagram
+    autonumber
+    participant UI as React UI
+    participant NX as Frontend nginx :3000
+    participant GW as API Gateway :8080
+    participant ADM as admin-service
+    participant BOOK as booking-service
+    participant KF as Kafka
+    UI-&gt;&gt;NX: GET /api/v1/admin/bookings?status=..
+    NX-&gt;&gt;GW: proxy, Host header kept
+    GW-&gt;&gt;GW: Tenant from Host, verify JWT + tenant claim, add X-User-* headers
+    GW-&gt;&gt;ADM: lb://admin-service (via Eureka)
+    ADM-&gt;&gt;BOOK: Feign: GET /api/v1/bookings/admin/all
+    ADM--&gt;&gt;UI: bookings table
+    UI-&gt;&gt;ADM: PUT /admin/bookings/{id}/status, POST .../complete, POST .../cancel
+    ADM-&gt;&gt;BOOK: Feign: same under /api/v1/bookings/admin/..
+    BOOK-&gt;&gt;KF: booking.completed when completed</pre></div>
+  <div class="res"><b>Result:</b> Booking changes are visible to customer and worker.</div>
+  
+  
+</article>
+<article class="card" id="revenue" data-text="revenue, analytics, reports, invoices admin /admin/revenue, /admin/analytics, /admin/reports, /admin/invoices open page / export charts and downloadable reports. ui nx get /api/v1/admin/analytics nx gw proxy, host header kept gw gw tenant from host, verify jwt + tenant claim, add x-user-* headers gw adm lb://admin-service (via eureka) adm pay feign: /api/v1/payments/admin/revenue/(summary|monthly|breakdown|transactions) adm book feign: booking stats adm ui charts u ui export report ui adm get /admin/reports/{key}/export (file download, blob)">
+  <header><h3>Revenue, analytics, reports, invoices</h3><span class="who">ADMIN</span></header>
+  <dl class="meta">
+    <div><dt>Screen</dt><dd><code>/admin/revenue, /admin/analytics, /admin/reports, /admin/invoices</code></dd></div>
+    <div><dt>Trigger</dt><dd>Open page / export</dd></div>
+  </dl>
+  <div class="tabs"><button class="on" data-v="steps">Steps</button><button data-v="diagram">Diagram</button></div>
+  <div class="view steps"><div class="tw"><table><thead><tr><th>#</th><th>From</th><th>To</th><th>What happens</th></tr></thead><tbody><tr><td class="n">1</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag edge">Frontend nginx :3000</span></td><td>GET /api/v1/admin/analytics</td></tr><tr><td class="n">2</td><td><span class="tag edge">Frontend nginx :3000</span></td><td><span class="arr">→</span> <span class="tag gw">API Gateway :8080</span></td><td>proxy, Host header kept</td></tr><tr><td class="n">3</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">↺</span> <span class="tag gw">API Gateway :8080</span></td><td>Tenant from Host, verify JWT + tenant claim, add X-User-* headers</td></tr><tr><td class="n">4</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">→</span> <span class="tag svc">admin-service</span></td><td>lb://admin-service (via Eureka)</td></tr><tr><td class="n">5</td><td><span class="tag svc">admin-service</span></td><td><span class="arr">→</span> <span class="tag svc">payment-service</span></td><td>Feign: /api/v1/payments/admin/revenue/(summary|monthly|breakdown|transactions)</td></tr><tr><td class="n">6</td><td><span class="tag svc">admin-service</span></td><td><span class="arr">→</span> <span class="tag svc">booking-service</span></td><td>Feign: booking stats</td></tr><tr><td class="n">7</td><td><span class="tag svc">admin-service</span></td><td><span class="arr">→</span> <span class="tag ui">React UI</span></td><td>charts</td></tr><tr><td class="n">8</td><td><span class="tag user">User</span></td><td><span class="arr">→</span> <span class="tag ui">React UI</span></td><td>export report</td></tr><tr><td class="n">9</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag svc">admin-service</span></td><td>GET /admin/reports/{key}/export (file download, Blob)</td></tr></tbody></table></div></div>
+  <div class="view diagram" hidden><pre class="mermaid">sequenceDiagram
+    autonumber
+    participant UI as React UI
+    participant NX as Frontend nginx :3000
+    participant GW as API Gateway :8080
+    participant ADM as admin-service
+    participant PAY as payment-service
+    participant BOOK as booking-service
+    actor U as User
+    UI-&gt;&gt;NX: GET /api/v1/admin/analytics
+    NX-&gt;&gt;GW: proxy, Host header kept
+    GW-&gt;&gt;GW: Tenant from Host, verify JWT + tenant claim, add X-User-* headers
+    GW-&gt;&gt;ADM: lb://admin-service (via Eureka)
+    ADM-&gt;&gt;PAY: Feign: /api/v1/payments/admin/revenue/(summary|monthly|breakdown|transactions)
+    ADM-&gt;&gt;BOOK: Feign: booking stats
+    ADM--&gt;&gt;UI: charts
+    U-&gt;&gt;UI: export report
+    UI-&gt;&gt;ADM: GET /admin/reports/{key}/export (file download, Blob)</pre></div>
+  <div class="res"><b>Result:</b> Charts and downloadable reports.</div>
+  
+  
+</article>
+<article class="card" id="theme" data-text="change platform theme / workspaces super_admin /admin/theme, /admin/workspaces  (services/uiconfigapi.ts) edit colours, layout, menu; save every member (or that workspace role) sees the new look and menu. ui nx put /api/v1/admin/theme nx gw proxy, host header kept gw gw tenant from host, verify jwt + tenant claim, add x-user-* headers gw adm lb://admin-service (via eureka) adm db save theme (version + 1) adm kf publish audit.events (theme changed) adm ui resolved theme ui adm per role: put /admin/workspaces/{role}/theme and /menu note ui members pick it up on next get /ui-config/me">
+  <header><h3>Change platform theme / workspaces</h3><span class="who">SUPER_ADMIN</span></header>
+  <dl class="meta">
+    <div><dt>Screen</dt><dd><code>/admin/theme, /admin/workspaces  (services/uiConfigApi.ts)</code></dd></div>
+    <div><dt>Trigger</dt><dd>Edit colours, layout, menu; save</dd></div>
+  </dl>
+  <div class="tabs"><button class="on" data-v="steps">Steps</button><button data-v="diagram">Diagram</button></div>
+  <div class="view steps"><div class="tw"><table><thead><tr><th>#</th><th>From</th><th>To</th><th>What happens</th></tr></thead><tbody><tr><td class="n">1</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag edge">Frontend nginx :3000</span></td><td>PUT /api/v1/admin/theme</td></tr><tr><td class="n">2</td><td><span class="tag edge">Frontend nginx :3000</span></td><td><span class="arr">→</span> <span class="tag gw">API Gateway :8080</span></td><td>proxy, Host header kept</td></tr><tr><td class="n">3</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">↺</span> <span class="tag gw">API Gateway :8080</span></td><td>Tenant from Host, verify JWT + tenant claim, add X-User-* headers</td></tr><tr><td class="n">4</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">→</span> <span class="tag svc">admin-service</span></td><td>lb://admin-service (via Eureka)</td></tr><tr><td class="n">5</td><td><span class="tag svc">admin-service</span></td><td><span class="arr">→</span> <span class="tag data">MySQL</span></td><td>save theme (version + 1)</td></tr><tr><td class="n">6</td><td><span class="tag svc">admin-service</span></td><td><span class="arr">→</span> <span class="tag bus">Kafka</span></td><td>publish audit.events (theme changed)</td></tr><tr><td class="n">7</td><td><span class="tag svc">admin-service</span></td><td><span class="arr">→</span> <span class="tag ui">React UI</span></td><td>resolved theme</td></tr><tr><td class="n">8</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag svc">admin-service</span></td><td>per role: PUT /admin/workspaces/{role}/theme and /menu</td></tr><tr class="note"><td></td><td colspan="2"><span class="tag ui">React UI</span></td><td>Members pick it up on next GET /ui-config/me</td></tr></tbody></table></div></div>
+  <div class="view diagram" hidden><pre class="mermaid">sequenceDiagram
+    autonumber
+    participant UI as React UI
+    participant NX as Frontend nginx :3000
+    participant GW as API Gateway :8080
+    participant ADM as admin-service
+    participant DB as MySQL
+    participant KF as Kafka
+    UI-&gt;&gt;NX: PUT /api/v1/admin/theme
+    NX-&gt;&gt;GW: proxy, Host header kept
+    GW-&gt;&gt;GW: Tenant from Host, verify JWT + tenant claim, add X-User-* headers
+    GW-&gt;&gt;ADM: lb://admin-service (via Eureka)
+    ADM-&gt;&gt;DB: save theme (version + 1)
+    ADM-&gt;&gt;KF: publish audit.events (theme changed)
+    ADM--&gt;&gt;UI: resolved theme
+    UI-&gt;&gt;ADM: per role: PUT /admin/workspaces/{role}/theme and /menu
+    Note over UI: Members pick it up on next GET /ui-config/me</pre></div>
+  <div class="res"><b>Result:</b> Every member (or that workspace role) sees the new look and menu.</div>
+  
+  
+</article>
+<article class="card" id="content" data-text="edit landing page content admin /admin/content  (services/sitecontentapi.ts) edit sections / items / upload images landing page and footer change without a redeploy. ui nx post /api/v1/admin/content/sections nx gw proxy, host header kept gw gw tenant from host, verify jwt + tenant claim, add x-user-* headers gw adm lb://admin-service (via eureka) adm db save section / item ui adm post /admin/content/media (image upload) adm ui saved note ui visitors read it via public get /content/site">
+  <header><h3>Edit landing page content</h3><span class="who">ADMIN</span></header>
+  <dl class="meta">
+    <div><dt>Screen</dt><dd><code>/admin/content  (services/siteContentApi.ts)</code></dd></div>
+    <div><dt>Trigger</dt><dd>Edit sections / items / upload images</dd></div>
+  </dl>
+  <div class="tabs"><button class="on" data-v="steps">Steps</button><button data-v="diagram">Diagram</button></div>
+  <div class="view steps"><div class="tw"><table><thead><tr><th>#</th><th>From</th><th>To</th><th>What happens</th></tr></thead><tbody><tr><td class="n">1</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag edge">Frontend nginx :3000</span></td><td>POST /api/v1/admin/content/sections</td></tr><tr><td class="n">2</td><td><span class="tag edge">Frontend nginx :3000</span></td><td><span class="arr">→</span> <span class="tag gw">API Gateway :8080</span></td><td>proxy, Host header kept</td></tr><tr><td class="n">3</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">↺</span> <span class="tag gw">API Gateway :8080</span></td><td>Tenant from Host, verify JWT + tenant claim, add X-User-* headers</td></tr><tr><td class="n">4</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">→</span> <span class="tag svc">admin-service</span></td><td>lb://admin-service (via Eureka)</td></tr><tr><td class="n">5</td><td><span class="tag svc">admin-service</span></td><td><span class="arr">→</span> <span class="tag data">MySQL</span></td><td>save section / item</td></tr><tr><td class="n">6</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag svc">admin-service</span></td><td>POST /admin/content/media (image upload)</td></tr><tr><td class="n">7</td><td><span class="tag svc">admin-service</span></td><td><span class="arr">→</span> <span class="tag ui">React UI</span></td><td>saved</td></tr><tr class="note"><td></td><td colspan="2"><span class="tag ui">React UI</span></td><td>Visitors read it via public GET /content/site</td></tr></tbody></table></div></div>
+  <div class="view diagram" hidden><pre class="mermaid">sequenceDiagram
+    autonumber
+    participant UI as React UI
+    participant NX as Frontend nginx :3000
+    participant GW as API Gateway :8080
+    participant ADM as admin-service
+    participant DB as MySQL
+    UI-&gt;&gt;NX: POST /api/v1/admin/content/sections
+    NX-&gt;&gt;GW: proxy, Host header kept
+    GW-&gt;&gt;GW: Tenant from Host, verify JWT + tenant claim, add X-User-* headers
+    GW-&gt;&gt;ADM: lb://admin-service (via Eureka)
+    ADM-&gt;&gt;DB: save section / item
+    UI-&gt;&gt;ADM: POST /admin/content/media (image upload)
+    ADM--&gt;&gt;UI: saved
+    Note over UI: Visitors read it via public GET /content/site</pre></div>
+  <div class="res"><b>Result:</b> Landing page and footer change without a redeploy.</div>
+  
+  
+</article>
+<article class="card" id="announce" data-text="send an announcement admin /admin/alerts  (alertspage, services/notificationapi.ts) write message, choose audience, send everyone in the audience sees it in their bell. cancel: post /admin/announcements/{id}/cancel. ui nx post /api/v1/admin/announcements nx gw proxy, host header kept gw gw tenant from host, verify jwt + tenant claim, add x-user-* headers gw noti lb://notification-service (via eureka) gw gw route notification-service (matched before the /admin/** catch-all) noti db save announcement noti db one notification row per recipient (&quot;*&quot; = all active users) noti kf publish audit.events noti ui announcement">
+  <header><h3>Send an announcement</h3><span class="who">ADMIN</span></header>
+  <dl class="meta">
+    <div><dt>Screen</dt><dd><code>/admin/alerts  (AlertsPage, services/notificationApi.ts)</code></dd></div>
+    <div><dt>Trigger</dt><dd>Write message, choose audience, send</dd></div>
+  </dl>
+  <div class="tabs"><button class="on" data-v="steps">Steps</button><button data-v="diagram">Diagram</button></div>
+  <div class="view steps"><div class="tw"><table><thead><tr><th>#</th><th>From</th><th>To</th><th>What happens</th></tr></thead><tbody><tr><td class="n">1</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag edge">Frontend nginx :3000</span></td><td>POST /api/v1/admin/announcements</td></tr><tr><td class="n">2</td><td><span class="tag edge">Frontend nginx :3000</span></td><td><span class="arr">→</span> <span class="tag gw">API Gateway :8080</span></td><td>proxy, Host header kept</td></tr><tr><td class="n">3</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">↺</span> <span class="tag gw">API Gateway :8080</span></td><td>Tenant from Host, verify JWT + tenant claim, add X-User-* headers</td></tr><tr><td class="n">4</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">→</span> <span class="tag svc">notification-service</span></td><td>lb://notification-service (via Eureka)</td></tr><tr><td class="n">5</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">↺</span> <span class="tag gw">API Gateway :8080</span></td><td>route notification-service (matched before the /admin/** catch-all)</td></tr><tr><td class="n">6</td><td><span class="tag svc">notification-service</span></td><td><span class="arr">→</span> <span class="tag data">MySQL</span></td><td>save Announcement</td></tr><tr><td class="n">7</td><td><span class="tag svc">notification-service</span></td><td><span class="arr">→</span> <span class="tag data">MySQL</span></td><td>one Notification row per recipient (&quot;*&quot; = all ACTIVE users)</td></tr><tr><td class="n">8</td><td><span class="tag svc">notification-service</span></td><td><span class="arr">→</span> <span class="tag bus">Kafka</span></td><td>publish audit.events</td></tr><tr><td class="n">9</td><td><span class="tag svc">notification-service</span></td><td><span class="arr">→</span> <span class="tag ui">React UI</span></td><td>announcement</td></tr></tbody></table></div></div>
+  <div class="view diagram" hidden><pre class="mermaid">sequenceDiagram
+    autonumber
+    participant UI as React UI
+    participant NX as Frontend nginx :3000
+    participant GW as API Gateway :8080
+    participant NOTI as notification-service
+    participant DB as MySQL
+    participant KF as Kafka
+    UI-&gt;&gt;NX: POST /api/v1/admin/announcements
+    NX-&gt;&gt;GW: proxy, Host header kept
+    GW-&gt;&gt;GW: Tenant from Host, verify JWT + tenant claim, add X-User-* headers
+    GW-&gt;&gt;NOTI: lb://notification-service (via Eureka)
+    GW-&gt;&gt;GW: route notification-service (matched before the /admin/** catch-all)
+    NOTI-&gt;&gt;DB: save Announcement
+    NOTI-&gt;&gt;DB: one Notification row per recipient (&#x27;*&#x27; = all ACTIVE users)
+    NOTI-&gt;&gt;KF: publish audit.events
+    NOTI--&gt;&gt;UI: announcement</pre></div>
+  <div class="res"><b>Result:</b> Everyone in the audience sees it in their bell. Cancel: POST /admin/announcements/{id}/cancel.</div>
+  
+  
+</article>
+<article class="card" id="emails" data-text="email templates and email log admin /admin/email-templates, /admin/emails  (services/emailapi.ts) edit template, preview, test-send templates used for all future emails. the log shows delivered / bounced status. ui nx put /api/v1/admin/notifications/email-templates/{key} nx gw proxy, host header kept gw gw tenant from host, verify jwt + tenant claim, add x-user-* headers gw noti lb://notification-service (via eureka) noti db save template ui noti post .../{key}/preview, post .../{key}/test-send noti mail send test email ui noti get /admin/notifications/emails (delivery log + summary) mail noti brevo delivery callback to /api/v1/notifications/webhooks/** (public, shared secret)">
+  <header><h3>Email templates and email log</h3><span class="who">ADMIN</span></header>
+  <dl class="meta">
+    <div><dt>Screen</dt><dd><code>/admin/email-templates, /admin/emails  (services/emailApi.ts)</code></dd></div>
+    <div><dt>Trigger</dt><dd>Edit template, preview, test-send</dd></div>
+  </dl>
+  <div class="tabs"><button class="on" data-v="steps">Steps</button><button data-v="diagram">Diagram</button></div>
+  <div class="view steps"><div class="tw"><table><thead><tr><th>#</th><th>From</th><th>To</th><th>What happens</th></tr></thead><tbody><tr><td class="n">1</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag edge">Frontend nginx :3000</span></td><td>PUT /api/v1/admin/notifications/email-templates/{key}</td></tr><tr><td class="n">2</td><td><span class="tag edge">Frontend nginx :3000</span></td><td><span class="arr">→</span> <span class="tag gw">API Gateway :8080</span></td><td>proxy, Host header kept</td></tr><tr><td class="n">3</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">↺</span> <span class="tag gw">API Gateway :8080</span></td><td>Tenant from Host, verify JWT + tenant claim, add X-User-* headers</td></tr><tr><td class="n">4</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">→</span> <span class="tag svc">notification-service</span></td><td>lb://notification-service (via Eureka)</td></tr><tr><td class="n">5</td><td><span class="tag svc">notification-service</span></td><td><span class="arr">→</span> <span class="tag data">MySQL</span></td><td>save template</td></tr><tr><td class="n">6</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag svc">notification-service</span></td><td>POST .../{key}/preview, POST .../{key}/test-send</td></tr><tr><td class="n">7</td><td><span class="tag svc">notification-service</span></td><td><span class="arr">→</span> <span class="tag ext">Email/SMS provider</span></td><td>send test email</td></tr><tr><td class="n">8</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag svc">notification-service</span></td><td>GET /admin/notifications/emails (delivery log + summary)</td></tr><tr><td class="n">9</td><td><span class="tag ext">Email/SMS provider</span></td><td><span class="arr">→</span> <span class="tag svc">notification-service</span></td><td>Brevo delivery callback to /api/v1/notifications/webhooks/** (public, shared secret)</td></tr></tbody></table></div></div>
+  <div class="view diagram" hidden><pre class="mermaid">sequenceDiagram
+    autonumber
+    participant UI as React UI
+    participant NX as Frontend nginx :3000
+    participant GW as API Gateway :8080
+    participant NOTI as notification-service
+    participant DB as MySQL
+    participant MAIL as Email/SMS provider
+    UI-&gt;&gt;NX: PUT /api/v1/admin/notifications/email-templates/{key}
+    NX-&gt;&gt;GW: proxy, Host header kept
+    GW-&gt;&gt;GW: Tenant from Host, verify JWT + tenant claim, add X-User-* headers
+    GW-&gt;&gt;NOTI: lb://notification-service (via Eureka)
+    NOTI-&gt;&gt;DB: save template
+    UI-&gt;&gt;NOTI: POST .../{key}/preview, POST .../{key}/test-send
+    NOTI-&gt;&gt;MAIL: send test email
+    UI-&gt;&gt;NOTI: GET /admin/notifications/emails (delivery log + summary)
+    MAIL-&gt;&gt;NOTI: Brevo delivery callback to /api/v1/notifications/webhooks/** (public, shared secret)</pre></div>
+  <div class="res"><b>Result:</b> Templates used for all future emails. The log shows delivered / bounced status.</div>
+  
+  
+</article>
+<article class="card" id="supportq" data-text="work the support queue admin /admin/support  (supportqueuepage) assign, reply, resolve ticket closed; reporter sees the resolution; no more replies allowed. ui nx get /api/v1/admin/support/tickets nx gw proxy, host header kept gw gw tenant from host, verify jwt + tenant claim, add x-user-* headers gw sup lb://support-service (via eureka) sup ui queue ui sup patch /admin/support/tickets/{id}/assign  (auto moves to in_progress) ui sup post /support/tickets/{id}/messages (reply) ui sup patch /support/tickets/{id}/status resolved + reason sup kf audit.events for create / assign / resolve">
+  <header><h3>Work the support queue</h3><span class="who">ADMIN</span></header>
+  <dl class="meta">
+    <div><dt>Screen</dt><dd><code>/admin/support  (SupportQueuePage)</code></dd></div>
+    <div><dt>Trigger</dt><dd>Assign, reply, resolve</dd></div>
+  </dl>
+  <div class="tabs"><button class="on" data-v="steps">Steps</button><button data-v="diagram">Diagram</button></div>
+  <div class="view steps"><div class="tw"><table><thead><tr><th>#</th><th>From</th><th>To</th><th>What happens</th></tr></thead><tbody><tr><td class="n">1</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag edge">Frontend nginx :3000</span></td><td>GET /api/v1/admin/support/tickets</td></tr><tr><td class="n">2</td><td><span class="tag edge">Frontend nginx :3000</span></td><td><span class="arr">→</span> <span class="tag gw">API Gateway :8080</span></td><td>proxy, Host header kept</td></tr><tr><td class="n">3</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">↺</span> <span class="tag gw">API Gateway :8080</span></td><td>Tenant from Host, verify JWT + tenant claim, add X-User-* headers</td></tr><tr><td class="n">4</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">→</span> <span class="tag svc">support-service</span></td><td>lb://support-service (via Eureka)</td></tr><tr><td class="n">5</td><td><span class="tag svc">support-service</span></td><td><span class="arr">→</span> <span class="tag ui">React UI</span></td><td>queue</td></tr><tr><td class="n">6</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag svc">support-service</span></td><td>PATCH /admin/support/tickets/{id}/assign  (auto moves to IN_PROGRESS)</td></tr><tr><td class="n">7</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag svc">support-service</span></td><td>POST /support/tickets/{id}/messages (reply)</td></tr><tr><td class="n">8</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag svc">support-service</span></td><td>PATCH /support/tickets/{id}/status RESOLVED + reason</td></tr><tr><td class="n">9</td><td><span class="tag svc">support-service</span></td><td><span class="arr">→</span> <span class="tag bus">Kafka</span></td><td>audit.events for create / assign / resolve</td></tr></tbody></table></div></div>
+  <div class="view diagram" hidden><pre class="mermaid">sequenceDiagram
+    autonumber
+    participant UI as React UI
+    participant NX as Frontend nginx :3000
+    participant GW as API Gateway :8080
+    participant SUP as support-service
+    participant KF as Kafka
+    UI-&gt;&gt;NX: GET /api/v1/admin/support/tickets
+    NX-&gt;&gt;GW: proxy, Host header kept
+    GW-&gt;&gt;GW: Tenant from Host, verify JWT + tenant claim, add X-User-* headers
+    GW-&gt;&gt;SUP: lb://support-service (via Eureka)
+    SUP--&gt;&gt;UI: queue
+    UI-&gt;&gt;SUP: PATCH /admin/support/tickets/{id}/assign  (auto moves to IN_PROGRESS)
+    UI-&gt;&gt;SUP: POST /support/tickets/{id}/messages (reply)
+    UI-&gt;&gt;SUP: PATCH /support/tickets/{id}/status RESOLVED + reason
+    SUP-&gt;&gt;KF: audit.events for create / assign / resolve</pre></div>
+  <div class="res"><b>Result:</b> Ticket closed; reporter sees the resolution; no more replies allowed.</div>
+  
+  
+</article>
+<article class="card" id="audit" data-text="audit log and integrity check admin / super_admin /admin/activity  (services/auditapi.ts) open activity, filter, verify, export shows who did what. integrity check reports a break if any row was altered. ui nx get /api/v1/admin/audit/events?entitytype=.. nx gw proxy, host header kept gw gw tenant from host, verify jwt + tenant claim, add x-user-* headers gw aud lb://audit-service (via eureka) aud db read append-only events (civil_engineer_audit_&lt;tenant&gt;) aud ui events ui aud get /admin/audit/integrity: re-walk the hash chain ui aud get /admin/audit/anomalies, /admin/audit/export">
+  <header><h3>Audit log and integrity check</h3><span class="who">ADMIN / SUPER_ADMIN</span></header>
+  <dl class="meta">
+    <div><dt>Screen</dt><dd><code>/admin/activity  (services/auditApi.ts)</code></dd></div>
+    <div><dt>Trigger</dt><dd>Open activity, filter, verify, export</dd></div>
+  </dl>
+  <div class="tabs"><button class="on" data-v="steps">Steps</button><button data-v="diagram">Diagram</button></div>
+  <div class="view steps"><div class="tw"><table><thead><tr><th>#</th><th>From</th><th>To</th><th>What happens</th></tr></thead><tbody><tr><td class="n">1</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag edge">Frontend nginx :3000</span></td><td>GET /api/v1/admin/audit/events?entityType=..</td></tr><tr><td class="n">2</td><td><span class="tag edge">Frontend nginx :3000</span></td><td><span class="arr">→</span> <span class="tag gw">API Gateway :8080</span></td><td>proxy, Host header kept</td></tr><tr><td class="n">3</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">↺</span> <span class="tag gw">API Gateway :8080</span></td><td>Tenant from Host, verify JWT + tenant claim, add X-User-* headers</td></tr><tr><td class="n">4</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">→</span> <span class="tag svc">audit-service</span></td><td>lb://audit-service (via Eureka)</td></tr><tr><td class="n">5</td><td><span class="tag svc">audit-service</span></td><td><span class="arr">→</span> <span class="tag data">MySQL</span></td><td>read append-only events (civil_engineer_audit_&lt;tenant&gt;)</td></tr><tr><td class="n">6</td><td><span class="tag svc">audit-service</span></td><td><span class="arr">→</span> <span class="tag ui">React UI</span></td><td>events</td></tr><tr><td class="n">7</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag svc">audit-service</span></td><td>GET /admin/audit/integrity: re-walk the hash chain</td></tr><tr><td class="n">8</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag svc">audit-service</span></td><td>GET /admin/audit/anomalies, /admin/audit/export</td></tr></tbody></table></div></div>
+  <div class="view diagram" hidden><pre class="mermaid">sequenceDiagram
+    autonumber
+    participant UI as React UI
+    participant NX as Frontend nginx :3000
+    participant GW as API Gateway :8080
+    participant AUD as audit-service
+    participant DB as MySQL
+    UI-&gt;&gt;NX: GET /api/v1/admin/audit/events?entityType=..
+    NX-&gt;&gt;GW: proxy, Host header kept
+    GW-&gt;&gt;GW: Tenant from Host, verify JWT + tenant claim, add X-User-* headers
+    GW-&gt;&gt;AUD: lb://audit-service (via Eureka)
+    AUD-&gt;&gt;DB: read append-only events (civil_engineer_audit_‹tenant›)
+    AUD--&gt;&gt;UI: events
+    UI-&gt;&gt;AUD: GET /admin/audit/integrity: re-walk the hash chain
+    UI-&gt;&gt;AUD: GET /admin/audit/anomalies, /admin/audit/export</pre></div>
+  <div class="res"><b>Result:</b> Shows who did what. Integrity check reports a break if any row was altered.</div>
+  
+  
+</article>
+<article class="card" id="tenants" data-text="onboard a new tenant (workspace) super_admin of the operator tenant /admin/tenants  (tenantmanagement, services/tenantapi.ts) create tenant, set branding / modules / navigation new tenant is live at http://&lt;tenantkey&gt;.localhost:3000 with empty, fully migrated schemas. ui nx post /api/v1/tenants nx gw proxy, host header kept gw gw tenant from host, verify jwt + tenant claim, add x-user-* headers gw ten lb://tenant-service (via eureka) ten ten require super_admin of the operator tenant ten db insert tenant (key, host, modules, branding) ten kf publish tenant.events ten ui tenant kf all tenantprovisioninglistener (tenant-common) in every service all db create schema &lt;service_db&gt;_&lt;tenantkey&gt; + run flyway migrations note all no restart needed ui ten put /tenants/{key}/branding, /modules, /navigation, patch /status">
+  <header><h3>Onboard a new tenant (workspace)</h3><span class="who">SUPER_ADMIN of the operator tenant</span></header>
+  <dl class="meta">
+    <div><dt>Screen</dt><dd><code>/admin/tenants  (TenantManagement, services/tenantApi.ts)</code></dd></div>
+    <div><dt>Trigger</dt><dd>Create tenant, set branding / modules / navigation</dd></div>
+  </dl>
+  <div class="tabs"><button class="on" data-v="steps">Steps</button><button data-v="diagram">Diagram</button></div>
+  <div class="view steps"><div class="tw"><table><thead><tr><th>#</th><th>From</th><th>To</th><th>What happens</th></tr></thead><tbody><tr><td class="n">1</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag edge">Frontend nginx :3000</span></td><td>POST /api/v1/tenants</td></tr><tr><td class="n">2</td><td><span class="tag edge">Frontend nginx :3000</span></td><td><span class="arr">→</span> <span class="tag gw">API Gateway :8080</span></td><td>proxy, Host header kept</td></tr><tr><td class="n">3</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">↺</span> <span class="tag gw">API Gateway :8080</span></td><td>Tenant from Host, verify JWT + tenant claim, add X-User-* headers</td></tr><tr><td class="n">4</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">→</span> <span class="tag svc">tenant-service</span></td><td>lb://tenant-service (via Eureka)</td></tr><tr><td class="n">5</td><td><span class="tag svc">tenant-service</span></td><td><span class="arr">↺</span> <span class="tag svc">tenant-service</span></td><td>require SUPER_ADMIN of the operator tenant</td></tr><tr><td class="n">6</td><td><span class="tag svc">tenant-service</span></td><td><span class="arr">→</span> <span class="tag data">MySQL</span></td><td>INSERT tenant (key, host, modules, branding)</td></tr><tr><td class="n">7</td><td><span class="tag svc">tenant-service</span></td><td><span class="arr">→</span> <span class="tag bus">Kafka</span></td><td>publish tenant.events</td></tr><tr><td class="n">8</td><td><span class="tag svc">tenant-service</span></td><td><span class="arr">→</span> <span class="tag ui">React UI</span></td><td>tenant</td></tr><tr><td class="n">9</td><td><span class="tag bus">Kafka</span></td><td><span class="arr">→</span> <span class="tag svc">every tenanted service</span></td><td>TenantProvisioningListener (tenant-common) in every service</td></tr><tr><td class="n">10</td><td><span class="tag svc">every tenanted service</span></td><td><span class="arr">→</span> <span class="tag data">MySQL</span></td><td>CREATE SCHEMA &lt;service_db&gt;_&lt;tenantKey&gt; + run Flyway migrations</td></tr><tr class="note"><td></td><td colspan="2"><span class="tag svc">every tenanted service</span></td><td>No restart needed</td></tr><tr><td class="n">11</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag svc">tenant-service</span></td><td>PUT /tenants/{key}/branding, /modules, /navigation, PATCH /status</td></tr></tbody></table></div></div>
+  <div class="view diagram" hidden><pre class="mermaid">sequenceDiagram
+    autonumber
+    participant UI as React UI
+    participant NX as Frontend nginx :3000
+    participant GW as API Gateway :8080
+    participant TEN as tenant-service
+    participant DB as MySQL
+    participant KF as Kafka
+    participant ALL as every tenanted service
+    UI-&gt;&gt;NX: POST /api/v1/tenants
+    NX-&gt;&gt;GW: proxy, Host header kept
+    GW-&gt;&gt;GW: Tenant from Host, verify JWT + tenant claim, add X-User-* headers
+    GW-&gt;&gt;TEN: lb://tenant-service (via Eureka)
+    TEN-&gt;&gt;TEN: require SUPER_ADMIN of the operator tenant
+    TEN-&gt;&gt;DB: INSERT tenant (key, host, modules, branding)
+    TEN-&gt;&gt;KF: publish tenant.events
+    TEN--&gt;&gt;UI: tenant
+    KF-&gt;&gt;ALL: TenantProvisioningListener (tenant-common) in every service
+    ALL-&gt;&gt;DB: CREATE SCHEMA ‹service_db›_‹tenantKey› + run Flyway migrations
+    Note over ALL: No restart needed
+    UI-&gt;&gt;TEN: PUT /tenants/{key}/branding, /modules, /navigation, PATCH /status</pre></div>
+  <div class="res"><b>Result:</b> New tenant is live at http://&lt;tenantKey&gt;.localhost:3000 with empty, fully migrated schemas.</div>
+  <div class="err"><b>What can go wrong</b><ul><li>403 caller is not operator SUPER_ADMIN</li><li>Disabled module: its routes return 404 for that tenant</li></ul></div>
+  
+</article><h2 class="gh" data-group="System (background)">System (background)</h2>
+<article class="card" id="refresh" data-text="automatic token refresh frontend (axios interceptor) services/api.ts any api call returns 401 (access token expired) the user does not notice token expiry unless the refresh token is also expired. ui gw get /api/v1/... with expired token gw ui 401 ui ui interceptor: skip if /auth/login|register|refresh|otp, else try once ui nx post /api/v1/auth/refresh nx gw proxy, host header kept gw gw tenant from host, public route (no jwt) gw auth lb://auth-service (via eureka) alt refresh token valid auth ui new access + refresh token ui ss store (setcredentials) ui gw retry the original request else refresh fails ui u log out, go to /login end">
+  <header><h3>Automatic token refresh</h3><span class="who">Frontend (Axios interceptor)</span></header>
+  <dl class="meta">
+    <div><dt>Screen</dt><dd><code>services/api.ts</code></dd></div>
+    <div><dt>Trigger</dt><dd>Any API call returns 401 (access token expired)</dd></div>
+  </dl>
+  <div class="tabs"><button class="on" data-v="steps">Steps</button><button data-v="diagram">Diagram</button></div>
+  <div class="view steps"><div class="tw"><table><thead><tr><th>#</th><th>From</th><th>To</th><th>What happens</th></tr></thead><tbody><tr><td class="n">1</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag gw">API Gateway :8080</span></td><td>GET /api/v1/... with expired token</td></tr><tr><td class="n">2</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">→</span> <span class="tag ui">React UI</span></td><td>401</td></tr><tr><td class="n">3</td><td><span class="tag ui">React UI</span></td><td><span class="arr">↺</span> <span class="tag ui">React UI</span></td><td>interceptor: skip if /auth/login|register|refresh|otp, else try once</td></tr><tr><td class="n">4</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag edge">Frontend nginx :3000</span></td><td>POST /api/v1/auth/refresh</td></tr><tr><td class="n">5</td><td><span class="tag edge">Frontend nginx :3000</span></td><td><span class="arr">→</span> <span class="tag gw">API Gateway :8080</span></td><td>proxy, Host header kept</td></tr><tr><td class="n">6</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">↺</span> <span class="tag gw">API Gateway :8080</span></td><td>Tenant from Host, public route (no JWT)</td></tr><tr><td class="n">7</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">→</span> <span class="tag svc">auth-service</span></td><td>lb://auth-service (via Eureka)</td></tr><tr><td class="n">8</td><td><span class="tag svc">auth-service</span></td><td><span class="arr">→</span> <span class="tag ui">React UI</span></td><td><span class="br">if refresh token valid</span> new access + refresh token</td></tr><tr><td class="n">9</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag ui">sessionStorage</span></td><td><span class="br">if refresh token valid</span> store (setCredentials)</td></tr><tr><td class="n">10</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag gw">API Gateway :8080</span></td><td><span class="br">if refresh token valid</span> retry the original request</td></tr><tr><td class="n">11</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag user">User</span></td><td><span class="br">else: refresh fails</span> log out, go to /login</td></tr></tbody></table></div></div>
+  <div class="view diagram" hidden><pre class="mermaid">sequenceDiagram
+    autonumber
+    participant UI as React UI
+    participant GW as API Gateway :8080
+    participant NX as Frontend nginx :3000
+    participant AUTH as auth-service
+    participant SS as sessionStorage
+    actor U as User
+    UI-&gt;&gt;GW: GET /api/v1/... with expired token
+    GW--&gt;&gt;UI: 401
+    UI--&gt;&gt;UI: interceptor: skip if /auth/login|register|refresh|otp, else try once
+    UI-&gt;&gt;NX: POST /api/v1/auth/refresh
+    NX-&gt;&gt;GW: proxy, Host header kept
+    GW-&gt;&gt;GW: Tenant from Host, public route (no JWT)
+    GW-&gt;&gt;AUTH: lb://auth-service (via Eureka)
+    alt refresh token valid
+    AUTH--&gt;&gt;UI: new access + refresh token
+    UI-&gt;&gt;SS: store (setCredentials)
+    UI-&gt;&gt;GW: retry the original request
+    else refresh fails
+    UI-&gt;&gt;U: log out, go to /login
+    end</pre></div>
+  <div class="res"><b>Result:</b> The user does not notice token expiry unless the refresh token is also expired.</div>
+  
+  
+</article>
+<article class="card" id="auditpipe" data-text="audit event pipeline audit-common in producer services user, payment, project, notification, support, admin services any audited action tamper-evident history per tenant. adm kf audit-common publishes audit.events (actor, action, entity, tenant) kf aud auditingestservice consumes aud aud hash = sha(previous hash + event) aud db append row (never updated or deleted)">
+  <header><h3>Audit event pipeline</h3><span class="who">audit-common in producer services</span></header>
+  <dl class="meta">
+    <div><dt>Screen</dt><dd><code>user, payment, project, notification, support, admin services</code></dd></div>
+    <div><dt>Trigger</dt><dd>Any audited action</dd></div>
+  </dl>
+  <div class="tabs"><button class="on" data-v="steps">Steps</button><button data-v="diagram">Diagram</button></div>
+  <div class="view steps"><div class="tw"><table><thead><tr><th>#</th><th>From</th><th>To</th><th>What happens</th></tr></thead><tbody><tr><td class="n">1</td><td><span class="tag svc">admin-service</span></td><td><span class="arr">→</span> <span class="tag bus">Kafka</span></td><td>audit-common publishes audit.events (actor, action, entity, tenant)</td></tr><tr><td class="n">2</td><td><span class="tag bus">Kafka</span></td><td><span class="arr">→</span> <span class="tag svc">audit-service</span></td><td>AuditIngestService consumes</td></tr><tr><td class="n">3</td><td><span class="tag svc">audit-service</span></td><td><span class="arr">↺</span> <span class="tag svc">audit-service</span></td><td>hash = SHA(previous hash + event)</td></tr><tr><td class="n">4</td><td><span class="tag svc">audit-service</span></td><td><span class="arr">→</span> <span class="tag data">MySQL</span></td><td>append row (never updated or deleted)</td></tr></tbody></table></div></div>
+  <div class="view diagram" hidden><pre class="mermaid">sequenceDiagram
+    autonumber
+    participant ADM as admin-service
+    participant KF as Kafka
+    participant AUD as audit-service
+    participant DB as MySQL
+    ADM-&gt;&gt;KF: audit-common publishes audit.events (actor, action, entity, tenant)
+    KF-&gt;&gt;AUD: AuditIngestService consumes
+    AUD-&gt;&gt;AUD: hash = SHA(previous hash + event)
+    AUD-&gt;&gt;DB: append row (never updated or deleted)</pre></div>
+  <div class="res"><b>Result:</b> Tamper-evident history per tenant.</div>
+  
+  
+</article>
+<article class="card" id="boot" data-text="a service starts up docker docker compose up container starts: java -jar app.jar service is up on /actuator/health and reachable through the gateway. all all bootstrap: fetch &lt;service&gt;.yml from config-server:8888 all db read tenant registry, run flyway for every tenant schema all kf join consumer groups (if it listens) all eu register under spring.application.name gw eu refresh registry: new instance routable">
+  <header><h3>A service starts up</h3><span class="who">Docker</span></header>
+  <dl class="meta">
+    <div><dt>Screen</dt><dd><code>docker compose up</code></dd></div>
+    <div><dt>Trigger</dt><dd>Container starts: java -jar app.jar</dd></div>
+  </dl>
+  <div class="tabs"><button class="on" data-v="steps">Steps</button><button data-v="diagram">Diagram</button></div>
+  <div class="view steps"><div class="tw"><table><thead><tr><th>#</th><th>From</th><th>To</th><th>What happens</th></tr></thead><tbody><tr><td class="n">1</td><td><span class="tag svc">every tenanted service</span></td><td><span class="arr">↺</span> <span class="tag svc">every tenanted service</span></td><td>bootstrap: fetch &lt;service&gt;.yml from config-server:8888</td></tr><tr><td class="n">2</td><td><span class="tag svc">every tenanted service</span></td><td><span class="arr">→</span> <span class="tag data">MySQL</span></td><td>read tenant registry, run Flyway for every tenant schema</td></tr><tr><td class="n">3</td><td><span class="tag svc">every tenanted service</span></td><td><span class="arr">→</span> <span class="tag bus">Kafka</span></td><td>join consumer groups (if it listens)</td></tr><tr><td class="n">4</td><td><span class="tag svc">every tenanted service</span></td><td><span class="arr">→</span> <span class="tag plat">Eureka</span></td><td>register under spring.application.name</td></tr><tr><td class="n">5</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">→</span> <span class="tag plat">Eureka</span></td><td>refresh registry: new instance routable</td></tr></tbody></table></div></div>
+  <div class="view diagram" hidden><pre class="mermaid">sequenceDiagram
+    autonumber
+    participant ALL as every tenanted service
+    participant DB as MySQL
+    participant KF as Kafka
+    participant EU as Eureka
+    participant GW as API Gateway :8080
+    ALL-&gt;&gt;ALL: bootstrap: fetch ‹service›.yml from config-server:8888
+    ALL-&gt;&gt;DB: read tenant registry, run Flyway for every tenant schema
+    ALL-&gt;&gt;KF: join consumer groups (if it listens)
+    ALL-&gt;&gt;EU: register under spring.application.name
+    GW-&gt;&gt;EU: refresh registry: new instance routable</pre></div>
+  <div class="res"><b>Result:</b> Service is UP on /actuator/health and reachable through the gateway.</div>
+  <div class="err"><b>What can go wrong</b><ul><li>Gateway 503 for ~30 s after start until Eureka has the instance</li></ul></div>
+  
+</article><h2 class="gh" data-group="Backend only (no screen yet)">Backend only (no screen yet)</h2>
+<article class="card" id="escrow" data-text="escrow: fund, release, dispute customer (payer), worker (payee), admin api only: /api/v1/escrow/**, /api/v1/admin/escrow/** call the api (curl / swagger) money moves to the provider&#x27;s wallet only after a real, confirmed payment. ui nx post /api/v1/escrow nx gw proxy, host header kept gw gw tenant from host, verify jwt + tenant claim, add x-user-* headers gw pay lb://payment-service (via eureka) pay db escrowhold pending_funding pay rzp funding order rzp pay payment completed pay db hold held pay kf escrow.held alt payer releases or auto-release after 7 days pay db 5% commission frozen, payee wallet credited + ledger line pay kf escrow.released + audit.events else dispute pay db disputed (release blocked) pay kf escrow.disputed end">
+  <header><h3>Escrow: fund, release, dispute</h3><span class="who">Customer (payer), worker (payee), admin</span></header>
+  <dl class="meta">
+    <div><dt>Screen</dt><dd><code>API only: /api/v1/escrow/**, /api/v1/admin/escrow/**</code></dd></div>
+    <div><dt>Trigger</dt><dd>Call the API (curl / Swagger)</dd></div>
+  </dl>
+  <div class="tabs"><button class="on" data-v="steps">Steps</button><button data-v="diagram">Diagram</button></div>
+  <div class="view steps"><div class="tw"><table><thead><tr><th>#</th><th>From</th><th>To</th><th>What happens</th></tr></thead><tbody><tr><td class="n">1</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag edge">Frontend nginx :3000</span></td><td>POST /api/v1/escrow</td></tr><tr><td class="n">2</td><td><span class="tag edge">Frontend nginx :3000</span></td><td><span class="arr">→</span> <span class="tag gw">API Gateway :8080</span></td><td>proxy, Host header kept</td></tr><tr><td class="n">3</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">↺</span> <span class="tag gw">API Gateway :8080</span></td><td>Tenant from Host, verify JWT + tenant claim, add X-User-* headers</td></tr><tr><td class="n">4</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">→</span> <span class="tag svc">payment-service</span></td><td>lb://payment-service (via Eureka)</td></tr><tr><td class="n">5</td><td><span class="tag svc">payment-service</span></td><td><span class="arr">→</span> <span class="tag data">MySQL</span></td><td>EscrowHold PENDING_FUNDING</td></tr><tr><td class="n">6</td><td><span class="tag svc">payment-service</span></td><td><span class="arr">→</span> <span class="tag ext">Razorpay</span></td><td>funding order</td></tr><tr><td class="n">7</td><td><span class="tag ext">Razorpay</span></td><td><span class="arr">→</span> <span class="tag svc">payment-service</span></td><td>payment completed</td></tr><tr><td class="n">8</td><td><span class="tag svc">payment-service</span></td><td><span class="arr">→</span> <span class="tag data">MySQL</span></td><td>hold HELD</td></tr><tr><td class="n">9</td><td><span class="tag svc">payment-service</span></td><td><span class="arr">→</span> <span class="tag bus">Kafka</span></td><td>escrow.held</td></tr><tr><td class="n">10</td><td><span class="tag svc">payment-service</span></td><td><span class="arr">→</span> <span class="tag data">MySQL</span></td><td><span class="br">if payer releases or auto-release after 7 days</span> 5% commission frozen, payee Wallet credited + ledger line</td></tr><tr><td class="n">11</td><td><span class="tag svc">payment-service</span></td><td><span class="arr">→</span> <span class="tag bus">Kafka</span></td><td><span class="br">if payer releases or auto-release after 7 days</span> escrow.released + audit.events</td></tr><tr><td class="n">12</td><td><span class="tag svc">payment-service</span></td><td><span class="arr">→</span> <span class="tag data">MySQL</span></td><td><span class="br">else: dispute</span> DISPUTED (release blocked)</td></tr><tr><td class="n">13</td><td><span class="tag svc">payment-service</span></td><td><span class="arr">→</span> <span class="tag bus">Kafka</span></td><td><span class="br">else: dispute</span> escrow.disputed</td></tr></tbody></table></div></div>
+  <div class="view diagram" hidden><pre class="mermaid">sequenceDiagram
+    autonumber
+    participant UI as React UI
+    participant NX as Frontend nginx :3000
+    participant GW as API Gateway :8080
+    participant PAY as payment-service
+    participant DB as MySQL
+    participant RZP as Razorpay
+    participant KF as Kafka
+    UI-&gt;&gt;NX: POST /api/v1/escrow
+    NX-&gt;&gt;GW: proxy, Host header kept
+    GW-&gt;&gt;GW: Tenant from Host, verify JWT + tenant claim, add X-User-* headers
+    GW-&gt;&gt;PAY: lb://payment-service (via Eureka)
+    PAY-&gt;&gt;DB: EscrowHold PENDING_FUNDING
+    PAY-&gt;&gt;RZP: funding order
+    RZP-&gt;&gt;PAY: payment completed
+    PAY-&gt;&gt;DB: hold HELD
+    PAY-&gt;&gt;KF: escrow.held
+    alt payer releases or auto-release after 7 days
+    PAY-&gt;&gt;DB: 5% commission frozen, payee Wallet credited + ledger line
+    PAY-&gt;&gt;KF: escrow.released + audit.events
+    else dispute
+    PAY-&gt;&gt;DB: DISPUTED (release blocked)
+    PAY-&gt;&gt;KF: escrow.disputed
+    end</pre></div>
+  <div class="res"><b>Result:</b> Money moves to the provider&#x27;s wallet only after a real, confirmed payment.</div>
+  
+  <div class="nt"><b>Notes</b><ul><li>No UI screen yet. Withdrawals/payouts are not built: wallets are read-only.</li></ul></div>
+</article>
+<article class="card" id="kyc" data-text="kyc verification provider + admin api only: user-service submit document, admin approves verified badge; search can filter on &quot;verified&quot;. ui nx post /api/v1/users/kyc/... nx gw proxy, host header kept gw gw tenant from host, verify jwt + tenant claim, add x-user-* headers gw user lb://user-service (via eureka) user db kycdocument pending user kf audit.events note user admin approves / rejects (403 without admin role) user db approve: userprofile.isverified = true">
+  <header><h3>KYC verification</h3><span class="who">Provider + admin</span></header>
+  <dl class="meta">
+    <div><dt>Screen</dt><dd><code>API only: user-service</code></dd></div>
+    <div><dt>Trigger</dt><dd>Submit document, admin approves</dd></div>
+  </dl>
+  <div class="tabs"><button class="on" data-v="steps">Steps</button><button data-v="diagram">Diagram</button></div>
+  <div class="view steps"><div class="tw"><table><thead><tr><th>#</th><th>From</th><th>To</th><th>What happens</th></tr></thead><tbody><tr><td class="n">1</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag edge">Frontend nginx :3000</span></td><td>POST /api/v1/users/kyc/...</td></tr><tr><td class="n">2</td><td><span class="tag edge">Frontend nginx :3000</span></td><td><span class="arr">→</span> <span class="tag gw">API Gateway :8080</span></td><td>proxy, Host header kept</td></tr><tr><td class="n">3</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">↺</span> <span class="tag gw">API Gateway :8080</span></td><td>Tenant from Host, verify JWT + tenant claim, add X-User-* headers</td></tr><tr><td class="n">4</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">→</span> <span class="tag svc">user-service</span></td><td>lb://user-service (via Eureka)</td></tr><tr><td class="n">5</td><td><span class="tag svc">user-service</span></td><td><span class="arr">→</span> <span class="tag data">MySQL</span></td><td>KycDocument PENDING</td></tr><tr><td class="n">6</td><td><span class="tag svc">user-service</span></td><td><span class="arr">→</span> <span class="tag bus">Kafka</span></td><td>audit.events</td></tr><tr class="note"><td></td><td colspan="2"><span class="tag svc">user-service</span></td><td>Admin approves / rejects (403 without admin role)</td></tr><tr><td class="n">7</td><td><span class="tag svc">user-service</span></td><td><span class="arr">→</span> <span class="tag data">MySQL</span></td><td>approve: UserProfile.isVerified = true</td></tr></tbody></table></div></div>
+  <div class="view diagram" hidden><pre class="mermaid">sequenceDiagram
+    autonumber
+    participant UI as React UI
+    participant NX as Frontend nginx :3000
+    participant GW as API Gateway :8080
+    participant USER as user-service
+    participant DB as MySQL
+    participant KF as Kafka
+    UI-&gt;&gt;NX: POST /api/v1/users/kyc/...
+    NX-&gt;&gt;GW: proxy, Host header kept
+    GW-&gt;&gt;GW: Tenant from Host, verify JWT + tenant claim, add X-User-* headers
+    GW-&gt;&gt;USER: lb://user-service (via Eureka)
+    USER-&gt;&gt;DB: KycDocument PENDING
+    USER-&gt;&gt;KF: audit.events
+    Note over USER: Admin approves / rejects (403 without admin role)
+    USER-&gt;&gt;DB: approve: UserProfile.isVerified = true</pre></div>
+  <div class="res"><b>Result:</b> Verified badge; search can filter on &quot;verified&quot;.</div>
+  
+  <div class="nt"><b>Notes</b><ul><li>Exact paths: see user-service KYC controller / Swagger at http://localhost:8094/swagger-ui.html</li></ul></div>
+</article>
+<article class="card" id="messaging" data-text="booking chat customer + assigned worker api only: /api/v1/bookings/{id}/messages, /api/v1/threads/** send a message one thread per booking. ui nx post /api/v1/bookings/{id}/messages nx gw proxy, host header kept gw gw tenant from host, verify jwt + tenant claim, add x-user-* headers gw msg lb://messaging-service (via eureka) msg book check worker is assigned and caller is a party msg db save message, bump other party&#x27;s unread counter msg kf publish message.sent kf noti in-app notification for the recipient msg ui 201">
+  <header><h3>Booking chat</h3><span class="who">Customer + assigned worker</span></header>
+  <dl class="meta">
+    <div><dt>Screen</dt><dd><code>API only: /api/v1/bookings/{id}/messages, /api/v1/threads/**</code></dd></div>
+    <div><dt>Trigger</dt><dd>Send a message</dd></div>
+  </dl>
+  <div class="tabs"><button class="on" data-v="steps">Steps</button><button data-v="diagram">Diagram</button></div>
+  <div class="view steps"><div class="tw"><table><thead><tr><th>#</th><th>From</th><th>To</th><th>What happens</th></tr></thead><tbody><tr><td class="n">1</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag edge">Frontend nginx :3000</span></td><td>POST /api/v1/bookings/{id}/messages</td></tr><tr><td class="n">2</td><td><span class="tag edge">Frontend nginx :3000</span></td><td><span class="arr">→</span> <span class="tag gw">API Gateway :8080</span></td><td>proxy, Host header kept</td></tr><tr><td class="n">3</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">↺</span> <span class="tag gw">API Gateway :8080</span></td><td>Tenant from Host, verify JWT + tenant claim, add X-User-* headers</td></tr><tr><td class="n">4</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">→</span> <span class="tag svc">messaging-service</span></td><td>lb://messaging-service (via Eureka)</td></tr><tr><td class="n">5</td><td><span class="tag svc">messaging-service</span></td><td><span class="arr">→</span> <span class="tag svc">booking-service</span></td><td>check worker is assigned and caller is a party</td></tr><tr><td class="n">6</td><td><span class="tag svc">messaging-service</span></td><td><span class="arr">→</span> <span class="tag data">MySQL</span></td><td>save Message, bump other party&#x27;s unread counter</td></tr><tr><td class="n">7</td><td><span class="tag svc">messaging-service</span></td><td><span class="arr">→</span> <span class="tag bus">Kafka</span></td><td>publish message.sent</td></tr><tr><td class="n">8</td><td><span class="tag bus">Kafka</span></td><td><span class="arr">→</span> <span class="tag svc">notification-service</span></td><td>in-app notification for the recipient</td></tr><tr><td class="n">9</td><td><span class="tag svc">messaging-service</span></td><td><span class="arr">→</span> <span class="tag ui">React UI</span></td><td>201</td></tr></tbody></table></div></div>
+  <div class="view diagram" hidden><pre class="mermaid">sequenceDiagram
+    autonumber
+    participant UI as React UI
+    participant NX as Frontend nginx :3000
+    participant GW as API Gateway :8080
+    participant MSG as messaging-service
+    participant BOOK as booking-service
+    participant DB as MySQL
+    participant KF as Kafka
+    participant NOTI as notification-service
+    UI-&gt;&gt;NX: POST /api/v1/bookings/{id}/messages
+    NX-&gt;&gt;GW: proxy, Host header kept
+    GW-&gt;&gt;GW: Tenant from Host, verify JWT + tenant claim, add X-User-* headers
+    GW-&gt;&gt;MSG: lb://messaging-service (via Eureka)
+    MSG-&gt;&gt;BOOK: check worker is assigned and caller is a party
+    MSG-&gt;&gt;DB: save Message, bump other party&#x27;s unread counter
+    MSG-&gt;&gt;KF: publish message.sent
+    KF-&gt;&gt;NOTI: in-app notification for the recipient
+    MSG--&gt;&gt;UI: 201</pre></div>
+  <div class="res"><b>Result:</b> One thread per booking.</div>
+  <div class="err"><b>What can go wrong</b><ul><li>400 before a worker is assigned</li><li>403 not a party</li></ul></div>
+  
+</article>
+<article class="card" id="projects" data-text="projects and milestones customer / contractor api only: /api/v1/projects/** create project, milestones, view summary budget rollup across bookings and escrow. ui nx post /api/v1/projects nx gw proxy, host header kept gw gw tenant from host, verify jwt + tenant claim, add x-user-* headers gw proj lb://project-service (via eureka) proj db project + milestones ui proj get /projects/{id}/summary proj book feign: bookings for project proj pay feign: /escrow/project/{id} proj ui budget vs actual + escrow held/released">
+  <header><h3>Projects and milestones</h3><span class="who">Customer / contractor</span></header>
+  <dl class="meta">
+    <div><dt>Screen</dt><dd><code>API only: /api/v1/projects/**</code></dd></div>
+    <div><dt>Trigger</dt><dd>Create project, milestones, view summary</dd></div>
+  </dl>
+  <div class="tabs"><button class="on" data-v="steps">Steps</button><button data-v="diagram">Diagram</button></div>
+  <div class="view steps"><div class="tw"><table><thead><tr><th>#</th><th>From</th><th>To</th><th>What happens</th></tr></thead><tbody><tr><td class="n">1</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag edge">Frontend nginx :3000</span></td><td>POST /api/v1/projects</td></tr><tr><td class="n">2</td><td><span class="tag edge">Frontend nginx :3000</span></td><td><span class="arr">→</span> <span class="tag gw">API Gateway :8080</span></td><td>proxy, Host header kept</td></tr><tr><td class="n">3</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">↺</span> <span class="tag gw">API Gateway :8080</span></td><td>Tenant from Host, verify JWT + tenant claim, add X-User-* headers</td></tr><tr><td class="n">4</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">→</span> <span class="tag svc">project-service</span></td><td>lb://project-service (via Eureka)</td></tr><tr><td class="n">5</td><td><span class="tag svc">project-service</span></td><td><span class="arr">→</span> <span class="tag data">MySQL</span></td><td>Project + Milestones</td></tr><tr><td class="n">6</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag svc">project-service</span></td><td>GET /projects/{id}/summary</td></tr><tr><td class="n">7</td><td><span class="tag svc">project-service</span></td><td><span class="arr">→</span> <span class="tag svc">booking-service</span></td><td>Feign: bookings for project</td></tr><tr><td class="n">8</td><td><span class="tag svc">project-service</span></td><td><span class="arr">→</span> <span class="tag svc">payment-service</span></td><td>Feign: /escrow/project/{id}</td></tr><tr><td class="n">9</td><td><span class="tag svc">project-service</span></td><td><span class="arr">→</span> <span class="tag ui">React UI</span></td><td>budget vs actual + escrow held/released</td></tr></tbody></table></div></div>
+  <div class="view diagram" hidden><pre class="mermaid">sequenceDiagram
+    autonumber
+    participant UI as React UI
+    participant NX as Frontend nginx :3000
+    participant GW as API Gateway :8080
+    participant PROJ as project-service
+    participant DB as MySQL
+    participant BOOK as booking-service
+    participant PAY as payment-service
+    UI-&gt;&gt;NX: POST /api/v1/projects
+    NX-&gt;&gt;GW: proxy, Host header kept
+    GW-&gt;&gt;GW: Tenant from Host, verify JWT + tenant claim, add X-User-* headers
+    GW-&gt;&gt;PROJ: lb://project-service (via Eureka)
+    PROJ-&gt;&gt;DB: Project + Milestones
+    UI-&gt;&gt;PROJ: GET /projects/{id}/summary
+    PROJ-&gt;&gt;BOOK: Feign: bookings for project
+    PROJ-&gt;&gt;PAY: Feign: /escrow/project/{id}
+    PROJ--&gt;&gt;UI: budget vs actual + escrow held/released</pre></div>
+  <div class="res"><b>Result:</b> Budget rollup across bookings and escrow.</div>
+  
+  
+</article>
+<article class="card" id="search" data-text="search professionals any logged-in user api only: /api/v1/search/** query with filters only active provider accounts appear. ui nx get /api/v1/search/profiles?q=..&amp;city=..&amp;minrating=.. nx gw proxy, host header kept gw gw tenant from host, verify jwt + tenant claim, add x-user-* headers gw srch lb://search-service (via eureka) srch es fuzzy full-text + filters on the tenant&#x27;s profiles index srch ui ranked results note srch admin reindex: post /admin/search/... pulls from auth, user, review services">
+  <header><h3>Search professionals</h3><span class="who">Any logged-in user</span></header>
+  <dl class="meta">
+    <div><dt>Screen</dt><dd><code>API only: /api/v1/search/**</code></dd></div>
+    <div><dt>Trigger</dt><dd>Query with filters</dd></div>
+  </dl>
+  <div class="tabs"><button class="on" data-v="steps">Steps</button><button data-v="diagram">Diagram</button></div>
+  <div class="view steps"><div class="tw"><table><thead><tr><th>#</th><th>From</th><th>To</th><th>What happens</th></tr></thead><tbody><tr><td class="n">1</td><td><span class="tag ui">React UI</span></td><td><span class="arr">→</span> <span class="tag edge">Frontend nginx :3000</span></td><td>GET /api/v1/search/profiles?q=..&amp;city=..&amp;minRating=..</td></tr><tr><td class="n">2</td><td><span class="tag edge">Frontend nginx :3000</span></td><td><span class="arr">→</span> <span class="tag gw">API Gateway :8080</span></td><td>proxy, Host header kept</td></tr><tr><td class="n">3</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">↺</span> <span class="tag gw">API Gateway :8080</span></td><td>Tenant from Host, verify JWT + tenant claim, add X-User-* headers</td></tr><tr><td class="n">4</td><td><span class="tag gw">API Gateway :8080</span></td><td><span class="arr">→</span> <span class="tag svc">search-service</span></td><td>lb://search-service (via Eureka)</td></tr><tr><td class="n">5</td><td><span class="tag svc">search-service</span></td><td><span class="arr">→</span> <span class="tag data">Elasticsearch</span></td><td>fuzzy full-text + filters on the tenant&#x27;s profiles index</td></tr><tr><td class="n">6</td><td><span class="tag svc">search-service</span></td><td><span class="arr">→</span> <span class="tag ui">React UI</span></td><td>ranked results</td></tr><tr class="note"><td></td><td colspan="2"><span class="tag svc">search-service</span></td><td>Admin reindex: POST /admin/search/... pulls from auth, user, review services</td></tr></tbody></table></div></div>
+  <div class="view diagram" hidden><pre class="mermaid">sequenceDiagram
+    autonumber
+    participant UI as React UI
+    participant NX as Frontend nginx :3000
+    participant GW as API Gateway :8080
+    participant SRCH as search-service
+    participant ES as Elasticsearch
+    UI-&gt;&gt;NX: GET /api/v1/search/profiles?q=..&amp;city=..&amp;minRating=..
+    NX-&gt;&gt;GW: proxy, Host header kept
+    GW-&gt;&gt;GW: Tenant from Host, verify JWT + tenant claim, add X-User-* headers
+    GW-&gt;&gt;SRCH: lb://search-service (via Eureka)
+    SRCH-&gt;&gt;ES: fuzzy full-text + filters on the tenant&#x27;s profiles index
+    SRCH--&gt;&gt;UI: ranked results
+    Note over SRCH: Admin reindex: POST /admin/search/... pulls from auth, user, review services</pre></div>
+  <div class="res"><b>Result:</b> Only ACTIVE provider accounts appear.</div>
+  
+  <div class="nt"><b>Notes</b><ul><li>Index freshness depends on reindexing (see MODULE_STATUS.md).</li></ul></div>
+</article>
+</main></div>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+<script>
+const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+mermaid.initialize({startOnLoad:false, theme: dark ? 'dark' : 'default', sequence:{useMaxWidth:false}});
+document.querySelectorAll('.card').forEach(card => {
+  card.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', async () => {
+    card.querySelectorAll('.tabs button').forEach(x => x.classList.toggle('on', x === b));
+    card.querySelector('.steps').hidden = b.dataset.v !== 'steps';
+    const d = card.querySelector('.diagram'); d.hidden = b.dataset.v !== 'diagram';
+    const pre = d.querySelector('.mermaid');
+    if (!d.hidden && !pre.dataset.processed) { await mermaid.run({nodes:[pre]}); }
+  }));
+});
+const q = document.getElementById('q');
+q.addEventListener('input', () => {
+  const t = q.value.trim().toLowerCase();
+  document.querySelectorAll('.card').forEach(c => c.classList.toggle('hide', t && !c.dataset.text.includes(t)));
+  document.querySelectorAll('aside li a').forEach(a => a.parentElement.classList.toggle('hide', t && document.getElementById(a.dataset.id).classList.contains('hide')));
+  document.querySelectorAll('.gh').forEach(h => {
+    let n = h.nextElementSibling, any = false;
+    while (n && n.classList.contains('card')) { if (!n.classList.contains('hide')) any = true; n = n.nextElementSibling; }
+    h.classList.toggle('hide', !any);
+  });
+});
+const links = [...document.querySelectorAll('aside li a')];
+const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) links.forEach(l => l.classList.toggle('act', l.dataset.id === e.target.id)); }), {rootMargin:'-20% 0px -70% 0px'});
+document.querySelectorAll('.card').forEach(c => io.observe(c));
+// ?all=1 renders every diagram up front (used for checking / printing)
+if (new URLSearchParams(location.search).get('all')) {
+  (async () => {
+    for (const d of document.querySelectorAll('.diagram')) {
+      d.hidden = false;
+      await mermaid.run({nodes:[d.querySelector('.mermaid')]});
+    }
+    document.body.dataset.done = '1';
+  })();
+}
+</script>
+</body></html>

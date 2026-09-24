@@ -53,6 +53,18 @@ public class KafkaNotificationConsumer {
      * OTP goes to exactly one channel — the one the user chose to authenticate with. Fanning a
      * one-time code out to every address on the account would widen its exposure for no gain.
      */
+    /** A new workspace's owner invitation (auth-service, at the end of provisioning). */
+    @KafkaListener(topics = "user.invited", groupId = "notification-service-group")
+    public void handleUserInvited(Map<String, Object> data) {
+        try {
+            emailService.sendInvitation(str(data, "email"), str(data, "name"), str(data, "workspaceName"),
+                    str(data, "link"), str(data, "expiresAt"));
+            log.info("Invitation email sent for user {}", data.get("userId"));
+        } catch (Exception e) {
+            log.error("Failed to process user.invited event: {}", e.getMessage());
+        }
+    }
+
     @KafkaListener(topics = "otp.sent", groupId = "notification-service-group")
     public void handleOtpSent(Map<String, Object> data) {
         try {

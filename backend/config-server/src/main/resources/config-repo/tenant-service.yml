@@ -36,6 +36,13 @@ spring:
 # The registry itself is platform-level, not tenant-scoped: it is the table that says which
 # tenants exist, so it cannot live inside a per-tenant schema.
 platform:
+  # Per-tenant provider credentials (tenant-common integration layer). Each customer tenant uses
+  # its own payment/mail/SMS/WhatsApp/AI account from tenant-service's tenant_integrations table;
+  # only the operator tenant ("platform") uses the provider keys configured in this file. The master
+  # key seals every tenant's secrets and must be identical across services.
+  integrations:
+    enabled: true
+    master-key: ${INTEGRATION_MASTER_KEY:}
   tenant:
     enabled: false
 

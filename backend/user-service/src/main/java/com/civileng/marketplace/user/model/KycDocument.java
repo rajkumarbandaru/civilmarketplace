@@ -1,7 +1,6 @@
 package com.civileng.marketplace.user.model;
 
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -41,9 +40,13 @@ public class KycDocument {
     @Column(name = "document_number", length = 100)
     private String documentNumber;
 
-    @NotBlank
-    @Column(name = "document_url", nullable = false, length = 500)
+    /** Only on documents submitted before uploads went through media-service. */
+    @Column(name = "document_url", length = 500)
     private String documentUrl;
+
+    /** The uploaded file in media-service. Open it through the file-link endpoints. */
+    @Column(name = "media_id", length = 36)
+    private String mediaId;
 
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.VARCHAR)

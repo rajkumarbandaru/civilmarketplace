@@ -1,0 +1,471 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rapid Fire — One-Line Answers</title>
+<style>
+:root{--bg:#f6f7f9;--fg:#1f2933;--muted:#5b6770;--card:#fff;--line:#e3e6ea;--accent:#3730a3;--accent-bg:#eef2ff;--head:#0f172a;--code:#f1f3f6}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1115;--fg:#e6e8eb;--muted:#9aa4ad;--card:#171a20;--line:#2a2f37;--accent:#a5b4fc;--accent-bg:#1e2240;--head:#05070b;--code:#1f232b}}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.6 system-ui,-apple-system,Segoe UI,sans-serif;background:var(--bg);color:var(--fg)}
+header{background:var(--head);color:#fff;padding:18px 16px}
+header .in{max-width:1200px;margin:0 auto}
+header h1{margin:0;font-size:22px;line-height:1.3} header p{margin:4px 0 0;opacity:.75;font-size:13px}
+header a{color:#c7d2fe}
+.nav{max-width:1200px;margin:0 auto;padding:10px 16px 0;font-size:13px}
+.nav a{color:var(--accent);text-decoration:none;margin-right:6px;padding:3px 9px;border-radius:999px;background:var(--accent-bg);display:inline-block;margin-bottom:6px}
+.wrap{max-width:1200px;margin:0 auto;padding:0 16px 60px;display:flex;gap:24px;align-items:flex-start}
+nav.toc{position:sticky;top:12px;flex:0 0 250px;max-height:calc(100vh - 24px);overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:16px;font-size:13px}
+nav.toc ul{list-style:none;margin:0;padding-left:10px} nav.toc>ul{padding-left:0}
+nav.toc a{color:var(--accent);text-decoration:none;display:block;padding:2px 0}
+main{flex:1;min-width:0}
+main h1{display:none}
+h2{font-size:20px;margin:32px 0 10px;padding-top:8px;border-top:1px solid var(--line)}
+h3{font-size:16px;margin:20px 0 8px}
+a{color:var(--accent)}
+blockquote{margin:12px 0;padding:10px 14px;background:var(--accent-bg);border-left:4px solid var(--accent);border-radius:6px}
+blockquote p{margin:4px 0}
+table{border-collapse:collapse;width:100%;background:var(--card);font-size:14px;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:6px 10px;text-align:left;vertical-align:top}
+th{background:var(--accent-bg)}
+code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:13px}
+pre{background:var(--code);padding:12px;border-radius:8px;overflow-x:auto;font-size:13px;line-height:1.45}
+pre code{background:none;padding:0}
+pre.mermaid{background:var(--card);border:1px solid var(--line);text-align:center}
+hr{border:0;border-top:1px solid var(--line);margin:24px 0}
+@media (max-width:900px){.wrap{display:block}nav.toc{position:static;max-height:none;margin-top:16px}}
+</style></head><body>
+<header><div class="in"><h1>Rapid Fire — One-Line Answers</h1><p>Civil Engineering Marketplace · source ~/RAJKUMAR · generated from <code style="color:#fff;background:none">interview/rapid-fire.md</code></p></div></header>
+<div class="nav"><a href="../index.html">Home</a><a href="../interview-guide.html">Interview guide</a><a href="../overview/architecture.html">Architecture</a><a href="../backend/backend-guide.html">Backend</a><a href="../ui/ui-guide.html">UI</a><a href="../docker/docker-guide.html">Docker</a><a href="../overview/action-flows.html">Action flows</a><a href="../interview/rapid-fire.html">Rapid fire</a></div>
+<div class="wrap"><nav class="toc"><b>Contents</b><div class="toc">
+<ul>
+<li><a href="#the-project">The project</a></li>
+<li><a href="#gateway-and-auth">Gateway and auth</a></li>
+<li><a href="#data">Data</a></li>
+<li><a href="#events">Events</a></li>
+<li><a href="#payments">Payments</a></li>
+<li><a href="#frontend">Frontend</a></li>
+<li><a href="#docker-and-ops">Docker and ops</a></li>
+<li><a href="#behavioural">Behavioural</a></li>
+</ul>
+</div>
+</nav><main><h1 id="rapid-fire-one-line-answers">Rapid Fire — One-Line Answers</h1>
+<p>Spot-check questions. Answer in one or two sentences, then stop talking.
+Longer versions: <a href="../backend/backend-interview.html">backend</a> · <a href="../ui/ui-interview.html">UI</a> ·
+<a href="../docker/docker-interview.html">Docker</a> · <a href="system-design.html">system design</a>.</p>
+<hr />
+<h2 id="the-project">The project</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Question</th>
+<th>Answer</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>What is it?</td>
+<td>A multi-tenant marketplace for civil engineering services: 16 Spring Boot microservices, a React SPA, Docker Compose.</td>
+</tr>
+<tr>
+<td>2</td>
+<td>How many services?</td>
+<td>16 deployable, plus 3 shared libraries.</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Java and Spring versions?</td>
+<td>Java 21, Spring Boot 3.2, Spring Cloud 2023.0.1.</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Who are the users?</td>
+<td>Customers, providers (engineer, architect, surveyor, contractor, supplier, labour) and admins at four levels.</td>
+</tr>
+<tr>
+<td>5</td>
+<td>What is the hardest part?</td>
+<td>Multi-tenancy end to end: subdomain → JWT claim → schema, without a single place where a client can choose its own tenant.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="gateway-and-auth">Gateway and auth</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Question</th>
+<th>Answer</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>6</td>
+<td>Where is the JWT validated?</td>
+<td>Only at the gateway; services read the <code>X-User-*</code> headers it injects.</td>
+</tr>
+<tr>
+<td>7</td>
+<td>What is in the token?</td>
+<td>Subject (user id), email, role, name and tenant.</td>
+</tr>
+<tr>
+<td>8</td>
+<td>How is a role enforced?</td>
+<td>The role arrives as <code>X-User-Role</code> and the service checks it; role headers are optional and null-checked so a missing one is a 4xx, not a 500.</td>
+</tr>
+<tr>
+<td>9</td>
+<td>How do you revoke a token?</td>
+<td>You cannot today — short expiry plus refresh tokens; a Redis deny-list at the gateway would be the fix.</td>
+</tr>
+<tr>
+<td>10</td>
+<td>Rate limiting?</td>
+<td><code>RedisRateLimiter</code>: 100/s replenish, burst 200, shared across gateway instances.</td>
+</tr>
+<tr>
+<td>11</td>
+<td>Why order routes carefully?</td>
+<td>First match wins, so <code>/api/v1/admin/**</code> would swallow <code>/admin/reviews/**</code> if it were registered first.</td>
+</tr>
+<tr>
+<td>12</td>
+<td>What is <code>lb://</code>?</td>
+<td>Resolve this service name through Eureka and load-balance across its instances.</td>
+</tr>
+<tr>
+<td>13</td>
+<td>Which routes are public?</td>
+<td>auth, geo, catalogue, site content, tenant resolution, payment webhooks, notification delivery callbacks.</td>
+</tr>
+<tr>
+<td>14</td>
+<td>How is a webhook authenticated if it has no JWT?</td>
+<td>A shared secret in the query string (Brevo) or an HMAC signature (Razorpay).</td>
+</tr>
+</tbody>
+</table>
+<h2 id="data">Data</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Question</th>
+<th>Answer</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>15</td>
+<td>Database per service or shared?</td>
+<td>Per service; one MySQL instance locally, one logical database each.</td>
+</tr>
+<tr>
+<td>16</td>
+<td>Multi-tenancy model?</td>
+<td>Schema per tenant: <code>&lt;service_db&gt;_&lt;tenantKey&gt;</code>.</td>
+</tr>
+<tr>
+<td>17</td>
+<td>Who decides the tenant?</td>
+<td>The gateway, from the Host subdomain, cross-checked against the JWT's tenant claim.</td>
+</tr>
+<tr>
+<td>18</td>
+<td>New tenant onboarding?</td>
+<td>A <code>tenant.events</code> Kafka message; every service creates and Flyway-migrates the schema live, no restart.</td>
+</tr>
+<tr>
+<td>19</td>
+<td>Migrations?</td>
+<td>Flyway per service, <code>V1__</code>, <code>V2__</code>…; applied files are never edited.</td>
+</tr>
+<tr>
+<td>20</td>
+<td>An ORM gotcha you hit?</td>
+<td>Hibernate 6 wants a native <code>ENUM</code> column unless <code>@Enumerated(STRING)</code> is paired with <code>@JdbcTypeCode(SqlTypes.VARCHAR)</code>.</td>
+</tr>
+<tr>
+<td>21</td>
+<td>Where is Redis used?</td>
+<td>OTP storage, sessions, gateway rate limiting.</td>
+</tr>
+<tr>
+<td>22</td>
+<td>Where is Elasticsearch used?</td>
+<td>Two indices — <code>profiles</code> (denormalised from auth, user and review) and <code>services</code>.</td>
+</tr>
+<tr>
+<td>23</td>
+<td>Pagination?</td>
+<td>Spring Data <code>Pageable</code>, page and size query parameters.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="events">Events</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Question</th>
+<th>Answer</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>24</td>
+<td>Kafka or Feign — how do you choose?</td>
+<td>Feign when the caller needs the answer to proceed; Kafka when it does not.</td>
+</tr>
+<tr>
+<td>25</td>
+<td>Name your topics.</td>
+<td><code>user.registered</code>, <code>otp.sent</code>, <code>payment.created/completed/refunded</code>, <code>booking.paid/arriving/completed</code>, <code>message.sent</code>, <code>escrow.held/released/disputed</code>, <code>audit.events</code>, <code>tenant.events</code>.</td>
+</tr>
+<tr>
+<td>26</td>
+<td>Delivery guarantee?</td>
+<td>At least once, so consumers are idempotent.</td>
+</tr>
+<tr>
+<td>27</td>
+<td>Give an idempotency example.</td>
+<td>A redelivered <code>payment.completed</code> finds the booking already PAID and returns without sending a second receipt.</td>
+</tr>
+<tr>
+<td>28</td>
+<td>What happens when a consumer throws?</td>
+<td>It is caught and logged so the group keeps moving; the honest gap is a dropped event, and the fix is a dead-letter topic.</td>
+</tr>
+<tr>
+<td>29</td>
+<td>Your known consistency risk?</td>
+<td>The dual write — DB commit then Kafka publish; the fix is the transactional outbox.</td>
+</tr>
+<tr>
+<td>30</td>
+<td>A dead listener you found?</td>
+<td><code>booking.created</code> has a consumer in notification-service but no producer anywhere.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="payments">Payments</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Question</th>
+<th>Answer</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>31</td>
+<td>Payment flow?</td>
+<td>Create Razorpay order → Checkout in the browser → server-side HMAC signature verification → COMPLETED → <code>payment.completed</code>.</td>
+</tr>
+<tr>
+<td>32</td>
+<td>Can the browser mark a payment paid?</td>
+<td>No. The client's word is never enough: the signature is verified server-side and Razorpay also posts a webhook.</td>
+</tr>
+<tr>
+<td>33</td>
+<td>What is escrow here?</td>
+<td>A hold funded by a real payment, released by the payer or automatically after 7 days, with a 5% commission frozen on the row at release.</td>
+</tr>
+<tr>
+<td>34</td>
+<td>Dispute handling?</td>
+<td>The hold moves to DISPUTED, release is blocked by the query itself, and an admin resolves RELEASE, REFUND or HOLD.</td>
+</tr>
+<tr>
+<td>35</td>
+<td>Are payouts built?</td>
+<td>No — money enters wallets and cannot leave; that needs PSP payout APIs plus a KYC gate.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="frontend">Frontend</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Question</th>
+<th>Answer</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>36</td>
+<td>Redux or React Query?</td>
+<td>Both: Redux for session and client state, React Query for server state.</td>
+</tr>
+<tr>
+<td>37</td>
+<td>Where is the token stored?</td>
+<td><code>sessionStorage</code>, per tab, so two accounts can be open side by side; httpOnly cookies would be the stronger choice.</td>
+</tr>
+<tr>
+<td>38</td>
+<td>How does refresh work?</td>
+<td>An Axios 401 interceptor refreshes once (guarded by a <code>_retry</code> flag) and replays the request; auth endpoints are excluded.</td>
+</tr>
+<tr>
+<td>39</td>
+<td>Are <code>VITE_</code> variables runtime config?</td>
+<td>No — inlined at build time, so they are Docker build args and a rebuild is needed to change them.</td>
+</tr>
+<tr>
+<td>40</td>
+<td>Can a secret go in a <code>VITE_</code> variable?</td>
+<td>Never; it ships to every browser. Only the Razorpay key <em>id</em> is public.</td>
+</tr>
+<tr>
+<td>41</td>
+<td>Why does the bundle call its own origin?</td>
+<td>So the browser's Host reaches the gateway and tenant resolution works per subdomain.</td>
+</tr>
+<tr>
+<td>42</td>
+<td>How is the UI themed?</td>
+<td><code>GET /ui-config/me</code> returns the effective theme and the MUI theme is rebuilt at runtime; components read <code>theme.palette</code>, never a hex literal.</td>
+</tr>
+<tr>
+<td>43</td>
+<td>Caching policy?</td>
+<td><code>/assets/*</code> one year immutable (content-hashed), <code>index.html</code> no-cache because it names those files.</td>
+</tr>
+<tr>
+<td>44</td>
+<td>SPA deep links?</td>
+<td><code>try_files $uri $uri/ /index.html</code> in nginx.</td>
+</tr>
+<tr>
+<td>45</td>
+<td>Bundle strategy?</td>
+<td>Manual chunks: vendor, mui, state, query; the PWA precache limit had to be raised because the MUI chunk is ~4.2 MB.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="docker-and-ops">Docker and ops</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Question</th>
+<th>Answer</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>46</td>
+<td>How do you start it?</td>
+<td><code>mvn clean package -DskipTests</code>, then <code>docker compose up -d --build</code> from <code>docker/</code>.</td>
+</tr>
+<tr>
+<td>47</td>
+<td>Why Maven first?</td>
+<td>The service Dockerfiles copy a prebuilt jar; only the frontend image builds from source.</td>
+</tr>
+<tr>
+<td>48</td>
+<td>How is startup ordered?</td>
+<td>Health-gated <code>depends_on</code>: config-server, then Eureka, then everything else.</td>
+</tr>
+<tr>
+<td>49</td>
+<td>Container-to-container addressing?</td>
+<td>By service name on the <code>civil-network</code> bridge; the host uses published ports instead.</td>
+</tr>
+<tr>
+<td>50</td>
+<td>Why two Kafka listeners?</td>
+<td><code>kafka:9092</code> for containers, <code>localhost:29093</code> for the host, because a broker advertises the address clients must use.</td>
+</tr>
+<tr>
+<td>51</td>
+<td>What does <code>docker compose down -v</code> do?</td>
+<td>Deletes the named volumes — every database is wiped and the init SQL re-runs on next start.</td>
+</tr>
+<tr>
+<td>52</td>
+<td>Why is there a lean overlay?</td>
+<td>Each JVM defaults to 25% of host RAM for max heap; the overlay caps heap and memory so 16 services fit on a laptop.</td>
+</tr>
+<tr>
+<td>53</td>
+<td>How are secrets handled?</td>
+<td>A gitignored <code>docker/.env</code> — the minimum, not production-grade; that needs a secret manager.</td>
+</tr>
+<tr>
+<td>54</td>
+<td>Why no OTP email locally?</td>
+<td><code>EMAIL_PROVIDER=log</code> (or placeholder credentials) writes it to the notification-service log instead of sending it.</td>
+</tr>
+<tr>
+<td>55</td>
+<td>Production gaps?</td>
+<td>No orchestrator, no CI/CD to a real environment, no secret manager, single-node datastores, no log aggregation or alerting.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="behavioural">Behavioural</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Question</th>
+<th>Answer</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>56</td>
+<td>Hardest bug?</td>
+<td><code>booking_code</code> was <code>VARCHAR(20)</code> while the generator emitted 22 characters, so every booking creation 500'd — fixed with a new migration rather than changing a public code format.</td>
+</tr>
+<tr>
+<td>57</td>
+<td>A time you prevented a bug?</td>
+<td><code>findByBookingId</code> returning <code>Optional</code> would have thrown once escrow gave a booking several payments.</td>
+</tr>
+<tr>
+<td>58</td>
+<td>Something you chose not to build?</td>
+<td>Payouts — it needs PSP payout APIs and a KYC gate; a half-built version would have been worse than a clean boundary.</td>
+</tr>
+<tr>
+<td>59</td>
+<td>What would you refactor first?</td>
+<td>The dual write — add a transactional outbox for payment and escrow events.</td>
+</tr>
+<tr>
+<td>60</td>
+<td>What did the project teach you?</td>
+<td>That the interesting failures are integration failures — column widths, header propagation, CORS patterns, cache headers — not algorithms.</td>
+</tr>
+</tbody>
+</table></main></div>
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+mermaid.initialize({ startOnLoad: false, theme: dark ? 'dark' : 'default', securityLevel: 'loose',
+                      flowchart: { htmlLabels: true }, sequence: { useMaxWidth: false } });
+const blocks = [...document.querySelectorAll('pre.mermaid')];
+for (let i = 0; i < blocks.length; i++) {
+  const el = blocks[i];
+  const src = el.textContent;
+  try {
+    const { svg } = await mermaid.render('mmd' + i, src);
+    el.innerHTML = svg;
+    el.setAttribute('data-processed', 'true');
+  } catch (e) {
+    el.setAttribute('data-error', 'true');
+    el.textContent = 'Diagram error: ' + e.message + ' --- ' + src;
+  }
+}
+</script>
+</body></html>

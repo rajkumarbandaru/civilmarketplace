@@ -1,5 +1,9 @@
 package com.civileng.marketplace.tenant.service;
 
+import com.civileng.marketplace.tenant.entitlement.EntitlementService;
+import com.civileng.marketplace.tenant.entitlement.Plan;
+import com.civileng.marketplace.tenant.entitlement.TenantSubscription;
+import com.civileng.marketplace.tenant.entitlement.TenantSubscriptionRepository;
 import com.civileng.marketplace.tenant.common.TenantBranding;
 import com.civileng.marketplace.tenant.common.TenantEventMessage;
 import com.civileng.marketplace.tenant.common.TenantKey;
@@ -24,6 +28,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 
 import java.time.Instant;
 import java.util.LinkedHashSet;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -36,8 +41,16 @@ public class TenantService {
     private final TenantRepository tenantRepository;
     private final TenantMenuOverrideRepository menuOverrideRepository;
     private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final TenantIntegrationService integrationService;
+    private final TenantLifecycle lifecycle;
+    private final EntitlementService entitlements;
+    private final TenantSubscriptionRepository subscriptions;
 
     @Transactional
+    /**
+     * Creates a tenant in {@code DRAFT}: the key and subdomain are reserved and its settings stored,
+     * but nothing is provisioned and no traffic is served until it is published.
+     */
     public Tenant create(CreateTenantRequest request, String actorId) {
         String key = TenantKey.normalise(request.getTenantKey());
 
@@ -73,21 +86,34 @@ public class TenantService {
                 .name(request.getName())
                 .subdomain(subdomain)
                 .customDomain(customDomain)
-                .status(TenantStatus.ACTIVE)
+                .status(TenantStatus.DRAFT)
                 .contactEmail(request.getContactEmail())
-                .plan(request.getPlan() == null ? "STANDARD" : request.getPlan())
                 .vertical(vertical)
                 .enabledModules(resolveModules(vertical, request.getModules()))
                 .createdBy(actorId)
                 .landingPath(blankToNull(request.getLandingPath()))
                 .build();
         tenant.applyBranding(branding);
+        tenant.setOwnerName(blankToNull(request.getOwnerName()));
+        tenant.setOwnerEmail(blankToNull(request.getOwnerEmail()));
+        // The plan decides what the tenant may run; its chosen modules are kept either way, and
+        // only those it is entitled to actually run (see EntitlementService).
+        Plan plan = entitlements.latest(request.getPlan() == null || request.getPlan().isBlank()
+                ? "professional" : request.getPlan().trim().toLowerCase());
+        tenant.setPlan(plan.getId().getPlanKey());
+        lifecycle.born(tenant, actorId);
         tenant = tenantRepository.save(tenant);
+        subscriptions.save(TenantSubscription.builder().tenantKey(key).planKey(plan.getId().getPlanKey())
+                .planVersion(plan.getId().getVersion()).status(TenantSubscription.Status.ACTIVE).addOns("")
+                .updatedBy(actorId).build());
 
         List<TenantMenuOverride> overrides = replaceOverrides(key, request.getMenuOverrides());
 
-        publishAfterCommit(tenant, branding, overrides);
-        log.info("Tenant '{}' created ({} vertical) by {}", key, vertical, actorId);
+        integrationService.seedDefaults(key, actorId);
+
+        // Nothing is announced yet: a DRAFT tenant has no storage anywhere. Publishing it starts
+        // the provisioning saga, which is what tells the services.
+        log.info("Tenant '{}' created as a DRAFT ({} vertical) by {}", key, vertical, actorId);
         return tenant;
     }
 
@@ -178,26 +204,49 @@ public class TenantService {
                         "No tenant serves host '" + host + "'"));
     }
 
+    /** An operator's lifecycle action on a live tenant: suspend, reinstate, archive, restore. */
     @Transactional
     public Tenant changeStatus(String tenantKey, TenantStatus status, String actorId) {
-        Tenant tenant = byKey(tenantKey);
-
-        if (tenant.getTenantKey().equals("platform") && status != TenantStatus.ACTIVE) {
-            // Suspending the operator tenant would lock every admin out of the console that is
-            // the only way to un-suspend it.
-            throw new IllegalArgumentException("The operator tenant cannot be suspended");
+        if (!TenantLifecycle.OPERATOR_SETTABLE.contains(status)) {
+            throw new IllegalArgumentException(status + " is set by publishing, not by hand");
         }
-
-        tenant.setStatus(status);
+        Tenant tenant = byKey(tenantKey);
+        lifecycle.transition(tenant, status, actorId, "Operator action");
         publishAfterCommit(tenant);
-        log.info("Tenant '{}' status -> {} by {}", tenantKey, status, actorId);
         return tenant;
+    }
+
+    /**
+     * Throws away a tenant that never went live: a DRAFT, or one whose provisioning failed. Its key
+     * and subdomain become free again. A live tenant is archived, never deleted here.
+     */
+    @Transactional
+    public void discard(String tenantKey, String actorId) {
+        Tenant tenant = byKey(tenantKey);
+        if (tenant.getStatus() != TenantStatus.DRAFT && tenant.getStatus() != TenantStatus.PROVISIONING_FAILED) {
+            throw new IllegalArgumentException("Only a tenant that never went live can be discarded; archive it instead");
+        }
+        menuOverrideRepository.deleteAll(menuOverrideRepository.findByIdTenantKeyOrderByIdItemKeyAsc(tenantKey));
+        integrationService.deleteAll(tenantKey);
+        tenantRepository.delete(tenant);
+        log.info("Tenant '{}' ({}) discarded by {}", tenantKey, tenant.getStatus(), actorId);
     }
 
     @Transactional
     public Tenant setModules(String tenantKey, Set<String> moduleKeys, String actorId) {
         Tenant tenant = byKey(tenantKey);
-        tenant.setEnabledModules(validated(moduleKeys));
+        String validated = validated(moduleKeys);
+        // A tenant's choices stay within its entitlement: switching on something it has not bought
+        // is refused. Choices it already had are kept even if a downgrade has made them dormant,
+        // so the next upgrade brings them straight back.
+        var entitled = entitlements.of(tenantKey);
+        List<String> notEntitled = Arrays.stream(validated.split(","))
+                .filter(m -> !entitled.has(m) && !tenant.moduleKeys().contains(m)).sorted().toList();
+        if (!notEntitled.isEmpty()) {
+            throw new IllegalArgumentException("Not in this tenant's plan: " + String.join(", ", notEntitled)
+                    + ". Upgrade the plan, add an add-on or a grant first.");
+        }
+        tenant.setEnabledModules(validated);
         tenantRepository.save(tenant);
 
         // Publishing is the whole point of a module change, and this used to be the one write in
@@ -419,7 +468,7 @@ public class TenantService {
                 .status(tenant.getStatus().name())
                 .branding(branding)
                 .brandingUpdate(true)
-                .modules(tenant.moduleKeys())
+                .modules(entitlements.runningModules(tenant))
                 .menuOverrides(menuOverrides(tenant.getTenantKey()))
                 .landingPath(tenant.getLandingPath())
                 .occurredAt(Instant.now())
@@ -439,7 +488,16 @@ public class TenantService {
      * schema, and an event for a tenant that then failed to commit would leave orphan schemas
      * across eleven databases.
      */
-    private void publishAfterCommit(Tenant tenant) {
+    /**
+     * Tells every service about the tenant's current state (after commit). {@code withBranding}
+     * only when the tenant is first published — it seeds the theme; re-sending it later would
+     * overwrite whatever the tenant has chosen since.
+     */
+    public void announce(Tenant tenant, boolean withBranding) {
+        publishAfterCommit(tenant, withBranding ? tenant.branding() : null, menuOverrides(tenant.getTenantKey()));
+    }
+
+    void publishAfterCommit(Tenant tenant) {
         publishAfterCommit(tenant, null, menuOverrides(tenant.getTenantKey()));
     }
 
@@ -448,7 +506,7 @@ public class TenantService {
      *                 it on a status change would overwrite whatever the tenant has since chosen
      *                 for itself every time an operator suspended and reactivated them.
      */
-    private void publishAfterCommit(Tenant tenant, TenantBranding branding,
+    void publishAfterCommit(Tenant tenant, TenantBranding branding,
                                     List<TenantMenuOverride> overrides) {
         TenantEventMessage event = TenantEventMessage.builder()
                 .tenantKey(tenant.getTenantKey())
@@ -456,7 +514,8 @@ public class TenantService {
                 .subdomain(tenant.getSubdomain())
                 .status(tenant.getStatus().name())
                 .branding(branding == null || branding.isEmpty() ? null : branding)
-                .modules(tenant.moduleKeys())
+                // What it runs, not what it chose: the gateway routes and every menu gate on this.
+                .modules(entitlements.runningModules(tenant))
                 .menuOverrides(overrides == null ? List.of() : overrides)
                 .landingPath(tenant.getLandingPath())
                 .occurredAt(Instant.now())

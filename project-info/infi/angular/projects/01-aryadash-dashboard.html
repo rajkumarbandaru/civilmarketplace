@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A. AryaDash Dashboard (the engine)</title>
+<style>
+:root{--bg:#f6f7f9;--fg:#1f2933;--muted:#5b6770;--card:#fff;--line:#e3e6ea;--accent:#3730a3;--accent-bg:#eef2ff;--head:#0f172a;--code:#f1f3f6}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1115;--fg:#e6e8eb;--muted:#9aa4ad;--card:#171a20;--line:#2a2f37;--accent:#a5b4fc;--accent-bg:#1e2240;--head:#05070b;--code:#1f232b}}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.6 system-ui,-apple-system,Segoe UI,sans-serif;background:var(--bg);color:var(--fg)}
+header{background:var(--head);color:#fff;padding:18px 16px}
+header .in{max-width:1200px;margin:0 auto}
+header h1{margin:0;font-size:22px;line-height:1.3} header p{margin:4px 0 0;opacity:.75;font-size:13px}
+header a{color:#c7d2fe}
+.wrap{max-width:1200px;margin:0 auto;padding:0 16px 60px;display:flex;gap:24px;align-items:flex-start}
+nav.toc{position:sticky;top:12px;flex:0 0 250px;max-height:calc(100vh - 24px);overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:16px;font-size:13px}
+nav.toc ul{list-style:none;margin:0;padding-left:10px} nav.toc>ul{padding-left:0}
+nav.toc a{color:var(--accent);text-decoration:none;display:block;padding:2px 0}
+main{flex:1;min-width:0}
+main h1{display:none}
+h2{font-size:20px;margin:32px 0 10px;padding-top:8px;border-top:1px solid var(--line)}
+h3{font-size:16px;margin:20px 0 8px}
+a{color:var(--accent)}
+blockquote{margin:12px 0;padding:10px 14px;background:var(--accent-bg);border-left:4px solid var(--accent);border-radius:6px}
+blockquote p{margin:4px 0}
+table{border-collapse:collapse;width:100%;background:var(--card);font-size:14px;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:6px 10px;text-align:left;vertical-align:top}
+th{background:var(--accent-bg)}
+code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:13px}
+pre{background:var(--code);padding:12px;border-radius:8px;overflow-x:auto;font-size:13px;line-height:1.45}
+pre code{background:none;padding:0}
+pre.mermaid{background:var(--card);border:1px solid var(--line);text-align:center}
+hr{border:0;border-top:1px solid var(--line);margin:24px 0}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin:12px 0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px}
+.card h3{margin:0 0 6px;font-size:16px}.card p{margin:0;color:var(--muted);font-size:13px}
+.card .meta{margin-top:8px;font-size:12px;color:var(--muted)}
+@media (max-width:900px){.wrap{display:block}nav.toc{position:static;max-height:none;margin-top:16px}}
+</style></head><body>
+<header><div class="in"><h1>A. AryaDash Dashboard (the engine)</h1><p><a href="index.html">All projects</a> &middot; <a href="../index.html">Interview guide</a></p></div></header>
+<div class="wrap"><nav class="toc"><b>Contents</b><div class="toc">
+<ul>
+<li><a href="#what-it-is">What it is</a></li>
+<li><a href="#key-numbers">Key numbers</a></li>
+<li><a href="#layers">Layers</a></li>
+<li><a href="#end-to-end-request-lifecycle">End-to-end request lifecycle</a></li>
+<li><a href="#anatomy-of-a-screen-json-vip-line-simcardsjson-trimmed">Anatomy of a screen JSON (VIP Line simcards.json, trimmed)</a></li>
+<li><a href="#layouts">Layouts</a></li>
+<li><a href="#how-to-run">How to run</a></li>
+<li><a href="#interview-angle">Interview angle</a></li>
+</ul>
+</div>
+</nav><main><h1 id="a-aryadash-dashboard-the-engine">A. AryaDash Dashboard (the engine)</h1>
+<blockquote>
+<p>Folder: <code>~/VIPLine-billing/aryadash-dashboard</code> · package <code>vip-line</code> · Angular 15.2 ·
+<a href="index.html">All projects</a> · <a href="../index.html">Interview guide</a></p>
+</blockquote>
+<h2 id="what-it-is">What it is</h2>
+<p>A <strong>configuration-driven dashboard engine</strong>. About 80 generic Angular components (table, form,
+wizard, modal form, detail view, list view, content tabs, timeline, charts, chat, bot-flow editor…)
+read JSON files that describe each screen. The same code is built into <strong>14 branded products</strong>
+(see <a href="index.html">the product list</a>).</p>
+<h2 id="key-numbers">Key numbers</h2>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Angular</td>
+<td>15.2 (NgModule, <code>CUSTOM_ELEMENTS_SCHEMA</code>)</td>
+</tr>
+<tr>
+<td>Declarations in <code>AppModule</code></td>
+<td>~80 (components + 15 pipes + 3 directives)</td>
+</tr>
+<tr>
+<td>Build configurations</td>
+<td>22 (one or two per product: <code>development-&lt;product&gt;</code> and a production one)</td>
+</tr>
+<tr>
+<td>Serve configurations</td>
+<td>17 (each with its own <code>proxy.conf.&lt;product&gt;.json</code>)</td>
+</tr>
+<tr>
+<td>Products (<code>src/config/&lt;product&gt;/</code>)</td>
+<td>14</td>
+</tr>
+<tr>
+<td>Screen JSON files</td>
+<td>≈440</td>
+</tr>
+<tr>
+<td>Biggest files</td>
+<td><code>form.component.ts</code> ~3,400 lines, <code>table.component.ts</code> ~1,700, <code>bot-flow-editor</code> ~1,600, <code>attendance.service.ts</code> ~1,500</td>
+</tr>
+<tr>
+<td>Dev URL</td>
+<td><code>http://localhost:4200</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="layers">Layers</h2>
+<pre class="mermaid">flowchart TB
+    subgraph SHELL[&quot;Shell&quot;]
+        APP[&quot;AppComponent&lt;br/&gt;title, layout&quot;]
+        LOGINP[&quot;LoginPageComponent + LoginComponent&quot;]
+        TV[&quot;TableviewComponent&lt;br/&gt;header, menu, submenu, rows of view items,&lt;br/&gt;login modal, float action&quot;]
+        DASHC[&quot;DashboardComponent&lt;br/&gt;metric tiles, gauges, trend bars, top-N&quot;]
+    end
+    subgraph VIEWS[&quot;View components (chosen by 'type' in JSON)&quot;]
+        V1[&quot;table, tablefilter, table-with-filter&quot;]
+        V2[&quot;form, form-field, modal-form, wizard-form,&lt;br/&gt;select-update-form, inline-edit&quot;]
+        V3[&quot;detailview, list-view, content-tab,&lt;br/&gt;page-section, repeat-view, timeline-view&quot;]
+        V4[&quot;line/bar/pie/multi-line charts,&lt;br/&gt;metric-summary, metrics-grid, progress-bar&quot;]
+        V5[&quot;chat-room, chat-conversation, webchannel,&lt;br/&gt;bot-flow-editor, agent-voice&quot;]
+        V6[&quot;live-panel, break-panel, roster-grid&quot;]
+    end
+    subgraph SERVICES[&quot;Services&quot;]
+        S1[&quot;AppConfig - global.json + readConfig() cache&quot;]
+        S2[&quot;RestAPIService - URL, headers, GET/POST/PUT/DELETE&quot;]
+        S3[&quot;DataStoreService - localStorage + runtime pub/sub&quot;]
+        S4[&quot;AccessControlService + AuthGuard&quot;]
+        S5[&quot;BearerAuthService, SessionLogoutService&quot;]
+        S6[&quot;WebsocketService, AgentVoiceService,&lt;br/&gt;AttendanceService, EventService, SharedService&quot;]
+    end
+    subgraph PIPES[&quot;Pipes&quot;]
+        P1[&quot;dataFetch, dataXlate, dataFilter, dataGroup,&lt;br/&gt;fePaging, sortList, templateField, flexibleTemplate,&lt;br/&gt;calc, textWrap, safeHtml, jsonParse, stringReplace,&lt;br/&gt;camelCaseToWords, encryptShajs&quot;]
+    end
+    APP --&gt; LOGINP
+    APP --&gt; TV
+    APP --&gt; DASHC
+    TV --&gt; VIEWS
+    VIEWS --&gt; PIPES
+    VIEWS --&gt; SERVICES
+    LOGINP --&gt; SERVICES
+</pre>
+<h2 id="end-to-end-request-lifecycle">End-to-end request lifecycle</h2>
+<pre class="mermaid">flowchart TD
+    A[&quot;Browser opens product URL&quot;] --&gt; B[&quot;AppModule boots, localStorage prefix from global.json&quot;]
+    B --&gt; C{&quot;Logged in?&lt;br/&gt;(cookie or Authorization)&quot;}
+    C -- no --&gt; D[&quot;Login page -&gt; POST login_url&quot;]
+    D --&gt; E[&quot;Store cookie + user data&quot;]
+    E --&gt; F[&quot;Navigate to landing page&quot;]
+    C -- yes --&gt; F
+    F --&gt; G[&quot;AuthGuard checks menu access&quot;]
+    G --&gt; H[&quot;TableviewComponent reads pages[name] from global.json&quot;]
+    H --&gt; I[&quot;For each allowed view item: create component by type&quot;]
+    I --&gt; J[&quot;Component: AppConfig.readConfig(config) -&gt; screen JSON&quot;]
+    J --&gt; K[&quot;RestAPIService builds URL from params + adds headers&quot;]
+    K --&gt; L[&quot;Backend response&quot;]
+    L --&gt; M{&quot;status&quot;}
+    M -- success --&gt; N[&quot;Pipes format -&gt; render&quot;]
+    M -- INVALID_SESSION --&gt; O[&quot;Login modal -&gt; loginEvent -&gt; reload&quot;]
+    M -- &quot;not found / no records&quot; --&gt; P[&quot;Empty state, no error popup&quot;]
+    M -- &quot;custom status&quot; --&gt; Q[&quot;status-handlers from JSON&quot;]
+</pre>
+<h2 id="anatomy-of-a-screen-json-vip-line-simcardsjson-trimmed">Anatomy of a screen JSON (VIP Line <code>simcards.json</code>, trimmed)</h2>
+<pre><code class="language-json">{
+  &quot;simactivate&quot;: {
+    &quot;type&quot;: &quot;form&quot;,
+    &quot;title&quot;: &quot;SIM Activate&quot;,
+    &quot;submit-action&quot;: { &quot;action&quot;: &quot;api&quot;, &quot;url&quot;: &quot;/user_mgmt/add_subscription_sample/&quot;, &quot;type&quot;: &quot;json&quot; },
+    &quot;fields&quot;: [
+      { &quot;title&quot;: &quot;SIM ID&quot;, &quot;data&quot;: &quot;iccid&quot;, &quot;type&quot;: &quot;text-input&quot;, &quot;required&quot;: true,
+        &quot;validation&quot;: { &quot;type&quot;: &quot;text&quot;, &quot;minlen&quot;: 5, &quot;maxlen&quot;: 50 } },
+      { &quot;title&quot;: &quot;Tariff Plan&quot;, &quot;data&quot;: &quot;tariffPlanId&quot;, &quot;type&quot;: &quot;input-select&quot;, &quot;source&quot;: &quot;api&quot;,
+        &quot;source-data&quot;: { &quot;url&quot;: &quot;catalogue_mgmt/get_bundle_plan_simple/Tariff%20Plans/&quot;,
+                         &quot;list&quot;: &quot;bundlePlans&quot;, &quot;name&quot;: &quot;bundleId&quot;, &quot;title&quot;: &quot;bundleName&quot; } }
+    ],
+    &quot;status-handlers&quot;: {
+      &quot;no_dids&quot;: { &quot;action&quot;: &quot;alert&quot;, &quot;message&quot;: &quot;DIDs not available do you want to proceed?&quot;,
+                   &quot;options&quot;: [&quot;Ok&quot;, &quot;Cancel&quot;] }
+    }
+  },
+  &quot;simlist&quot;: {
+    &quot;type&quot;: &quot;table&quot;,
+    &quot;title&quot;: &quot;SIM CARD&quot;,
+    &quot;data&quot;: { &quot;fpaging&quot;: true, &quot;pageentries&quot;: 50,
+              &quot;datalist&quot;: [&quot;allSubscriptions&quot;, &quot;availableSimDetails&quot;], &quot;method&quot;: &quot;GET&quot; }
+  }
+}
+</code></pre>
+<h2 id="layouts">Layouts</h2>
+<p><code>global.json → layout</code> (or the user's saved choice in <code>DataStore</code>) switches the shell between
+<code>horizontal</code>, <code>horizontal-light</code>, <code>horizontal-top</code> and <code>vertical</code> (collapsible sidebar,
+<code>vip.sidebar.collapsed</code> watched through <code>DataStoreService.watch()</code>).</p>
+<h2 id="how-to-run">How to run</h2>
+<pre><code class="language-bash">cd ~/VIPLine-billing/aryadash-dashboard
+npm install
+ng serve                                  # VIP Line
+ng serve --configuration=&lt;product&gt;        # see each product page for the exact name
+ng test                                   # Karma + Jasmine
+</code></pre>
+<h2 id="interview-angle">Interview angle</h2>
+<ul>
+<li>Why config-driven? 14 clients, similar CRUD/report screens, frequent changes — changing JSON is
+  faster and safer than shipping new components.</li>
+<li>Trade-offs: very large generic components, weak typing (<code>any</code>), logic hidden in JSON, harder to
+  unit-test. The designer app's JSON schema (<code>element-types.json</code>) is the first step to validating
+  configs.</li>
+<li>Full flows and Q&amp;A: <a href="../index.html">Interview guide</a>.</li>
+</ul></main></div>
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+mermaid.initialize({ startOnLoad: false, theme: dark ? 'dark' : 'default', securityLevel: 'loose', flowchart: { htmlLabels: true } });
+const blocks = [...document.querySelectorAll('pre.mermaid')];
+for (let i = 0; i < blocks.length; i++) {
+  const el = blocks[i];
+  const src = el.textContent;
+  try {
+    const { svg } = await mermaid.render('mmd' + i, src);
+    el.innerHTML = svg;
+    el.setAttribute('data-processed', 'true');
+  } catch (e) {
+    el.setAttribute('data-error', 'true');
+    el.textContent = 'Diagram error: ' + e.message + ' --- ' + src;
+  }
+}
+</script>
+</body></html>

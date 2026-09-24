@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>STAR Stories — Real Bugs, Real Decisions</title>
+<style>
+:root{--bg:#f6f7f9;--fg:#1f2933;--muted:#5b6770;--card:#fff;--line:#e3e6ea;--accent:#3730a3;--accent-bg:#eef2ff;--head:#0f172a;--code:#f1f3f6}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1115;--fg:#e6e8eb;--muted:#9aa4ad;--card:#171a20;--line:#2a2f37;--accent:#a5b4fc;--accent-bg:#1e2240;--head:#05070b;--code:#1f232b}}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.6 system-ui,-apple-system,Segoe UI,sans-serif;background:var(--bg);color:var(--fg)}
+header{background:var(--head);color:#fff;padding:18px 16px}
+header .in{max-width:1200px;margin:0 auto}
+header h1{margin:0;font-size:22px;line-height:1.3} header p{margin:4px 0 0;opacity:.75;font-size:13px}
+header a{color:#c7d2fe}
+.nav{max-width:1200px;margin:0 auto;padding:10px 16px 0;font-size:13px}
+.nav a{color:var(--accent);text-decoration:none;margin-right:6px;padding:3px 9px;border-radius:999px;background:var(--accent-bg);display:inline-block;margin-bottom:6px}
+.wrap{max-width:1200px;margin:0 auto;padding:0 16px 60px;display:flex;gap:24px;align-items:flex-start}
+nav.toc{position:sticky;top:12px;flex:0 0 250px;max-height:calc(100vh - 24px);overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:16px;font-size:13px}
+nav.toc ul{list-style:none;margin:0;padding-left:10px} nav.toc>ul{padding-left:0}
+nav.toc a{color:var(--accent);text-decoration:none;display:block;padding:2px 0}
+main{flex:1;min-width:0}
+main h1{display:none}
+h2{font-size:20px;margin:32px 0 10px;padding-top:8px;border-top:1px solid var(--line)}
+h3{font-size:16px;margin:20px 0 8px}
+a{color:var(--accent)}
+blockquote{margin:12px 0;padding:10px 14px;background:var(--accent-bg);border-left:4px solid var(--accent);border-radius:6px}
+blockquote p{margin:4px 0}
+table{border-collapse:collapse;width:100%;background:var(--card);font-size:14px;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:6px 10px;text-align:left;vertical-align:top}
+th{background:var(--accent-bg)}
+code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:13px}
+pre{background:var(--code);padding:12px;border-radius:8px;overflow-x:auto;font-size:13px;line-height:1.45}
+pre code{background:none;padding:0}
+pre.mermaid{background:var(--card);border:1px solid var(--line);text-align:center}
+hr{border:0;border-top:1px solid var(--line);margin:24px 0}
+@media (max-width:900px){.wrap{display:block}nav.toc{position:static;max-height:none;margin-top:16px}}
+</style></head><body>
+<header><div class="in"><h1>STAR Stories — Real Bugs, Real Decisions</h1><p>Civil Engineering Marketplace · source ~/RAJKUMAR · generated from <code style="color:#fff;background:none">interview/star-stories.md</code></p></div></header>
+<div class="nav"><a href="../index.html">Home</a><a href="../interview-guide.html">Interview guide</a><a href="../overview/architecture.html">Architecture</a><a href="../backend/backend-guide.html">Backend</a><a href="../ui/ui-guide.html">UI</a><a href="../docker/docker-guide.html">Docker</a><a href="../overview/action-flows.html">Action flows</a><a href="../interview/rapid-fire.html">Rapid fire</a></div>
+<div class="wrap"><nav class="toc"><b>Contents</b><div class="toc">
+<ul>
+<li><a href="#1-every-booking-creation-returned-a-500">1. Every booking creation returned a 500</a></li>
+<li><a href="#2-auth-service-would-not-start-at-all">2. auth-service would not start at all</a></li>
+<li><a href="#3-every-failed-payment-turned-into-a-500">3. Every failed payment turned into a 500</a></li>
+<li><a href="#4-a-repository-method-that-was-a-time-bomb">4. A repository method that was a time bomb</a></li>
+<li><a href="#5-a-bare-403-on-the-login-screen-of-a-new-tenant">5. A bare 403 on the login screen of a new tenant</a></li>
+<li><a href="#6-multi-tenancy-that-survived-contact-with-a-browser">6. Multi-tenancy that survived contact with a browser</a></li>
+<li><a href="#7-a-deploy-that-users-never-saw">7. A deploy that users never saw</a></li>
+<li><a href="#8-making-the-platform-actually-re-themeable">8. Making the platform actually re-themeable</a></li>
+<li><a href="#how-to-tell-these">How to tell these</a></li>
+</ul>
+</div>
+</nav><main><h1 id="star-stories-real-bugs-real-decisions">STAR Stories — Real Bugs, Real Decisions</h1>
+<p>Every story here is from this codebase, with the file that proves it. Keep the Result short and
+concrete; that is the half interviewers remember.</p>
+<hr />
+<h2 id="1-every-booking-creation-returned-a-500">1. Every booking creation returned a 500</h2>
+<p><strong>Situation.</strong> Booking creation failed for every user with a 500. Nothing in the API contract had
+changed, and the code looked correct.</p>
+<p><strong>Task.</strong> Find why a straightforward insert was failing, and fix it without breaking the lookup API
+that other services used.</p>
+<p><strong>Action.</strong> The logs pointed at a data-truncation error rather than a validation failure. The
+generator emits <code>BK-</code> plus a 14-digit timestamp plus a dash and four digits — 22 characters — but
+<code>booking_code</code> was <code>VARCHAR(20)</code>. Two options: shorten the code, or widen the column. The code
+format was already a public key used by a lookup-by-code endpoint, so shortening it would have
+broken callers and invalidated existing references. I widened the column in a <strong>new Flyway
+migration</strong> (<code>V2</code>) and matched <code>@Column(length)</code> on the entity, leaving the applied <code>V1</code> untouched.</p>
+<p><strong>Result.</strong> Booking creation worked again — the feature had been entirely broken. The wider lesson I
+mention: the entity and the migration are two declarations of one truth, and only the database
+enforces it.</p>
+<hr />
+<h2 id="2-auth-service-would-not-start-at-all">2. auth-service would not start at all</h2>
+<p><strong>Situation.</strong> The whole stack was up except auth-service, which exited during startup. With no
+auth service, nobody could log in, so nothing else could be tested either.</p>
+<p><strong>Task.</strong> Get the service starting, without removing social login as a future capability.</p>
+<p><strong>Action.</strong> <code>SecurityConfig</code> called <code>.oauth2Login()</code> unconditionally, but Spring only creates a
+<code>ClientRegistrationRepository</code> when <code>spring.security.oauth2.client.registration.*</code> is configured —
+and it never was, because Google and Facebook credentials did not exist in this environment. The lazy
+fix would have been deleting the call. Instead I injected
+<code>ObjectProvider&lt;ClientRegistrationRepository&gt;</code> and applied <code>oauth2Login()</code> only when a registration
+is actually present, logging which branch was taken at startup.</p>
+<p><strong>Result.</strong> The service starts with password and OTP login regardless, and <strong>social login switches
+itself on automatically</strong> the moment real credentials are supplied — no code change, just
+<code>AUTH_PROFILE=docker,social</code>. I verified the full path afterwards: login → JWT → gateway-injected
+<code>X-User-*</code> headers → downstream service.</p>
+<hr />
+<h2 id="3-every-failed-payment-turned-into-a-500">3. Every failed payment turned into a 500</h2>
+<p><strong>Situation.</strong> On a machine with placeholder Razorpay keys, <em>no payment could be created at all</em>.
+The caller got a 500 and never learned that a payment row existed.</p>
+<p><strong>Task.</strong> Make failure behave like failure — a proper error and a persisted FAILED payment — instead
+of an opaque server error.</p>
+<p><strong>Action.</strong> <code>createPaymentOrder</code> handled the PSP failure correctly, setting the payment to FAILED,
+and then died on the way out: it built its <code>payment.created</code> event with <code>Map.of(...)</code>, which throws
+<code>NullPointerException</code> on a null value, and <code>razorpayOrderId</code> is null exactly when the Razorpay call
+failed. So the only path that could produce a null was the one that always hit it. I replaced it
+with a <code>HashMap</code> that tolerates the null and also carries the payment status.</p>
+<p><strong>Result.</strong> Failed payments now return a proper error with the payment recorded, and the
+<code>payment.created</code> event carries the status so consumers can distinguish the two. The lesson worth
+saying out loud: <code>Map.of</code> is null-hostile, and error paths are where nulls live — so error paths
+need tests as much as happy paths.</p>
+<hr />
+<h2 id="4-a-repository-method-that-was-a-time-bomb">4. A repository method that was a time bomb</h2>
+<p><strong>Situation.</strong> While adding escrow, I noticed <code>findByBookingId</code> returned <code>Optional&lt;Payment&gt;</code>.</p>
+<p><strong>Task.</strong> Decide whether it was still safe under the new model, before it failed in production.</p>
+<p><strong>Action.</strong> It was not. Escrow means one booking can carry several payments — one per milestone hold
+— so the Optional query would throw <code>IncorrectResultSizeDataAccessException</code> as soon as a second
+payment existed. I replaced it with <code>findFirstByBookingIdOrderByCreatedAtDesc</code> plus a status-scoped
+variant, and made escrow funding use a dedicated <code>createEscrowFundingOrder</code> that never reuses a
+booking's pending payment — because sharing one payment row between holds would fund several holds
+off a single capture.</p>
+<p><strong>Result.</strong> A latent production failure removed before it fired, and a money bug — several holds
+funded by one payment — prevented. This is my example of the cardinality assumption behind a query
+mattering more than the query.</p>
+<hr />
+<h2 id="5-a-bare-403-on-the-login-screen-of-a-new-tenant">5. A bare 403 on the login screen of a new tenant</h2>
+<p><strong>Situation.</strong> A newly onboarded tenant could not log in. The browser showed a 403 with an empty
+body, on the login call, before anyone was authenticated — so it looked like a permissions problem
+in the application.</p>
+<p><strong>Task.</strong> Find the real cause of a badly disguised failure.</p>
+<p><strong>Action.</strong> It was CORS at the gateway. Each tenant is served on its own hostname, so
+<code>acme.localhost:3000</code> and <code>hostelfee.localhost:3000</code> are distinct browser origins, and the allow-list
+could not enumerate them without a redeploy per tenant. The fix was <code>setAllowedOriginPatterns</code> with
+wildcard patterns instead of <code>setAllowedOrigins</code> — a wildcard in the latter is rejected outright
+when <code>allowCredentials</code> is true. I also kept both <code>localhost</code> and <code>127.0.0.1</code> forms, because they are
+distinct origins and <code>127.0.0.1</code> takes no subdomains.</p>
+<p><strong>Result.</strong> Any new tenant subdomain works with no gateway change. The story lands well because the
+symptom ("you do not have permission") pointed at the wrong layer entirely.</p>
+<hr />
+<h2 id="6-multi-tenancy-that-survived-contact-with-a-browser">6. Multi-tenancy that survived contact with a browser</h2>
+<p><strong>Situation.</strong> The gateway resolves a tenant from the <code>Host</code> header. The React bundle was calling
+the gateway directly at <code>http://localhost:8080</code>.</p>
+<p><strong>Task.</strong> Make tenant resolution work in a browser, not just in curl.</p>
+<p><strong>Action.</strong> A direct call sends <code>Host: localhost</code> for every tenant, so all of them collapse onto
+whichever fallback tenant was configured. I made the bundle call its own origin and let the
+frontend's nginx proxy to the gateway with <code>proxy_set_header Host $http_host</code> — keeping the port, not
+just the hostname, so the request URL matches the browser's <code>Origin</code> exactly and Spring treats these
+as same-origin, skipping the CORS check entirely.</p>
+<p><strong>Result.</strong> <code>acme.localhost:3000</code> reaches the gateway as <code>acme</code> and <code>hostelfee.localhost:3000</code> as
+<code>hostelfee</code>. One nginx directive is the difference between real multi-tenancy and every tenant
+seeing one tenant's data.</p>
+<hr />
+<h2 id="7-a-deploy-that-users-never-saw">7. A deploy that users never saw</h2>
+<p><strong>Situation.</strong> After a frontend deploy, browsers kept running the previous version — with no error
+anywhere.</p>
+<p><strong>Task.</strong> Explain why, and fix it permanently.</p>
+<p><strong>Action.</strong> <code>index.html</code> was being cached. It is the only file with a stable URL, and it names the
+content-hashed bundles; a browser holding yesterday's copy keeps requesting yesterday's chunks,
+which still exist on disk, so nothing 404s and the app simply stays old — indefinitely and
+invisibly. I set <code>no-cache, must-revalidate</code> on <code>index.html</code> and kept <code>/assets/</code> at one year
+<code>immutable</code>, which is safe precisely because those filenames change on every build.</p>
+<p><strong>Result.</strong> Deploys land on the next page load, at the cost of one small revalidation request. I
+also found the old rule was caching <code>/static/</code>, a directory Vite has never produced — so the
+long-term caching had never worked at all.</p>
+<hr />
+<h2 id="8-making-the-platform-actually-re-themeable">8. Making the platform actually re-themeable</h2>
+<p><strong>Situation.</strong> Admins could change the platform's colours through the UI-config API, but several
+pages did not change.</p>
+<p><strong>Task.</strong> Find out why re-theming was partial.</p>
+<p><strong>Action.</strong> Those pages had the shipped violet written in as a literal (<code>#667eea</code>) or as
+<code>color: 'primary.main'</code> in places that bypassed the theme, so they were immune to it. I replaced the
+literals with reads from the MUI theme (<code>theme.palette.primary.main</code>), so the same components
+re-colour with the tenant.</p>
+<p><strong>Result.</strong> Theme changes now apply everywhere, and the rule is explicit in the codebase: a
+component never writes a brand colour, it reads one.</p>
+<hr />
+<h2 id="how-to-tell-these">How to tell these</h2>
+<ul>
+<li><strong>Lead with the impact</strong>, not the stack trace: "every booking failed" beats "there was a column
+  width issue".</li>
+<li><strong>Say what you chose not to do</strong> — shortening the booking code, deleting the <code>oauth2Login</code> call.
+  Rejected options are what make it sound like judgement rather than luck.</li>
+<li><strong>End with the generalisation</strong>, one sentence: null-hostile <code>Map.of</code> on error paths, cardinality
+  assumptions in queries, <code>index.html</code> as the only unhashed URL.</li>
+</ul></main></div>
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+mermaid.initialize({ startOnLoad: false, theme: dark ? 'dark' : 'default', securityLevel: 'loose',
+                      flowchart: { htmlLabels: true }, sequence: { useMaxWidth: false } });
+const blocks = [...document.querySelectorAll('pre.mermaid')];
+for (let i = 0; i < blocks.length; i++) {
+  const el = blocks[i];
+  const src = el.textContent;
+  try {
+    const { svg } = await mermaid.render('mmd' + i, src);
+    el.innerHTML = svg;
+    el.setAttribute('data-processed', 'true');
+  } catch (e) {
+    el.setAttribute('data-error', 'true');
+    el.textContent = 'Diagram error: ' + e.message + ' --- ' + src;
+  }
+}
+</script>
+</body></html>

@@ -6,8 +6,10 @@ import com.civileng.marketplace.auth.entity.User;
 import com.civileng.marketplace.auth.entity.UserStatus;
 import com.civileng.marketplace.auth.repository.RoleRepository;
 import com.civileng.marketplace.auth.repository.UserRepository;
+import com.civileng.marketplace.auth.exception.InvalidRefreshTokenException;
 import com.civileng.marketplace.auth.security.JwtTokenProvider;
 import com.civileng.marketplace.tenant.common.TenantContext;
+import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -17,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -33,6 +36,8 @@ public class AuthService {
     private final RefreshTokenService refreshTokenService;
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final AccountIdentifiers identifiers;
+    private final SessionIssuer sessionIssuer;
+    private final MfaService mfaService;
 
     /** Roles that can only ever be granted by an administrator, never self-selected. */
     private static final Set<String> PRIVILEGED_ROLES = Set.of(
@@ -40,6 +45,9 @@ public class AuthService {
 
     private static final int MAX_LOGIN_ATTEMPTS = 5;
     private static final int LOCK_DURATION_MINUTES = 30;
+    private static final long DEVICE_TOKEN_WINDOW_MS = 2 * 60 * 1000;
+    private static final Set<UserStatus> BLOCKED_STATUSES =
+            Set.of(UserStatus.SUSPENDED, UserStatus.BANNED, UserStatus.DELETED);
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
@@ -129,7 +137,7 @@ public class AuthService {
 
         log.info("User logged in successfully: {}", user.getEmail());
 
-        return buildAuthResponse(user, "Login successful");
+        return completeSignIn(user, "Login successful");
     }
 
     public AuthResponse sendOtp(OtpRequest request) {
@@ -197,7 +205,7 @@ public class AuthService {
 
         log.info("User logged in via OTP: {}", user.getEmail());
 
-        return buildAuthResponse(user, "OTP verification successful");
+        return completeSignIn(user, "OTP verification successful");
     }
 
     /** True when the request identifies the account by mobile number rather than email. */
@@ -225,30 +233,114 @@ public class AuthService {
         return channel.keyPrefix() + user.getId();
     }
 
+    /**
+     * Exchanges a refresh token for a new pair, rotating it. See {@link RefreshTokenService} for
+     * what each outcome means; a replayed token revokes every session the user has.
+     */
     public AuthResponse refreshToken(RefreshTokenRequest request) {
-        try {
-            var claims = jwtTokenProvider.validateToken(request.getRefreshToken());
+        RefreshClaims token = parseRefreshToken(request.getRefreshToken());
 
-            if (!"refresh".equals(claims.get("type"))) {
-                throw new IllegalArgumentException("Invalid refresh token");
+        switch (refreshTokenService.rotate(token.userId(), request.getRefreshToken())) {
+            case ROTATED, GRACE -> { }
+            case REUSED -> {
+                log.warn("Refresh token reuse detected for user {}; revoking all sessions", token.userId());
+                refreshTokenService.revokeAllUserTokens(token.userId());
+                throw new InvalidRefreshTokenException();
             }
-
-            Long userId = Long.parseLong(claims.getSubject());
-            User user = userRepository.findById(userId)
-                    .orElseThrow(() -> new IllegalArgumentException("User not found"));
-
-            return buildAuthResponse(user, "Token refreshed successfully");
-
-        } catch (Exception e) {
-            throw new IllegalArgumentException("Invalid or expired refresh token");
+            default -> throw new InvalidRefreshTokenException();
         }
+
+        User user = activeUser(token.userId());
+        // A session from before this account had to have a second factor cannot outlive the rule:
+        // it is refused, and the next sign-in goes through enrolment.
+        if (mfaService.required(user) && !mfaService.enrolled(user)) {
+            throw new InvalidRefreshTokenException();
+        }
+        return buildAuthResponse(user, "Token refreshed successfully");
     }
 
-    @Transactional
-    public void logout(String accessToken) {
-        jwtTokenProvider.blacklistToken(accessToken);
-        log.info("User logged out, token blacklisted");
+    /**
+     * A second, independent refresh token for "keep me signed in on this device".
+     *
+     * <p>The remembered token and the tab's own token must never be the same token: whichever
+     * rotated it first would leave the other holding a spent token, and presenting that later reads
+     * as theft and signs the user out everywhere. So the device gets its own chain.
+     *
+     * <p>Only a token minted in the last {@link #DEVICE_TOKEN_WINDOW_MS} can be forked. Forking
+     * starts a chain that reuse detection cannot link back, so leaving it open to any live token
+     * would let someone who stole one later fork a private copy and never trip the alarm.
+     */
+    public AuthResponse issueDeviceToken(RefreshTokenRequest request) {
+        RefreshClaims token = parseRefreshToken(request.getRefreshToken());
+        if (!refreshTokenService.isValidRefreshToken(token.userId(), request.getRefreshToken())
+                || System.currentTimeMillis() - token.issuedAt() > DEVICE_TOKEN_WINDOW_MS) {
+            throw new InvalidRefreshTokenException();
+        }
+        activeUser(token.userId());
+
+        String deviceToken = jwtTokenProvider.generateRefreshToken(token.userId(), TenantContext.require());
+        refreshTokenService.storeRefreshToken(token.userId(), deviceToken);
+        return AuthResponse.builder()
+                .success(true)
+                .message("Device token issued")
+                .refreshToken(deviceToken)
+                .timestamp(LocalDateTime.now())
+                .build();
     }
+
+    /**
+     * Ends the session on the server, not only in the browser: the access token is blacklisted and
+     * each refresh token given (the tab's and the remembered device's) is revoked. Tokens that do
+     * not parse are skipped, so signing out always succeeds for the caller.
+     */
+    @Transactional
+    public void logout(String accessToken, List<String> refreshTokens) {
+        if (accessToken != null && !accessToken.isBlank()) {
+            jwtTokenProvider.blacklistToken(accessToken);
+        }
+        if (refreshTokens != null) {
+            for (String refreshToken : refreshTokens) {
+                if (refreshToken == null || refreshToken.isBlank()) continue;
+                try {
+                    String userId = jwtTokenProvider.validateToken(refreshToken).getSubject();
+                    refreshTokenService.revokeRefreshToken(userId, refreshToken);
+                } catch (Exception e) {
+                    // Already expired or malformed: nothing left to revoke.
+                }
+            }
+        }
+        log.info("User logged out, tokens revoked");
+    }
+
+    private RefreshClaims parseRefreshToken(String refreshToken) {
+        Claims claims;
+        try {
+            claims = jwtTokenProvider.validateToken(refreshToken);
+        } catch (Exception e) {
+            throw new InvalidRefreshTokenException();
+        }
+        // A refresh token is only good on the workspace it was issued for — the gateway checks this
+        // for access tokens, but the auth routes bypass that filter.
+        if (!"refresh".equals(claims.get("type"))
+                || !TenantContext.require().equals(claims.get("tenant", String.class))) {
+            throw new InvalidRefreshTokenException();
+        }
+        long issuedAt = claims.getIssuedAt() != null ? claims.getIssuedAt().getTime() : 0L;
+        return new RefreshClaims(claims.getSubject(), issuedAt);
+    }
+
+    /** A suspended, banned or deleted account loses every session the moment it next refreshes. */
+    private User activeUser(String userId) {
+        User user = userRepository.findById(Long.parseLong(userId))
+                .orElseThrow(InvalidRefreshTokenException::new);
+        if (Boolean.TRUE.equals(user.getIsDeleted()) || BLOCKED_STATUSES.contains(user.getStatus())) {
+            refreshTokenService.revokeAllUserTokens(userId);
+            throw new InvalidRefreshTokenException();
+        }
+        return user;
+    }
+
+    private record RefreshClaims(String userId, long issuedAt) { }
 
     private void handleFailedLogin(User user) {
         userRepository.incrementLoginAttempts(user.getId());
@@ -261,39 +353,15 @@ public class AuthService {
     }
 
     private AuthResponse buildAuthResponse(User user, String message) {
-        String accessToken = jwtTokenProvider.generateAccessToken(
-                user.getId().toString(),
-                user.getEmail(),
-                user.getRole().getName(),
-                user.getName(),
-                TenantContext.require()
-        );
+        return sessionIssuer.issue(user, message);
+    }
 
-        String refreshToken = jwtTokenProvider.generateRefreshToken(
-                user.getId().toString(), TenantContext.require());
-        refreshTokenService.storeRefreshToken(user.getId().toString(), refreshToken);
-
-        AuthResponse.UserDto userDto = AuthResponse.UserDto.builder()
-                .id(user.getId())
-                .name(user.getName())
-                .email(user.getEmail())
-                .phone(user.getPhone())
-                .profilePicture(user.getProfilePicture())
-                .role(user.getRole().getName())
-                .emailVerified(user.getEmailVerified())
-                .phoneVerified(user.getPhoneVerified())
-                .status(user.getStatus().name())
-                .build();
-
-        return AuthResponse.builder()
-                .success(true)
-                .message(message)
-                .accessToken(accessToken)
-                .refreshToken(refreshToken)
-                .tokenType("Bearer")
-                .expiresIn(jwtTokenProvider.getAccessTokenExpiration())
-                .user(userDto)
-                .timestamp(LocalDateTime.now())
-                .build();
+    /**
+     * The end of every interactive sign-in: a session, or — for an account that needs a second
+     * factor — an MFA challenge in its place. Refresh does not come through here: its session was
+     * already granted with every factor.
+     */
+    private AuthResponse completeSignIn(User user, String message) {
+        return mfaService.required(user) ? mfaService.challenge(user) : sessionIssuer.issue(user, message);
     }
 }

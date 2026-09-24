@@ -66,12 +66,22 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping("/refresh/device")
+    @Operation(summary = "Issue an independent refresh token for \"keep me signed in\"",
+            description = "Only accepts a refresh token issued within the last two minutes.")
+    public ResponseEntity<AuthResponse> deviceToken(
+            @Valid @RequestBody RefreshTokenRequest request) {
+        return ResponseEntity.ok(authService.issueDeviceToken(request));
+    }
+
     @PostMapping("/logout")
-    @Operation(summary = "Logout and invalidate token")
+    @Operation(summary = "Logout: blacklist the access token and revoke the given refresh tokens")
     public ResponseEntity<Map<String, Object>> logout(
-            @RequestHeader("Authorization") String authHeader) {
-        String token = authHeader.substring(7);
-        authService.logout(token);
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestBody(required = false) LogoutRequest request) {
+        String accessToken = authHeader != null && authHeader.startsWith("Bearer ")
+                ? authHeader.substring(7) : null;
+        authService.logout(accessToken, request != null ? request.getRefreshTokens() : null);
         return ResponseEntity.ok(Map.of(
                 "success", true,
                 "message", "Logged out successfully"

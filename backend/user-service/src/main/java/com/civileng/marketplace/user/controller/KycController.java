@@ -1,5 +1,6 @@
 package com.civileng.marketplace.user.controller;
 
+import com.civileng.marketplace.user.dto.MediaDtos;
 import com.civileng.marketplace.user.model.KycDocument;
 import com.civileng.marketplace.user.service.KycService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -24,9 +25,17 @@ public class KycController {
     @Operation(summary = "Submit a KYC document for review")
     public ResponseEntity<KycDocument> submitDocument(
             @RequestHeader("X-User-Id") Long userId,
-            @Valid @RequestBody KycDocument document) {
+            @Valid @RequestBody MediaDtos.KycSubmitRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(kycService.submitDocument(userId, document));
+                .body(kycService.submitDocument(userId, request));
+    }
+
+    @GetMapping("/{documentId}/file")
+    @Operation(summary = "A short-lived link to open one of my KYC documents")
+    public ResponseEntity<MediaDtos.FileLink> getMyFile(
+            @RequestHeader("X-User-Id") Long userId,
+            @PathVariable Long documentId) {
+        return ResponseEntity.ok(kycService.ownFileLink(documentId, userId));
     }
 
     @GetMapping

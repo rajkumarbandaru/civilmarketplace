@@ -10,6 +10,7 @@ import lombok.Data;
 @Data
 public class AttachDocumentRequest {
 
+    /** The media-service upload id of a PROJECT_DOCUMENT file (from POST /api/v1/media/uploads). */
     @NotBlank(message = "File reference is required")
     private String fileRef;
 

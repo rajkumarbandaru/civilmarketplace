@@ -1,4 +1,5 @@
 import api from './api';
+import manifest from '../experience/registry-manifest.json';
 
 /**
  * Client for tenant-service's operator API (`backend/tenant-service`).
@@ -9,15 +10,22 @@ import api from './api';
  * nothing here sends an identity — the 403 is the authoritative answer, not a client-side check.
  */
 
-export type TenantStatus = 'ACTIVE' | 'PENDING' | 'SUSPENDED' | 'ARCHIVED';
+export type TenantStatus =
+  | 'DRAFT' | 'PROVISIONING' | 'PROVISIONING_FAILED' | 'ACTIVE' | 'SUSPENDED' | 'ARCHIVED';
 export type Vertical = 'CIVIL_MARKETPLACE' | 'FEE_COLLECTION' | 'PROPERTY';
 
-export const TENANT_STATUSES: TenantStatus[] = ['ACTIVE', 'PENDING', 'SUSPENDED', 'ARCHIVED'];
+export const TENANT_STATUSES: TenantStatus[] =
+  ['DRAFT', 'PROVISIONING', 'PROVISIONING_FAILED', 'ACTIVE', 'SUSPENDED', 'ARCHIVED'];
+
+/** What an operator may set by hand; the rest belong to publishing and provisioning. */
+export const OPERATOR_SETTABLE_STATUSES: TenantStatus[] = ['ACTIVE', 'SUSPENDED', 'ARCHIVED'];
 
 /** What each status means to traffic, shown next to the control that sets it. */
 export const TENANT_STATUS_HELP: Record<TenantStatus, string> = {
+  DRAFT: 'Created from the wizard: key and subdomain reserved, nothing provisioned, no traffic.',
+  PROVISIONING: 'Published: every service is building its storage. Goes live when all are ready.',
+  PROVISIONING_FAILED: 'A provisioning step failed. Retry, or discard it.',
   ACTIVE: 'Serving traffic; its schemas exist in every service.',
-  PENDING: 'Created but not yet provisioned across services.',
   SUSPENDED: 'Reachable domain, but the gateway refuses requests.',
   ARCHIVED: 'Closed. Schemas are retained; nothing routes here.',
 };
@@ -65,6 +73,7 @@ export const ALL_MODULES: string[] = [
 const MODULE_LABELS: Record<string, string> = {
   feeplans: 'Fee plans',
   landrecords: 'Land records',
+  procurement: 'Procurement (B2B)',
 };
 
 export const moduleLabel = (key: string) =>
@@ -92,11 +101,13 @@ export interface TenantBranding {
 }
 
 /** The closed sets tenant-common validates against; an unlisted value is a 400 on create. */
-export const COLOR_MODES = ['light', 'dark', 'system'];
-export const UI_STYLES = ['default', 'flat', 'elevated'];
-export const BUTTON_STYLES = ['gradient', 'solid', 'outlined'];
-export const LAYOUT_STYLES = ['sidebar-left', 'sidebar-right', 'topbar'];
-export const DENSITIES = ['compact', 'comfortable', 'spacious'];
+// The frontend's experience registry: the only values it can render, so the only ones offered.
+export const COLOR_MODES = manifest.colorModes;
+export const UI_STYLES = manifest.stylePacks;
+export const BUTTON_STYLES = manifest.buttonStyles;
+export const LAYOUT_STYLES = manifest.shellLayouts;
+export const DENSITIES = manifest.densities;
+export const SITE_LAYOUTS = manifest.siteLayouts;
 
 /** What each style choice actually changes, shown under its control. */
 export const STYLE_HELP: Record<string, string> = {
@@ -192,6 +203,8 @@ export const HEX_COLOR = /^#([0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
 /** Mirrors `TenantResponse`. */
 export interface Tenant {
   tenantKey: string;
+  ownerName?: string | null;
+  ownerEmail?: string | null;
   name: string;
   subdomain: string | null;
   customDomain: string | null;
@@ -384,3 +397,114 @@ export const setTenantModules = async (
   const { data } = await api.put<Tenant>(`${BASE}/${tenantKey}/modules`, { modules });
   return data;
 };
+
+// ------------------------------------------------------------------ Platform Factory
+
+/** The wizard's autosaved state: the create command, the owner, and the form as it was left. */
+export interface TenantDraft {
+  id: number;
+  title: string | null;
+  data: Record<string, any>;
+  version: number;
+  status: string;
+  tenantKey: string | null;
+  updatedBy: string | null;
+  updatedAt: string;
+  issues: Array<{ section: string; message: string }>;
+}
+
+export const fetchDrafts = async (): Promise<TenantDraft[]> => (await api.get<TenantDraft[]>(`${BASE}/drafts`)).data;
+
+export const createDraft = async (data: object): Promise<TenantDraft> =>
+  (await api.post<TenantDraft>(`${BASE}/drafts`, data)).data;
+
+/** Autosave. A 409 means someone else saved this draft after `version` was loaded. */
+export const saveDraft = async (id: number, version: number, data: object): Promise<TenantDraft> =>
+  (await api.put<TenantDraft>(`${BASE}/drafts/${id}`, { version, data })).data;
+
+export const discardDraft = async (id: number) => { await api.delete(`${BASE}/drafts/${id}`); };
+
+/** Draft → DRAFT tenant: key and subdomain reserved, nothing provisioned yet. */
+export const createTenantFromDraft = async (id: number): Promise<Tenant> =>
+  (await api.post<Tenant>(`${BASE}/drafts/${id}/create`)).data;
+
+export interface ProvisioningProgress {
+  tenantKey: string;
+  status: TenantStatus;
+  step: 'AWAIT_SCHEMAS' | 'CREATE_OWNER' | 'ACTIVATE' | 'INVITE_OWNER' | 'DONE' | 'FAILED' | null;
+  attempts: number;
+  lastError: string | null;
+  requestedAt: string | null;
+  finishedAt: string | null;
+  services: Array<{ service: string; state: 'WAITING' | 'READY' | 'FAILED'; error: string | null }>;
+}
+
+/** DRAFT (or failed) → provisioning; goes ACTIVE by itself once every service is ready. */
+export const publishTenant = async (tenantKey: string): Promise<ProvisioningProgress> =>
+  (await api.post<ProvisioningProgress>(`${BASE}/${tenantKey}/publish`)).data;
+
+export const fetchProvisioning = async (tenantKey: string): Promise<ProvisioningProgress> =>
+  (await api.get<ProvisioningProgress>(`${BASE}/${tenantKey}/provisioning`)).data;
+
+export const resendOwnerInvitation = async (tenantKey: string) => {
+  await api.post(`${BASE}/${tenantKey}/owner-invitation`);
+};
+
+/** Only a tenant that never went live (DRAFT, PROVISIONING_FAILED). */
+export const discardTenant = async (tenantKey: string) => { await api.delete(`${BASE}/${tenantKey}`); };
+
+// ------------------------------------------------------------------ Entitlements (plans)
+
+export interface PlanView { key: string; version: number; name: string; features: string[]; limits: Record<string, number>; }
+export interface AddOn { key: string; name: string; features: string[]; increments: Record<string, number>; }
+export interface PlanCatalog { plans: PlanView[]; addOns: AddOn[]; limits: Record<string, string>; baseModules: string[]; }
+
+export interface Grant {
+  id: number; feature: string; limitValue: number | null; expiresAt: string; reason: string;
+  grantedBy: string | null; active: boolean;
+}
+
+export interface Entitlements {
+  tenantKey: string; planKey: string; planVersion: number; planName: string;
+  status: 'TRIALING' | 'ACTIVE' | 'PAST_DUE' | 'SUSPENDED' | 'CANCELED';
+  addOns: string[]; features: string[]; limits: Record<string, number>; grants: Grant[];
+}
+
+export interface TenantEntitlements { entitlements: Entitlements; chosenModules: string[]; runningModules: string[]; }
+
+export interface PlanImpact {
+  fromPlan: string; toPlan: string; modulesStopping: string[]; modulesResuming: string[];
+  limitChanges: Record<string, [number | null, number | null]>;
+}
+
+export const fetchPlanCatalog = async (): Promise<PlanCatalog> => (await api.get<PlanCatalog>(`${BASE}/plans`)).data;
+
+export const fetchTenantEntitlements = async (tenantKey: string): Promise<TenantEntitlements> =>
+  (await api.get<TenantEntitlements>(`${BASE}/${tenantKey}/entitlements`)).data;
+
+export const previewPlanChange = async (tenantKey: string, plan: string, addOns: string[]): Promise<PlanImpact> =>
+  (await api.get<PlanImpact>(`${BASE}/${tenantKey}/subscription/preview`, {
+    params: { plan, addOns: addOns.join(',') || undefined },
+  })).data;
+
+export const changePlan = async (tenantKey: string, plan: string, addOns: string[]): Promise<Entitlements> =>
+  (await api.put<Entitlements>(`${BASE}/${tenantKey}/subscription`, { plan, addOns })).data;
+
+export const setSubscriptionStatus = async (tenantKey: string, status: Entitlements['status']): Promise<Entitlements> =>
+  (await api.put<Entitlements>(`${BASE}/${tenantKey}/subscription/status`, { status })).data;
+
+export const addGrant = async (tenantKey: string, grant: { feature: string; limitValue?: number | null; expiresAt: string; reason: string }) =>
+  (await api.post<Entitlements>(`${BASE}/${tenantKey}/grants`, grant)).data;
+
+export const revokeGrant = async (tenantKey: string, grantId: number) =>
+  (await api.delete<Entitlements>(`${BASE}/${tenantKey}/grants/${grantId}`)).data;
+
+/** A plan's entitlement as a module set (base modules are always included). */
+export const entitledModules = (catalog: PlanCatalog | undefined, planKey: string | undefined): Set<string> | undefined => {
+  const plan = catalog?.plans.find((p) => p.key === planKey);
+  return plan ? new Set([...catalog!.baseModules, ...plan.features]) : undefined;
+};
+
+/** "bookings.monthly" -> 5000, or "Unlimited" when absent. */
+export const formatLimit = (value: number | null | undefined) =>
+  value === null || value === undefined ? 'Unlimited' : value.toLocaleString();

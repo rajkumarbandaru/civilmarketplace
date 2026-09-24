@@ -1,5 +1,6 @@
 package com.civileng.marketplace.project.controller;
 
+import com.civileng.marketplace.web.common.client.MediaRef;
 import com.civileng.marketplace.web.common.dto.StatusChangeRequest;
 import com.civileng.marketplace.project.dto.*;
 import com.civileng.marketplace.project.model.Milestone;
@@ -186,6 +187,19 @@ public class ProjectController {
             @RequestHeader(value = "X-User-Role", required = false) String actorRole,
             @PathVariable Long projectId) {
         return ResponseEntity.ok(projectService.listDocuments(projectId, actorId, actorRole));
+    }
+
+    @GetMapping("/{projectId}/documents/{documentId}/file")
+    @Operation(summary = "A short-lived link to open a project document")
+    public ResponseEntity<MediaRef> getDocumentFile(
+            @RequestHeader("X-User-Id") Long actorId,
+            @RequestHeader(value = "X-User-Role", required = false) String actorRole,
+            @PathVariable Long projectId,
+            @PathVariable Long documentId) {
+        MediaRef link = projectService.getDocumentLink(projectId, documentId, actorId, actorRole);
+        // The uploader's id is for services, not for every project viewer.
+        return ResponseEntity.ok(new MediaRef(link.id(), link.purpose(), link.visibility(), null,
+                link.originalFilename(), link.contentType(), link.sizeBytes(), link.url(), link.urlExpiresAt()));
     }
 
     @DeleteMapping("/{projectId}/documents/{documentId}")

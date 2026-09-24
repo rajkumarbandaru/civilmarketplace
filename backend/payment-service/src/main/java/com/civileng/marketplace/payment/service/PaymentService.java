@@ -4,24 +4,15 @@ import com.civileng.marketplace.payment.model.Payment;
 import com.civileng.marketplace.payment.model.PaymentStatus;
 import com.civileng.marketplace.payment.repository.PaymentRepository;
 import com.razorpay.Order;
-import com.razorpay.RazorpayClient;
 import com.razorpay.RazorpayException;
-import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.json.JSONObject;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
 import java.math.BigDecimal;
-import java.nio.charset.StandardCharsets;
-import java.security.InvalidKeyException;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Map;
@@ -33,16 +24,9 @@ import java.util.Random;
 public class PaymentService {
 
     private final PaymentRepository paymentRepository;
-    private final RazorpayClient razorpayClient;
+    private final RazorpayGateway razorpayGateway;
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final org.springframework.context.ApplicationEventPublisher eventPublisher;
-
-    @Value("${razorpay.webhook-secret}")
-    private String webhookSecret;
-
-    /** Signs Checkout handler responses; the webhook secret above signs webhook payloads. */
-    @Value("${razorpay.key-secret}")
-    private String keySecret;
 
     /**
      * Razorpay rejects an order below 100 paise (₹1), so the call is refused here rather than
@@ -58,6 +42,7 @@ public class PaymentService {
                 .orElse(null);
 
         if (existingPayment != null) {
+            existingPayment.setRazorpayKeyId(razorpayGateway.current().keyId());
             return existingPayment;
         }
 
@@ -81,6 +66,10 @@ public class PaymentService {
                     "Amount must be at least ₹1 (100 paise)");
         }
 
+        // Resolved before anything is written: a tenant with no merchant account gets a 409 naming
+        // the missing integration, not a FAILED payment row it can do nothing about.
+        RazorpayGateway.Credentials merchant = razorpayGateway.current();
+
         Payment payment = Payment.builder()
                 .paymentCode(generatePaymentCode())
                 .bookingId(bookingId)
@@ -98,7 +87,7 @@ public class PaymentService {
             orderRequest.put("receipt", payment.getPaymentCode());
             orderRequest.put("payment_capture", 1);
 
-            Order razorpayOrder = razorpayClient.orders.create(orderRequest);
+            Order razorpayOrder = merchant.client().orders.create(orderRequest);
             payment.setRazorpayOrderId(razorpayOrder.get("id"));
             payment.setPaymentStatus(PaymentStatus.PROCESSING);
 
@@ -111,6 +100,7 @@ public class PaymentService {
         }
 
         Payment saved = paymentRepository.save(payment);
+        saved.setRazorpayKeyId(merchant.keyId());
 
         // Map.of rejects null values, and razorpayOrderId is null whenever the PSP call above
         // failed — which threw an NPE out of the *success* path and turned every PSP outage into
@@ -131,7 +121,8 @@ public class PaymentService {
     public Payment verifyAndCompletePayment(String razorpayOrderId,
                                              String razorpayPaymentId,
                                              String razorpaySignature) {
-        if (!verifySignature(razorpayOrderId, razorpayPaymentId, razorpaySignature)) {
+        if (!razorpayGateway.current()
+                .checkoutSignatureMatches(razorpayOrderId, razorpayPaymentId, razorpaySignature)) {
             throw new IllegalArgumentException("Invalid payment signature");
         }
 
@@ -197,14 +188,14 @@ public class PaymentService {
                 .orElseThrow(() -> new IllegalArgumentException("Payment not found"));
     }
 
+    /**
+     * Applies a Razorpay webhook that has already been matched to its tenant and had its signature
+     * checked against that tenant's webhook secret ({@code RazorpayWebhookController}). Runs bound to
+     * that tenant, so the order lookup below can only ever see that tenant's payments.
+     */
     @Transactional
-    public Payment handleWebhookEvent(String payload, String signature) {
+    public void applyWebhookEvent(String payload) {
         try {
-            String expectedSig = calculateHmacSha256(payload, webhookSecret);
-            if (!expectedSig.equals(signature)) {
-                throw new IllegalArgumentException("Invalid webhook signature");
-            }
-
             JSONObject event = new JSONObject(payload);
             String eventType = event.optString("event");
 
@@ -234,51 +225,10 @@ public class PaymentService {
             }
 
             log.info("Webhook processed: {}", eventType);
-            return null;
 
         } catch (Exception e) {
             log.error("Webhook processing failed: {}", e.getMessage());
             throw new IllegalArgumentException("Webhook processing failed");
-        }
-    }
-
-    /**
-     * Checkout's handler signature, which Razorpay signs with the API <em>key secret</em> — not the
-     * webhook secret. The two are different credentials issued for different channels, so signing
-     * with the webhook secret here rejected every genuine payment and would have accepted a forged
-     * one from anybody who learned the webhook secret.
-     *
-     * <p>Compared in constant time: a byte-by-byte {@code equals} leaks, through its timing, how
-     * long a prefix of the expected signature an attacker has guessed, which is enough to forge one
-     * a byte at a time.
-     */
-    private boolean verifySignature(String orderId, String paymentId, String signature) {
-        if (signature == null) {
-            return false;
-        }
-        String payload = orderId + "|" + paymentId;
-        String expected = calculateHmacSha256(payload, keySecret);
-        return MessageDigest.isEqual(
-                expected.getBytes(StandardCharsets.UTF_8),
-                signature.getBytes(StandardCharsets.UTF_8));
-    }
-
-    private String calculateHmacSha256(String data, String key) {
-        try {
-            Mac sha256Hmac = Mac.getInstance("HmacSHA256");
-            SecretKeySpec secretKey = new SecretKeySpec(
-                    key.getBytes(), "HmacSHA256");
-            sha256Hmac.init(secretKey);
-            byte[] hash = sha256Hmac.doFinal(data.getBytes());
-            StringBuilder hexString = new StringBuilder();
-            for (byte b : hash) {
-                String hex = Integer.toHexString(0xff & b);
-                if (hex.length() == 1) hexString.append('0');
-                hexString.append(hex);
-            }
-            return hexString.toString();
-        } catch (NoSuchAlgorithmException | InvalidKeyException e) {
-            throw new RuntimeException("HMAC computation failed", e);
         }
     }
 

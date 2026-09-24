@@ -27,6 +27,8 @@ export interface ResolvedTheme {
   layoutStyle: string | null;
   /** compact | comfortable | spacious */
   density: string | null;
+  /** Website page arrangement: marketplace | corporate | ecommerce (registry-manifest.json). */
+  siteLayout?: string | null;
   /** Bumped on every save — the client re-fetches when it changes. */
   version: number;
 }
@@ -131,6 +133,8 @@ export interface ThemeUpdateCommand {
   buttonStyle: string | null;
   layoutStyle: string | null;
   density: string | null;
+  /** Website page arrangement: marketplace | corporate | ecommerce (registry-manifest.json). */
+  siteLayout?: string | null;
 }
 
 /**
@@ -258,5 +262,23 @@ export const updateWorkspaceTheme = async (
 
 export const resetWorkspaceTheme = async (role: string): Promise<ResolvedTheme> => {
   const { data } = await api.delete<ResolvedTheme>(`/admin/workspaces/${role}/theme`);
+  return data;
+};
+
+/** The workspace's published look for anonymous visitors (home page, sign-in). */
+export const fetchPublicTheme = async (): Promise<ResolvedTheme> => {
+  const { data } = await api.get<ResolvedTheme>('/ui-config/public/theme');
+  return data;
+};
+
+/** An unpublished theme carried by a preview link (15 minutes, this workspace only). */
+export const fetchPreviewTheme = async (token: string): Promise<ResolvedTheme> => {
+  const { data } = await api.get<ResolvedTheme>(`/ui-config/public/preview/${encodeURIComponent(token)}`);
+  return data;
+};
+
+/** Issues a preview link for the theme form as it stands (not saved, not published). */
+export const createThemePreview = async (command: ThemeUpdateCommand): Promise<{ token: string; path: string; expiresInSeconds: number }> => {
+  const { data } = await api.post('/admin/config/preview', command);
   return data;
 };

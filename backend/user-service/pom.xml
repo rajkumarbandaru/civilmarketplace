@@ -12,6 +12,12 @@
     <name>User Service</name>
     <description>User Management Service</description>
     <dependencies>
+        <!-- For web-common's MediaClient: uploaded files are checked with media-service before a
+             reference to one is saved. -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-openfeign</artifactId>
+        </dependency>
         <dependency>
             <groupId>com.civileng.marketplace</groupId>
             <artifactId>web-common</artifactId>

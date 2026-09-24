@@ -93,6 +93,15 @@ public class Payment {
     @Column(name = "failure_reason", length = 500)
     private String failureReason;
 
+    /**
+     * The Razorpay key id Checkout must open with — this tenant's own merchant account, since each
+     * tenant collects into its own. Not stored: it is the tenant's current key, looked up per
+     * response. Public by design (Checkout runs in the browser); the key secret never leaves the
+     * server.
+     */
+    @Transient
+    private String razorpayKeyId;
+
     @Version
     @Column(name = "version", nullable = false)
     @Builder.Default

@@ -25,6 +25,13 @@ public class CreateTenantRequest {
     @Size(max = 150)
     private String contactEmail;
 
+    /** The workspace owner, invited at publish to set their own password. */
+    private String ownerName;
+
+    @jakarta.validation.constraints.Email
+    @jakarta.validation.constraints.Size(max = 150)
+    private String ownerEmail;
+
     @Size(max = 30)
     private String plan;
 

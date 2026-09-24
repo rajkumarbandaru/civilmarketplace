@@ -14,6 +14,7 @@ import javax.crypto.SecretKey;
 import java.util.Base64;
 import java.util.Date;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Component
@@ -65,12 +66,33 @@ public class JwtTokenProvider {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + refreshTokenExpiration);
 
+        // A random id: two tokens minted for one user in the same second would otherwise be
+        // byte-identical, and rotation tracks each token by its exact value.
         return Jwts.builder()
+                .id(UUID.randomUUID().toString())
                 .subject(userId)
                 .claim("type", "refresh")
                 .claim("tenant", tenant)
                 .issuedAt(now)
                 .expiration(expiryDate)
+                .signWith(secretKey)
+                .compact();
+    }
+
+    /**
+     * A short-lived ticket proving the password (or OTP, or social sign-in) step passed, good only
+     * for the MFA endpoints. {@code type=mfa} keeps it from ever being accepted as an access token.
+     */
+    public String generateMfaToken(String userId, String tenant, String purpose, long ttlMillis) {
+        Date now = new Date();
+        return Jwts.builder()
+                .id(UUID.randomUUID().toString())
+                .subject(userId)
+                .claim("type", "mfa")
+                .claim("purpose", purpose)
+                .claim("tenant", tenant)
+                .issuedAt(now)
+                .expiration(new Date(now.getTime() + ttlMillis))
                 .signWith(secretKey)
                 .compact();
     }

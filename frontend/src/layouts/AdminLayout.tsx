@@ -34,7 +34,7 @@ import {
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { useAppSelector, useAppDispatch } from '../hooks';
-import { logout } from '../store/slices/authSlice';
+import { signOut } from '../store/slices/authSlice';
 import { useUiConfig } from '../providers/UiConfigProvider';
 import { sidebarPalette } from '../theme';
 import DynamicIcon from '../components/DynamicIcon';
@@ -53,6 +53,7 @@ const DRAWER_WIDTH = 280;
 const FALLBACK_NAV = [
   { key: 'admin-overview', label: 'Dashboard', path: '/admin', icon: 'Dashboard', menuGroup: 'Overview', exactMatch: true },
   { key: 'admin-users', label: 'Users', path: '/admin/users', icon: 'People', menuGroup: 'People', exactMatch: false },
+  { key: 'admin-kyc', label: 'KYC review', path: '/admin/kyc', icon: 'VerifiedUser', menuGroup: 'People', exactMatch: false },
   { key: 'admin-categories', label: 'Categories', path: '/admin/categories', icon: 'Category', menuGroup: 'Operations', exactMatch: false },
   { key: 'admin-services', label: 'Services', path: '/admin/services', icon: 'Handyman', menuGroup: 'Operations', exactMatch: false },
   { key: 'admin-bookings', label: 'Bookings', path: '/admin/bookings', icon: 'BookOnline', menuGroup: 'Operations', exactMatch: false },
@@ -128,7 +129,7 @@ const AdminLayout: React.FC = () => {
     item.exactMatch ? location.pathname === item.path : location.pathname.startsWith(item.path);
 
   const handleLogout = () => {
-    dispatch(logout());
+    dispatch(signOut());
     navigate('/login');
   };
 

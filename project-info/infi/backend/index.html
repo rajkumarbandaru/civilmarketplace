@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Backend Flow Explorer</title>
+<style>
+:root{
+  --bg:#f6f7fb; --surface:#ffffff; --surface-2:#f0f2f7; --text:#1b1f2a; --muted:#5b6475; --border:#dde1ea;
+  --accent:#3b5bdb; --ins:#2b8a3e; --upd:#b7791f; --warn:#c92a2a;
+  --c1:#5c7cfa; --c2:#40c057; --c3:#f59f00;
+  --shadow:0 1px 2px rgba(20,30,60,.06),0 4px 14px rgba(20,30,60,.06);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f1218; --surface:#171b24; --surface-2:#1e2330; --text:#e6e9f0; --muted:#98a1b3; --border:#2a3040;
+    --accent:#7b94ff; --ins:#51cf66; --upd:#fcc419; --warn:#ff6b6b;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 14px rgba(0,0,0,.3);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f1218; --surface:#171b24; --surface-2:#1e2330; --text:#e6e9f0; --muted:#98a1b3; --border:#2a3040;
+  --accent:#7b94ff; --ins:#51cf66; --upd:#fcc419; --warn:#ff6b6b;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 14px rgba(0,0,0,.3);
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px}
+a{color:var(--accent)}
+.wrap{max-width:1180px;margin:0 auto;padding:28px 16px 56px}
+.top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
+h1{font-size:26px;margin:0 0 6px}
+.lead{margin:0;color:var(--muted);max-width:760px}
+.btn{flex:none;border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:8px;padding:7px 12px;cursor:pointer;font:inherit;font-size:14px}
+.btn:hover{border-color:var(--accent)}
+
+.journey{display:flex;align-items:stretch;gap:0;margin:28px 0 8px}
+.stage{flex:1;display:flex;align-items:center;gap:12px;padding:14px 16px;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);text-decoration:none;color:inherit;min-width:0}
+.stage:hover{border-color:var(--sc)}
+.stage .n{flex:none;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-weight:700;color:#fff;background:var(--sc)}
+.stage b{display:block;font-size:16px}
+.stage span{color:var(--muted);font-size:13px}
+.arrow{flex:none;width:40px;display:grid;place-items:center;color:var(--muted);font-size:20px}
+@media (max-width:760px){.journey{flex-direction:column}.arrow{width:auto;height:26px;transform:rotate(90deg)}}
+
+.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:24px}
+@media (max-width:980px){.cards{grid-template-columns:1fr}}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow);display:flex;flex-direction:column;overflow:hidden}
+.card .bar{height:5px;background:var(--sc)}
+.card .body{padding:18px 18px 16px;display:flex;flex-direction:column;gap:12px;flex:1}
+.card h2{font-size:19px;margin:0;display:flex;align-items:center;gap:10px}
+.card h2 .n{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:13px;color:#fff;background:var(--sc)}
+.card p{margin:0;color:var(--muted);font-size:14px}
+.label{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 6px;font-weight:600}
+.paths{display:flex;flex-direction:column;gap:6px}
+.path{display:flex;justify-content:space-between;gap:10px;padding:7px 10px;background:var(--surface-2);border-radius:8px;font-size:13.5px}
+.path em{font-style:normal;color:var(--muted);font-variant-numeric:tabular-nums;flex:none}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font:600 11.5px/1 ui-monospace,Menlo,Consolas,monospace;padding:5px 7px;border-radius:6px;background:var(--surface-2);color:var(--text)}
+.flag{font-size:13px;border-left:3px solid var(--warn);background:color-mix(in srgb,var(--warn) 8%,transparent);padding:7px 10px;border-radius:0 6px 6px 0}
+.actions{display:flex;gap:8px;margin-top:auto;padding-top:4px;flex-wrap:wrap}
+.open{flex:1;text-align:center;text-decoration:none;font-weight:600;color:#fff;background:var(--sc);border-radius:9px;padding:10px 12px}
+.open:hover{filter:brightness(1.08)}
+.md{text-decoration:none;border:1px solid var(--border);border-radius:9px;padding:10px 12px;color:var(--text);font-size:14px}
+.md:hover{border-color:var(--sc)}
+
+h3.block{font-size:17px;margin:36px 0 10px}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--border);vertical-align:top}
+th{font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);background:var(--surface-2)}
+tr:last-child td{border-bottom:0}
+td .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:4px}
+.foot{color:var(--muted);font-size:13px;margin-top:22px}
+.extra{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:16px}
+@media (max-width:760px){.extra{grid-template-columns:1fr}}
+.xcard{display:flex;flex-direction:column;gap:6px;text-decoration:none;color:inherit;background:var(--surface);border:1px solid var(--border);border-left:5px solid var(--sc);border-radius:12px;padding:16px 18px;box-shadow:var(--shadow)}
+.xcard:hover{border-color:var(--sc)}
+.xcard b{font-size:17px}
+.xcard span{color:var(--muted);font-size:14px}
+.xcard em{font-style:normal;color:var(--sc);font-weight:600;font-size:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div>
+      <h1>Infi Mobile BSS: system walkthroughs</h1>
+      <p class="lead">Interactive walkthroughs of the three core flows in <code>billing_micro_services</code>, a Java 8 / Spring Boot
+        microservices telecom BSS on MySQL and Kubernetes. Each page animates the request across services, event bus, database
+        tables and carrier/payment APIs, with file:line references to the source.</p>
+    </div>
+    <button class="btn" id="b-theme" title="Toggle light / dark">Theme</button>
+  </div>
+
+  <nav class="journey" aria-label="Subscriber journey">
+    <a class="stage" href="01-purchase-flow.html" style="--sc:var(--c1)"><span class="n">1</span><div><b>Purchase</b><span>Pay, create order, ship SIM</span></div></a>
+    <div class="arrow" aria-hidden="true">→</div>
+    <a class="stage" href="02-activation-flow.html" style="--sc:var(--c2)"><span class="n">2</span><div><b>Activation</b><span>Subscription + carrier MDN</span></div></a>
+    <div class="arrow" aria-hidden="true">→</div>
+    <a class="stage" href="03-recharge-flow.html" style="--sc:var(--c3)"><span class="n">3</span><div><b>Recharge</b><span>Pay, bundle record, carrier</span></div></a>
+  </nav>
+
+  <section class="cards">
+    <article class="card" style="--sc:var(--c1)">
+      <div class="bar"></div>
+      <div class="body">
+        <h2><span class="n">1</span>Purchase</h2>
+        <p>Plan browse → validated payment (Stripe or reseller e-balance) → order and customer created → SIM allocated → USPS/UPS shipment.</p>
+        <div>
+          <div class="label">Paths</div>
+          <div class="paths">
+            <div class="path">Card purchase (Stripe)<em>25 steps</em></div>
+            <div class="path">Reseller wallet (e-balance)<em>10 steps</em></div>
+          </div>
+        </div>
+        <div>
+          <div class="label">Key tables</div>
+          <div class="chips"><span class="chip">gateway_transaction</span><span class="chip">payment_order_info</span><span class="chip">order_table</span><span class="chip">order_item</span><span class="chip">user</span><span class="chip">sim_info</span><span class="chip">order_track_info</span></div>
+        </div>
+        <div class="flag">Card orders are created by <code>user-management</code> after the <code>SUBMIT_ORDER</code> event, not in the payment service.</div>
+        <div class="actions"><a class="open" href="01-purchase-flow.html">Open flow</a><a class="md" href="01-purchase-flow.md">Markdown</a></div>
+      </div>
+    </article>
+
+    <article class="card" style="--sc:var(--c2)">
+      <div class="bar"></div>
+      <div class="body">
+        <h2><span class="n">2</span>Activation</h2>
+        <p>SIM/eSIM activation → subscription PreActive → <code>ACTIVATED</code> event fans out → carrier assigns the MDN → SIM Active, subscription COMPLETED.</p>
+        <div>
+          <div class="label">Paths</div>
+          <div class="paths">
+            <div class="path">Verizon<em>16 steps</em></div>
+            <div class="path">T-Mobile (PWG)<em>14 steps</em></div>
+            <div class="path">Tata (GUPI)<em>12 steps</em></div>
+          </div>
+        </div>
+        <div>
+          <div class="label">Key tables</div>
+          <div class="chips"><span class="chip">subscription</span><span class="chip">sim_info</span><span class="chip">user_address</span><span class="chip">mno_subscription</span><span class="chip">reseller_commission_logs</span></div>
+        </div>
+        <div class="flag">The Verizon order is retried around a non-idempotent call, and the GUPI handler has no carrier filter.</div>
+        <div class="actions"><a class="open" href="02-activation-flow.html">Open flow</a><a class="md" href="02-activation-flow.md">Markdown</a></div>
+      </div>
+    </article>
+
+    <article class="card" style="--sc:var(--c3)">
+      <div class="bar"></div>
+      <div class="body">
+        <h2><span class="n">3</span>Recharge</h2>
+        <p>Bundle top-up → PaymentFacade validators, routing and dispatch → webhook confirm or wallet debit → <code>BUNDLE_ACTIVATION</code> → carrier applies the plan.</p>
+        <div>
+          <div class="label">Paths</div>
+          <div class="paths">
+            <div class="path">Card → Verizon subscriber<em>18 steps</em></div>
+            <div class="path">Wallet balance → T-Mobile subscriber<em>14 steps</em></div>
+          </div>
+        </div>
+        <div>
+          <div class="label">Key tables</div>
+          <div class="chips"><span class="chip">gateway_transaction</span><span class="chip">prepaid_subscription_records</span><span class="chip">voucher_redeem_log</span><span class="chip">recharge_auto_renewal</span><span class="chip">pwg_recharge_flow_logs</span></div>
+        </div>
+        <div class="flag">The API-key check on <code>/api/v1/payments/</code> isn't enforced, and the wallet debit isn't atomic with the bundle record.</div>
+        <div class="actions"><a class="open" href="03-recharge-flow.html">Open flow</a><a class="md" href="03-recharge-flow.md">Markdown</a></div>
+      </div>
+    </article>
+  </section>
+
+  <section class="extra">
+    <a class="xcard" href="architecture.html" style="--sc:#3b5bdb">
+      <b>Whole-system map</b>
+      <span>Every service, data store and external system on one map, with 6 animated journeys: purchase, activation, recharge, CDR usage, postpaid billing and deployment.</span>
+      <em>Open architecture →</em>
+    </a>
+    <a class="xcard" href="engineer-guide.html" style="--sc:#2b8a3e">
+      <b>Engineer's guide</b>
+      <span>How to work in this system at ~5 years' experience: first week, the change protocol with saved checklists, task recipes, debugging playbooks, risk radar, and how to explain it in interviews.</span>
+      <em>Open the guide →</em>
+    </a>
+    <a class="xcard" href="04-cdr-flow.html" style="--sc:#fd7e14">
+      <b>Usage (CDR) flow</b>
+      <span>How network usage reaches the platform: Verizon report pull, T-Mobile file drop and NetworkIP collection, on scheduled jobs into MongoDB and MySQL. 3 carrier paths.</span>
+      <em>Open CDR flow →</em>
+    </a>
+    <a class="xcard" href="05-postpaid-billing-flow.html" style="--sc:#e03131">
+      <b>Postpaid billing flow</b>
+      <span>Monthly invoice run from the cron trigger through the event bus to the invoice email and per-carrier SMS, plus the dunning cycle for unpaid invoices. 2 paths.</span>
+      <em>Open billing flow →</em>
+    </a>
+    <a class="xcard" href="08-interview-guide.html" style="--sc:#7048e8">
+      <b>Interview guide</b>
+      <span>How to describe this project out loud: a 30-second / 2-minute / 10-minute pitch, the numbers to have ready, a whiteboard sequence, STAR stories, and answers to the six questions this architecture invites.</span>
+      <em>Open interview guide →</em>
+    </a>
+    <a class="xcard" href="07-project-handbook.md" style="--sc:#0c8599">
+      <b>Project &amp; tools handbook</b>
+      <span>The whole repository in one file: module taxonomy, the 23 deployable services with ports, data/config/event/security reality, build and deploy, and every in-repo tool and script.</span>
+      <em>Open handbook (Markdown) →</em>
+    </a>
+    <a class="xcard" href="tech-stack.html" style="--sc:#a9744f">
+      <b>Tech stack</b>
+      <span>Every tool used, counted from the Maven build (Spring Boot, MySQL, MongoDB, DB-polling event bus, Resilience4j, Stripe, Jenkins, Kubernetes …) and how each one works here.</span>
+      <em>Open tech stack →</em>
+    </a>
+  </section>
+
+  <h3 class="block">Services across the three flows</h3>
+  <div class="panel">
+    <table>
+      <thead><tr><th>Service</th><th>Role</th><th>Purchase</th><th>Activation</th><th>Recharge</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">catalogue-management</td><td>Plans, bundles, add-ons</td><td>✓</td><td></td><td>✓</td></tr>
+        <tr><td class="mono">self-service-payment</td><td>Payments, gateway routing, webhooks, fulfilment dispatch</td><td>✓</td><td></td><td>✓</td></tr>
+        <tr><td class="mono">wallet-management</td><td>Wallet balance ledger</td><td>✓</td><td></td><td>✓</td></tr>
+        <tr><td class="mono">user-management</td><td>Users, orders, subscription activation</td><td>✓</td><td>✓</td><td></td></tr>
+        <tr><td class="mono">inventory-management</td><td>SIM/device stock, warehouse</td><td>✓</td><td>✓</td><td></td></tr>
+        <tr><td class="mono">shipment-management</td><td>USPS/UPS labels, pickup, tracking</td><td>✓</td><td></td><td></td></tr>
+        <tr><td class="mono">event-mgmt-utils</td><td>DB-polling event bus</td><td>✓</td><td>✓</td><td>✓</td></tr>
+        <tr><td class="mono">mno_mgmt + mno-gateway-api</td><td>Verizon integration</td><td></td><td>✓</td><td>✓</td></tr>
+        <tr><td class="mono">pwg-mno-mgmt + pwg-api</td><td>T-Mobile (vCare/PWG) integration</td><td></td><td>✓</td><td>✓</td></tr>
+        <tr><td class="mono">gupi_mgmt</td><td>Tata/GUPI integration</td><td></td><td>✓</td><td></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 class="block">External systems</h3>
+  <div class="panel">
+    <table>
+      <thead><tr><th>System</th><th>Used for</th><th>Protocol</th></tr></thead>
+      <tbody>
+        <tr><td>Stripe (PayPal alternate)</td><td>Card checkout, webhook confirmation</td><td>REST + signed webhooks</td></tr>
+        <tr><td>Verizon OAS OrderGateway</td><td>Activation, plan changes</td><td>HTTPS XML</td></tr>
+        <tr><td>vCare (T-Mobile wholesale)</td><td>Activation, balance / bundle adjust</td><td>HTTPS XML (WholeSaleApi)</td></tr>
+        <tr><td>Tata MOVE (GUPI)</td><td>Activation</td><td>REST, OAuth2</td></tr>
+        <tr><td>USPS / UPS</td><td>Labels, pickup, tracking</td><td>REST (OAuth2) / legacy XML</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p class="foot">Built from reading the current <code>billing_micro_services</code> source. Each step in the flow pages carries a HIGH
+    (read in source) or MEDIUM (from discovery docs, or internals not read line by line) confidence tag.</p>
+</div>
+<script>
+try{ const t=localStorage.getItem('pf-theme'); if(t) document.documentElement.dataset.theme=t; }catch(e){}
+document.getElementById('b-theme').onclick=()=>{
+  const r=document.documentElement; const dark=r.dataset.theme?r.dataset.theme==='dark':matchMedia('(prefers-color-scheme: dark)').matches;
+  r.dataset.theme=dark?'light':'dark'; try{localStorage.setItem('pf-theme',r.dataset.theme);}catch(e){}
+};
+</script>
+</body>
+</html>

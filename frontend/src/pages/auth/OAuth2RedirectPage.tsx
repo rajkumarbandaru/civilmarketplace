@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Box, CircularProgress, Typography } from '@mui/material';
 import { useAppDispatch } from '../../hooks';
-import { setSocialCredentials, setRememberMe } from '../../store/slices/authSlice';
+import { setSocialCredentials, beginMfa, setRememberMe } from '../../store/slices/authSlice';
 import { takeRememberIntent } from '../../services/authStorage';
 import { landingPathFor } from '../../components/AdminRoute';
 
@@ -24,6 +24,15 @@ const OAuth2RedirectPage: React.FC = () => {
     handled.current = true;
 
     const error = params.get('error');
+    // The provider signed them in, but the account owes a second factor: hand the ticket to the
+    // login page's MFA step. The remember-me choice stays stashed until that step completes.
+    const mfaToken = params.get('mfaToken');
+    if (!error && mfaToken) {
+      dispatch(beginMfa({ token: mfaToken, setup: params.get('mfaSetup') === 'true' }));
+      navigate('/login', { replace: true });
+      return;
+    }
+
     const accessToken = params.get('accessToken');
     const refreshToken = params.get('refreshToken');
 

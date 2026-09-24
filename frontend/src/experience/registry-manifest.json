@@ -1,0 +1,10 @@
+{
+  "$comment": "Every experience key this frontend build can render. Configuration may only select from these; admin-service validates against the same lists (ThemePresetsRegistryContractTest reads this file). Adding a key here means shipping its renderer in the same build.",
+  "stylePacks": ["default", "flat", "elevated", "material", "glass", "luxury", "brutalist"],
+  "buttonStyles": ["gradient", "solid", "outlined"],
+  "shellLayouts": ["sidebar-left", "sidebar-right", "topbar"],
+  "siteLayouts": ["marketplace", "corporate", "ecommerce"],
+  "densities": ["compact", "comfortable", "spacious"],
+  "colorModes": ["light", "dark", "system"],
+  "blocks": ["hero", "stats", "how-it-works", "services", "cta"]
+}

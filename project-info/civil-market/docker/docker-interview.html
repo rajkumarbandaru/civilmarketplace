@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Docker &amp; DevOps Interview Questions</title>
+<style>
+:root{--bg:#f6f7f9;--fg:#1f2933;--muted:#5b6770;--card:#fff;--line:#e3e6ea;--accent:#3730a3;--accent-bg:#eef2ff;--head:#0f172a;--code:#f1f3f6}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1115;--fg:#e6e8eb;--muted:#9aa4ad;--card:#171a20;--line:#2a2f37;--accent:#a5b4fc;--accent-bg:#1e2240;--head:#05070b;--code:#1f232b}}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.6 system-ui,-apple-system,Segoe UI,sans-serif;background:var(--bg);color:var(--fg)}
+header{background:var(--head);color:#fff;padding:18px 16px}
+header .in{max-width:1200px;margin:0 auto}
+header h1{margin:0;font-size:22px;line-height:1.3} header p{margin:4px 0 0;opacity:.75;font-size:13px}
+header a{color:#c7d2fe}
+.nav{max-width:1200px;margin:0 auto;padding:10px 16px 0;font-size:13px}
+.nav a{color:var(--accent);text-decoration:none;margin-right:6px;padding:3px 9px;border-radius:999px;background:var(--accent-bg);display:inline-block;margin-bottom:6px}
+.wrap{max-width:1200px;margin:0 auto;padding:0 16px 60px;display:flex;gap:24px;align-items:flex-start}
+nav.toc{position:sticky;top:12px;flex:0 0 250px;max-height:calc(100vh - 24px);overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:16px;font-size:13px}
+nav.toc ul{list-style:none;margin:0;padding-left:10px} nav.toc>ul{padding-left:0}
+nav.toc a{color:var(--accent);text-decoration:none;display:block;padding:2px 0}
+main{flex:1;min-width:0}
+main h1{display:none}
+h2{font-size:20px;margin:32px 0 10px;padding-top:8px;border-top:1px solid var(--line)}
+h3{font-size:16px;margin:20px 0 8px}
+a{color:var(--accent)}
+blockquote{margin:12px 0;padding:10px 14px;background:var(--accent-bg);border-left:4px solid var(--accent);border-radius:6px}
+blockquote p{margin:4px 0}
+table{border-collapse:collapse;width:100%;background:var(--card);font-size:14px;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:6px 10px;text-align:left;vertical-align:top}
+th{background:var(--accent-bg)}
+code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:13px}
+pre{background:var(--code);padding:12px;border-radius:8px;overflow-x:auto;font-size:13px;line-height:1.45}
+pre code{background:none;padding:0}
+pre.mermaid{background:var(--card);border:1px solid var(--line);text-align:center}
+hr{border:0;border-top:1px solid var(--line);margin:24px 0}
+@media (max-width:900px){.wrap{display:block}nav.toc{position:static;max-height:none;margin-top:16px}}
+</style></head><body>
+<header><div class="in"><h1>Docker &amp; DevOps Interview Questions</h1><p>Civil Engineering Marketplace · source ~/RAJKUMAR · generated from <code style="color:#fff;background:none">docker/docker-interview.md</code></p></div></header>
+<div class="nav"><a href="../index.html">Home</a><a href="../interview-guide.html">Interview guide</a><a href="../overview/architecture.html">Architecture</a><a href="../backend/backend-guide.html">Backend</a><a href="../ui/ui-guide.html">UI</a><a href="../docker/docker-guide.html">Docker</a><a href="../overview/action-flows.html">Action flows</a><a href="../interview/rapid-fire.html">Rapid fire</a></div>
+<div class="wrap"><nav class="toc"><b>Contents</b><div class="toc">
+<ul>
+<li><a href="#a-images-and-builds">A. Images and builds</a></li>
+<li><a href="#b-compose-and-orchestration">B. Compose and orchestration</a></li>
+<li><a href="#c-configuration-and-secrets">C. Configuration and secrets</a></li>
+<li><a href="#d-operations-and-production-readiness">D. Operations and production readiness</a></li>
+</ul>
+</div>
+</nav><main><h1 id="docker-devops-interview-questions">Docker &amp; DevOps Interview Questions</h1>
+<p>Answers taken from this codebase. Reference: <a href="docker-guide.html">docker-guide.md</a> ·
+<a href="how-to-run.html">how-to-run.md</a>.</p>
+<hr />
+<h2 id="a-images-and-builds">A. Images and builds</h2>
+<p><strong>1. Walk me through your Dockerfiles.</strong>
+Two kinds. Each Spring service has a tiny one: <code>eclipse-temurin:21-jre-alpine</code>, copy
+<code>backend/&lt;service&gt;/target/*.jar</code>, <code>ENTRYPOINT java -jar</code>. The frontend is multi-stage: <code>node:20</code> runs
+<code>npm ci</code> and <code>npm run build</code>, then <code>nginx:alpine</code> serves <code>dist</code>.</p>
+<p><strong>2. Why is the Java build <em>not</em> in the Dockerfile?</strong>
+It is a deliberate trade-off, and the honest answer is "for local iteration speed". The Maven
+reactor builds all 16 modules once, and the images just package the jars — much faster than 16
+containers each resolving dependencies. The cost is a build step people forget, which fails as
+<code>COPY ... target/*.jar: no source files</code>. For CI or a shared environment I would make it multi-stage
+with a cached Maven layer, so the image is reproducible from source alone.</p>
+<p><strong>3. Why is the build context the repo root?</strong>
+Because a service jar and the shared libraries live in sibling directories; a context scoped to one
+service could not see them. That is why every Dockerfile path is repo-relative.</p>
+<p><strong>4. How do you keep image builds fast?</strong>
+Layer ordering: dependency manifests copied and installed before source, so an ordinary code edit
+reuses the <code>npm ci</code> layer. Source files are copied individually, not as a whole directory, so the
+host's <code>node_modules</code> and <code>dist</code> never overwrite what the build stage produced.</p>
+<p><strong>5. Build args vs environment variables?</strong>
+Anything Vite inlines must be a <strong>build arg</strong>, because the value is baked into the bundle at build
+time; setting it at runtime does nothing because nginx serves a finished file. Backend services are
+the opposite: they read environment at startup, so their configuration is <code>environment:</code>, and the
+same image runs in any environment.</p>
+<hr />
+<h2 id="b-compose-and-orchestration">B. Compose and orchestration</h2>
+<p><strong>6. How is startup ordered?</strong>
+<code>depends_on</code> with <code>condition: service_healthy</code> where it matters: config-server first with a health
+check on <code>/actuator/health</code>, then service-registry, then the gateway and all business services. Each
+service also declares its infrastructure dependencies.</p>
+<p><strong>7. <code>depends_on</code> does not wait for readiness — how do you deal with that?</strong>
+That is exactly why the platform services have health checks: <code>service_healthy</code> waits for the check,
+not just the process. MySQL is declared <code>service_started</code>, so a service can still boot while MySQL
+is initialising and fail — the pragmatic answer is <code>docker compose restart &lt;service&gt;</code>; the correct
+one is a readiness check plus retry/backoff in the client, which Spring's connection pool partly
+does already.</p>
+<p><strong>8. Why pin <code>name: rajkumar</code> in the Compose file?</strong>
+Without it Compose derives the project name from the containing folder, so moving the file orphans
+every running container and named volume under the old name.</p>
+<p><strong>9. What is <code>docker-compose.lean.yml</code> for?</strong>
+An overlay for laptops: <code>JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=50 -Xss512k -XX:+UseSerialGC</code> plus
+<code>mem_limit</code> per service. Each Spring JVM otherwise claims 25% of host RAM as max heap, and about ten
+of those starve the machine. Used as
+<code>docker compose -f docker-compose.yml -f docker-compose.lean.yml up -d</code>.</p>
+<p><strong>10. How do containers find each other?</strong>
+By service name on the <code>civil-network</code> bridge: <code>mysql:3306</code>, <code>kafka:9092</code>, <code>api-gateway:8080</code>.
+Docker's embedded DNS resolves them. From the host you use the published ports instead — MySQL is
+<code>localhost:3309</code> here because 3306 was taken.</p>
+<p><strong>11. Explain the Kafka listener configuration.</strong>
+Two listeners: <code>PLAINTEXT://kafka:9092</code> for containers and <code>PLAINTEXT_HOST://localhost:29093</code> for
+the host. A broker advertises the address clients should use to reach it, so a single listener would
+work for one side and break the other.</p>
+<p><strong>12. Where does data live, and what does <code>down -v</code> do?</strong>
+Named volumes: <code>mysql_data</code>, <code>redis_data</code>, <code>kafka_data</code>, <code>elasticsearch_data</code>, and so on. <code>down</code>
+removes containers but keeps volumes; <code>down -v</code> deletes them, which wipes every database — after
+that MySQL re-runs <code>database/init/*.sql</code> on the next start.</p>
+<p><strong>13. How are the databases created in the first place?</strong>
+<code>docker/database/init/01-create-databases.sql</code> is mounted into
+<code>/docker-entrypoint-initdb.d</code>, which MySQL runs <strong>only on first initialisation</strong> of an empty data
+directory. It creates each service's database and the <code>civil_user</code> account. Editing it later does
+nothing unless the volume is removed — a classic trap.</p>
+<hr />
+<h2 id="c-configuration-and-secrets">C. Configuration and secrets</h2>
+<p><strong>14. How is configuration layered?</strong>
+Three levels: <code>docker/.env</code> holds host ports, credentials and provider switches for Compose;
+Compose passes selected values into containers as environment; Config Server serves the per-service
+YAML. Environment beats config file, so an operator can override without a rebuild.</p>
+<p><strong>15. Are secrets handled properly?</strong>
+No, and I would say so directly. <code>docker/.env</code> is a plaintext file holding the JWT secret, Razorpay
+keys and the Gemini key. It is gitignored and never committed, which is the minimum, but production
+needs a real secret manager — Docker/Swarm secrets, Vault, or the cloud provider's — injected at
+runtime and rotatable without a rebuild.</p>
+<p><strong>16. How do you switch a channel off locally?</strong>
+<code>EMAIL_PROVIDER</code>, <code>SMS_PROVIDER</code>, <code>WHATSAPP_PROVIDER</code> accept <code>log</code>, which writes the message to the
+service log instead of sending it. Placeholder credentials are also detected and fall back to
+logging, so a half-configured environment never breaks OTP login — otherwise nobody could log in
+locally.</p>
+<hr />
+<h2 id="d-operations-and-production-readiness">D. Operations and production readiness</h2>
+<p><strong>17. How do you debug a failing service?</strong>
+<code>docker compose ps</code> for state, <code>docker compose logs -f &lt;service&gt;</code> for the cause, <code>/actuator/health</code>
+for readiness, Eureka at 8761 to confirm registration, <code>docker exec -it civil_mysql mysql ...</code> for
+data. A gateway 503 usually means the instance has not registered yet.</p>
+<p><strong>18. What is missing before this is production-ready?</strong>
+Honestly quite a lot, and naming it is the point: no orchestrator (Compose is single-host, no
+rolling deploys or self-healing across nodes), no CI/CD to a real environment, no secret manager,
+single MySQL with no replica or backup story, Elasticsearch and Kafka single-node, no TLS
+termination configured (the nginx edge container has empty <code>sites/</code>), no resource requests/limits
+beyond the lean overlay, and no alerting on top of Prometheus.</p>
+<p><strong>19. How would you move this to Kubernetes?</strong>
+Each service becomes a Deployment plus Service; Eureka and the Config Server can be replaced by
+Kubernetes DNS and ConfigMaps/Secrets, or kept for portability; the gateway becomes an Ingress or
+stays as a gateway Deployment; MySQL, Kafka and Elasticsearch move to managed services or operators;
+health checks become liveness and readiness probes; the lean overlay's caps become resource
+requests and limits. I would keep Flyway running at startup but gate it behind a migration Job to
+avoid 16 pods racing on the same schema.</p>
+<p><strong>20. How do you observe the system?</strong>
+Actuator endpoints scraped by Prometheus, dashboards in Grafana, distributed tracing in Zipkin, and
+per-container logs. What is missing is aggregation — logs live in each container, so I would add a
+log shipper and an alert rule set, starting with payment failures and consumer lag.</p>
+<p><strong>21. How long does a cold start take, and why?</strong>
+Several minutes on first run: MySQL initialises, images build, then 16 JVMs start, each fetching
+config, running Flyway for every tenant schema and registering with Eureka. Subsequent starts are
+much faster. If that mattered, the levers are native images (GraalVM), fewer services per host, or
+starting only the subset a task needs — which is what the documented "start only these services"
+workflow does.</p></main></div>
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+mermaid.initialize({ startOnLoad: false, theme: dark ? 'dark' : 'default', securityLevel: 'loose',
+                      flowchart: { htmlLabels: true }, sequence: { useMaxWidth: false } });
+const blocks = [...document.querySelectorAll('pre.mermaid')];
+for (let i = 0; i < blocks.length; i++) {
+  const el = blocks[i];
+  const src = el.textContent;
+  try {
+    const { svg } = await mermaid.render('mmd' + i, src);
+    el.innerHTML = svg;
+    el.setAttribute('data-processed', 'true');
+  } catch (e) {
+    el.setAttribute('data-error', 'true');
+    el.textContent = 'Diagram error: ' + e.message + ' --- ' + src;
+  }
+}
+</script>
+</body></html>

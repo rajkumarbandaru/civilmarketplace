@@ -2,6 +2,7 @@ package com.civileng.marketplace.notification.service;
 
 import com.civileng.marketplace.notification.model.EmailStatus;
 import com.civileng.marketplace.notification.model.NotificationChannel;
+import com.civileng.marketplace.tenant.common.integration.IntegrationCapability;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -44,40 +45,52 @@ public class WhatsAppService {
 
     @Async
     public void sendOtp(String phone, String otp) {
-        send(phone, "*" + senderName + "*\nYour verification code is *" + otp
+        TwilioGateway.Route route = route();
+        deliver(phone, route, "*" + route.senderLabel() + "*\nYour verification code is *" + otp
                 + "*. It expires in 5 minutes. Do not share it with anyone.");
     }
 
     @Async
     public void sendBookingConfirmation(String phone, String name, String bookingCode) {
-        send(phone, "*" + senderName + "*\nHi " + name + ", your booking *" + bookingCode
-                + "* is confirmed. We'll notify you of any updates.");
+        TwilioGateway.Route route = route();
+        deliver(phone, route, "*" + route.senderLabel() + "*\nHi " + name + ", your booking *"
+                + bookingCode + "* is confirmed. We'll notify you of any updates.");
     }
 
     @Async
     public void sendPaymentReceipt(String phone, String name, String amount, String paymentCode) {
-        send(phone, "*" + senderName + "*\nHi " + name + ", we've received your payment of *"
-                + amount + "*. Reference: " + paymentCode + ".");
+        TwilioGateway.Route route = route();
+        deliver(phone, route, "*" + route.senderLabel() + "*\nHi " + name
+                + ", we've received your payment of *" + amount + "*. Reference: " + paymentCode + ".");
     }
 
     /** Dispatches an arbitrary WhatsApp body. Never throws. */
     public void send(String phone, String message) {
+        deliver(phone, route(), message);
+    }
+
+    /** The current tenant's own WhatsApp business number; the platform's is the operator's alone. */
+    private TwilioGateway.Route route() {
+        return twilioGateway.route(IntegrationCapability.WHATSAPP, "twilio".equalsIgnoreCase(provider),
+                twilioFrom, "senderName", senderName);
+    }
+
+    private void deliver(String phone, TwilioGateway.Route route, String message) {
         String to = phoneNumbers.toE164(phone);
         if (to == null) {
             log.warn("[WhatsApp] skipped - unusable phone number {}", PhoneNumbers.mask(phone));
             return;
         }
 
-        if (!"twilio".equalsIgnoreCase(provider) || !twilioGateway.isConfigured()) {
-            log.info("[WhatsApp:log] to={} message={}", PhoneNumbers.mask(to), message);
+        if (!route.sendable()) {
+            log.info("[WhatsApp:log] to={} ({})", PhoneNumbers.mask(to), route.skipReason());
             deliveryLog.record(NotificationChannel.WHATSAPP, SOURCE_KEY, to, message, message,
-                    EmailStatus.SKIPPED, "log", null,
-                    "No WhatsApp provider configured - message was logged, not sent");
+                    EmailStatus.SKIPPED, "log", null, route.skipReason());
             return;
         }
 
         try {
-            String sid = twilioGateway.send(prefixed(twilioFrom), prefixed(to), message);
+            String sid = twilioGateway.send(route.account(), prefixed(route.from()), prefixed(to), message);
             log.info("[WhatsApp:twilio] sent to={} sid={}", PhoneNumbers.mask(to), sid);
             deliveryLog.record(NotificationChannel.WHATSAPP, SOURCE_KEY, to, message, message,
                     EmailStatus.SENT, "twilio", sid, null);

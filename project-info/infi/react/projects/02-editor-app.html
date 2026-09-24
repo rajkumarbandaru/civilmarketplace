@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2 · Editor app — `app/editor`</title>
+<style>
+:root{--bg:#f6f7f9;--fg:#1f2933;--muted:#5b6770;--card:#fff;--line:#e3e6ea;--accent:#3730a3;--accent-bg:#eef2ff;--head:#0f172a;--code:#f1f3f6}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1115;--fg:#e6e8eb;--muted:#9aa4ad;--card:#171a20;--line:#2a2f37;--accent:#a5b4fc;--accent-bg:#1e2240;--head:#05070b;--code:#1f232b}}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.6 system-ui,-apple-system,Segoe UI,sans-serif;background:var(--bg);color:var(--fg)}
+header{background:var(--head);color:#fff;padding:18px 16px}
+header .in{max-width:1200px;margin:0 auto}
+header h1{margin:0;font-size:22px;line-height:1.3} header p{margin:4px 0 0;opacity:.75;font-size:13px}
+header a{color:#c7d2fe}
+.wrap{max-width:1200px;margin:0 auto;padding:0 16px 60px;display:flex;gap:24px;align-items:flex-start}
+nav.toc{position:sticky;top:12px;flex:0 0 250px;max-height:calc(100vh - 24px);overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:16px;font-size:13px}
+nav.toc ul{list-style:none;margin:0;padding-left:10px} nav.toc>ul{padding-left:0}
+nav.toc a{color:var(--accent);text-decoration:none;display:block;padding:2px 0}
+main{flex:1;min-width:0}
+main h1{display:none}
+h2{font-size:20px;margin:32px 0 10px;padding-top:8px;border-top:1px solid var(--line)}
+h3{font-size:16px;margin:20px 0 8px}
+a{color:var(--accent)}
+blockquote{margin:12px 0;padding:10px 14px;background:var(--accent-bg);border-left:4px solid var(--accent);border-radius:6px}
+blockquote p{margin:4px 0}
+table{border-collapse:collapse;width:100%;background:var(--card);font-size:14px;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:6px 10px;text-align:left;vertical-align:top}
+th{background:var(--accent-bg)}
+code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:13px}
+pre{background:var(--code);padding:12px;border-radius:8px;overflow-x:auto;font-size:13px;line-height:1.45}
+pre code{background:none;padding:0}
+pre.mermaid{background:var(--card);border:1px solid var(--line);text-align:center}
+hr{border:0;border-top:1px solid var(--line);margin:24px 0}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin:12px 0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px}
+.card h3{margin:0 0 6px;font-size:16px}.card p{margin:0;color:var(--muted);font-size:13px}
+.card .meta{margin-top:8px;font-size:12px;color:var(--muted)}
+@media (max-width:900px){.wrap{display:block}nav.toc{position:static;max-height:none;margin-top:16px}}
+</style></head><body>
+<header><div class="in"><h1>2 · Editor app — `app/editor`</h1><p>Source: ~/june-24/arya-cms/jc-cms · generated from <code style="color:#fff;background:none">projects/02-editor-app.md</code></p></div></header>
+<div class="wrap"><nav class="toc"><b>Contents</b><div class="toc">
+<ul>
+<li><a href="#facts">Facts</a></li>
+<li><a href="#pages">Pages</a></li>
+<li><a href="#editing-flow">Editing flow</a></li>
+<li><a href="#react-concepts-to-mention">React concepts to mention</a></li>
+</ul>
+</div>
+</nav><main><p style="font-size:13px"><a href="../index.html">Interview guide</a> · <a href="../five-years-experience-playbook.html">5-yr playbook</a> · <a href="../projects/index.html">All projects</a></p><h1 id="2-editor-app-appeditor">2 · Editor app — <code>app/editor</code></h1>
+<p>A visual, drag-and-drop page builder that edits the same JSON the site app renders.</p>
+<h2 id="facts">Facts</h2>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Port</td>
+<td>3010 (<code>npm run dev:editor</code>)</td>
+</tr>
+<tr>
+<td>Key libs</td>
+<td><code>@dnd-kit/core</code> (drag-drop), <code>reactflow</code> + <code>dagre</code> (flow graph), <code>re-resizable</code>, <code>react-json-tree</code></td>
+</tr>
+<tr>
+<td>Components</td>
+<td><code>packages/components/editor/</code> (≈38 files, ~6.9k lines) + <code>packages/components/inspector/</code> (one panel per component type)</td>
+</tr>
+<tr>
+<td>Saves through</td>
+<td>Express <code>server/</code> at <code>/cmsapi</code> (port 5010)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="pages">Pages</h2>
+<table>
+<thead>
+<tr>
+<th>Route</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/</code></td>
+<td>Simple login stub (stores a username in localStorage)</td>
+</tr>
+<tr>
+<td><code>/themes</code></td>
+<td>List brand themes (<code>config/themes/*.json</code>)</td>
+</tr>
+<tr>
+<td><code>/sites/[themeName]</code></td>
+<td>Sites in a theme</td>
+</tr>
+<tr>
+<td><code>/sitepages/[siteName]</code></td>
+<td>Pages / modals of a site, with thumbnails</td>
+</tr>
+<tr>
+<td><code>/editor/[siteName]/[pageName]</code></td>
+<td><strong>Drag-and-drop builder</strong></td>
+</tr>
+<tr>
+<td><code>/content/[siteName]/[pageName]</code></td>
+<td>Content-only inline editing (text etc.)</td>
+</tr>
+<tr>
+<td><code>/seo/[siteName]</code>, <code>/seo/[siteName]/[pageName]</code></td>
+<td>SEO audit dashboard, SERP + social previews</td>
+</tr>
+<tr>
+<td><code>/flow/[siteName]</code></td>
+<td>Page-navigation graph (reactflow) — known stale-path bug</td>
+</tr>
+<tr>
+<td><code>api/editor/page</code>, <code>api/seo/save</code></td>
+<td>Next API routes used by the editor</td>
+</tr>
+</tbody>
+</table>
+<h2 id="editing-flow">Editing flow</h2>
+<pre class="mermaid">flowchart TD
+  A[&quot;Pick theme → site → page&quot;] --&gt; B[&quot;Editor.jsx loads page JSON&quot;]
+  B --&gt; C[&quot;PageRenderer (editor variant) renders the page live&quot;]
+  C --&gt; D[&quot;SelectionWrapper: click to select a node&quot;]
+  D --&gt; E[&quot;Inspector.jsx → type-specific inspector panel&lt;br/&gt;props · classes · modelAttrs · actions&quot;]
+  B --&gt; F[&quot;ComponentTemplates / DraggableItem → drop into SectionDropZone / ColumnDropZone&quot;]
+  B --&gt; G[&quot;EventInspector / EventMapper / ActionExplorerPanel&lt;br/&gt;build events: apiCall, openModal, scriptUrl …&quot;]
+  B --&gt; H[&quot;APIInspector (api.json) · CssEditor · ScriptsEditor · SeoPanel&quot;]
+  E &amp; F &amp; G --&gt; I[&quot;EditorContext state&quot;]
+  I --&gt; J[&quot;patchPage / patchSite utils&quot;]
+  J --&gt; K[&quot;POST /cmsapi/publish/:site (or publishsiteconfig / publishapi / newpage)&quot;]
+  K --&gt; L[&quot;Files written in config/&amp;lt;site&amp;gt;/&quot;]
+  L --&gt; M[&quot;SaveComponent: reusable custom components per site&quot;]
+</pre>
+<h2 id="react-concepts-to-mention">React concepts to mention</h2>
+<ul>
+<li><code>withEditable(type, Component)</code> HOC turns runtime components into inline-editable ones.</li>
+<li>Context (<code>EditorContext</code>) for selection + dirty state; debounced inputs (<code>DebouncedInput</code>) to avoid
+  re-rendering the canvas on every keystroke.</li>
+<li>Same <code>ComponentRegistry</code> for editor and site → WYSIWYG, no separate preview implementation.</li>
+</ul></main></div>
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+mermaid.initialize({ startOnLoad: false, theme: dark ? 'dark' : 'default', securityLevel: 'loose', flowchart: { htmlLabels: true } });
+const blocks = [...document.querySelectorAll('pre.mermaid')];
+for (let i = 0; i < blocks.length; i++) {
+  const el = blocks[i];
+  const src = el.textContent;
+  try {
+    const { svg } = await mermaid.render('mmd' + i, src);
+    el.innerHTML = svg;
+    el.setAttribute('data-processed', 'true');
+  } catch (e) {
+    el.setAttribute('data-error', 'true');
+    el.textContent = 'Diagram error: ' + e.message + ' --- ' + src;
+  }
+}
+</script>
+</body></html>

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import FileUploadButton from '../../components/FileUploadButton';
 import { useDateTime } from '../../providers/UiConfigProvider';
 import {
   Alert, Avatar, Box, Button, Card, Chip, Dialog, DialogActions, DialogContent, DialogTitle,
@@ -427,8 +428,18 @@ const ServiceCatalogueManagement: React.FC = () => {
                 fullWidth size="small" label="Photo / video / animation URL" value={form.mediaUrl}
                 onChange={(e) => set('mediaUrl', e.target.value)}
                 placeholder="https://…/excavator.jpg"
-                helperText="Optional. Shown on the card in place of the icon"
+                helperText="Optional. Shown on the card in place of the icon. Paste a URL or upload a file."
               />
+              <Box sx={{ mt: 1 }}>
+                <FileUploadButton
+                  purpose="SERVICE_MEDIA"
+                  label="Upload photo or video"
+                  onUploaded={(media) => {
+                    set('mediaUrl', media.url ?? '');
+                    set('mediaType', media.contentType.startsWith('video/') ? 'VIDEO' : 'IMAGE');
+                  }}
+                />
+              </Box>
             </Grid>
             <Grid item xs={12} md={4}>
               <FormControl fullWidth size="small">

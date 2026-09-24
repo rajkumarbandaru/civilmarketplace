@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Backend Interview Questions — Java, Spring Boot, Microservices</title>
+<style>
+:root{--bg:#f6f7f9;--fg:#1f2933;--muted:#5b6770;--card:#fff;--line:#e3e6ea;--accent:#3730a3;--accent-bg:#eef2ff;--head:#0f172a;--code:#f1f3f6}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1115;--fg:#e6e8eb;--muted:#9aa4ad;--card:#171a20;--line:#2a2f37;--accent:#a5b4fc;--accent-bg:#1e2240;--head:#05070b;--code:#1f232b}}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.6 system-ui,-apple-system,Segoe UI,sans-serif;background:var(--bg);color:var(--fg)}
+header{background:var(--head);color:#fff;padding:18px 16px}
+header .in{max-width:1200px;margin:0 auto}
+header h1{margin:0;font-size:22px;line-height:1.3} header p{margin:4px 0 0;opacity:.75;font-size:13px}
+header a{color:#c7d2fe}
+.nav{max-width:1200px;margin:0 auto;padding:10px 16px 0;font-size:13px}
+.nav a{color:var(--accent);text-decoration:none;margin-right:6px;padding:3px 9px;border-radius:999px;background:var(--accent-bg);display:inline-block;margin-bottom:6px}
+.wrap{max-width:1200px;margin:0 auto;padding:0 16px 60px;display:flex;gap:24px;align-items:flex-start}
+nav.toc{position:sticky;top:12px;flex:0 0 250px;max-height:calc(100vh - 24px);overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:16px;font-size:13px}
+nav.toc ul{list-style:none;margin:0;padding-left:10px} nav.toc>ul{padding-left:0}
+nav.toc a{color:var(--accent);text-decoration:none;display:block;padding:2px 0}
+main{flex:1;min-width:0}
+main h1{display:none}
+h2{font-size:20px;margin:32px 0 10px;padding-top:8px;border-top:1px solid var(--line)}
+h3{font-size:16px;margin:20px 0 8px}
+a{color:var(--accent)}
+blockquote{margin:12px 0;padding:10px 14px;background:var(--accent-bg);border-left:4px solid var(--accent);border-radius:6px}
+blockquote p{margin:4px 0}
+table{border-collapse:collapse;width:100%;background:var(--card);font-size:14px;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:6px 10px;text-align:left;vertical-align:top}
+th{background:var(--accent-bg)}
+code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:13px}
+pre{background:var(--code);padding:12px;border-radius:8px;overflow-x:auto;font-size:13px;line-height:1.45}
+pre code{background:none;padding:0}
+pre.mermaid{background:var(--card);border:1px solid var(--line);text-align:center}
+hr{border:0;border-top:1px solid var(--line);margin:24px 0}
+@media (max-width:900px){.wrap{display:block}nav.toc{position:static;max-height:none;margin-top:16px}}
+</style></head><body>
+<header><div class="in"><h1>Backend Interview Questions — Java, Spring Boot, Microservices</h1><p>Civil Engineering Marketplace · source ~/RAJKUMAR · generated from <code style="color:#fff;background:none">backend/backend-interview.md</code></p></div></header>
+<div class="nav"><a href="../index.html">Home</a><a href="../interview-guide.html">Interview guide</a><a href="../overview/architecture.html">Architecture</a><a href="../backend/backend-guide.html">Backend</a><a href="../ui/ui-guide.html">UI</a><a href="../docker/docker-guide.html">Docker</a><a href="../overview/action-flows.html">Action flows</a><a href="../interview/rapid-fire.html">Rapid fire</a></div>
+<div class="wrap"><nav class="toc"><b>Contents</b><div class="toc">
+<ul>
+<li><a href="#a-architecture-and-the-gateway">A. Architecture and the gateway</a></li>
+<li><a href="#b-data-and-persistence">B. Data and persistence</a></li>
+<li><a href="#c-messaging-and-consistency">C. Messaging and consistency</a></li>
+<li><a href="#d-security">D. Security</a></li>
+<li><a href="#e-spring-specifics-they-like-to-probe">E. Spring specifics they like to probe</a></li>
+<li><a href="#f-curveballs">F. Curveballs</a></li>
+</ul>
+</div>
+</nav><main><h1 id="backend-interview-questions-java-spring-boot-microservices">Backend Interview Questions — Java, Spring Boot, Microservices</h1>
+<p>Answers taken from this codebase. Reference: <a href="backend-guide.html">backend-guide.md</a>.
+Format: the question, a short spoken answer, and the file to point at.</p>
+<hr />
+<h2 id="a-architecture-and-the-gateway">A. Architecture and the gateway</h2>
+<p><strong>1. Walk me through what happens to one authenticated request.</strong>
+The browser calls <code>/api/v1/bookings</code> with a Bearer token. The frontend's nginx proxies it to the
+gateway keeping the original <code>Host</code>. The gateway resolves the tenant from that host, strips any
+client-supplied <code>X-Tenant-Id</code> and sets the real one, blocks internal-only paths, validates the JWT
+signature and expiry, checks the token's tenant claim matches the resolved tenant, injects
+<code>X-User-Id</code>, <code>X-User-Email</code>, <code>X-User-Role</code>, <code>X-User-Name</code>, applies a Redis rate limit, then routes to
+<code>lb://booking-service</code> resolved through Eureka. booking-service reads the headers, switches its JPA
+connection to that tenant's schema, and does its work.
+→ <code>GatewayConfig</code>, <code>JwtAuthGatewayFilterFactory</code>, <code>TenantResolutionGlobalFilter</code>.</p>
+<p><strong>2. Why validate the JWT at the gateway instead of in every service?</strong>
+One implementation, one place to rotate the secret, and services stay free of security plumbing. The
+trade-off is that services now trust headers, so those paths must never be reachable directly. Here
+they are only exposed on the Docker network, and internal-only prefixes are blocked at the edge by
+<code>InternalOnlyPathFilter</code>. In a stronger setup I would add mTLS or a signed internal token between
+gateway and services.</p>
+<p><strong>3. Route order matters in your gateway. Why?</strong>
+Spring Cloud Gateway matches routes in registration order, so a broad path defined early swallows
+specific ones. <code>/api/v1/admin/**</code> belongs to admin-service, but <code>/api/v1/admin/reviews/**</code>,
+<code>/admin/announcements/**</code> and <code>/admin/support/**</code> belong to other services — they are registered
+first, and the admin catch-all last. Same for <code>/api/v1/bookings/*/reviews</code> before <code>/bookings/**</code>.</p>
+<p><strong>4. What does <code>lb://</code> mean?</strong>
+It is a load-balanced URI: resolve this service name through the discovery client (Eureka) and pick
+an instance. Scaling a service to three containers needs no gateway change.</p>
+<p><strong>5. How does rate limiting work here?</strong>
+<code>RedisRateLimiter(100, 200, 1)</code> — token bucket in Redis: 100 tokens per second replenish, burst 200,
+one token per request. Redis is shared, so the limit holds across gateway instances.</p>
+<p><strong>6. Circuit breaker — where and why?</strong>
+Resilience4J with a <code>FallbackController</code> on the gateway, so a dead downstream returns a fast
+fallback instead of piling up threads. The gateway is reactive (WebFlux), so slow calls hold no
+thread, but the circuit breaker still stops a failing dependency from becoming everyone's problem.</p>
+<hr />
+<h2 id="b-data-and-persistence">B. Data and persistence</h2>
+<p><strong>7. Database per service — why, and what does it cost?</strong>
+Each service owns its schema so it can evolve without coordinating migrations, and nobody can reach
+into another's tables. The cost is that joins become API calls or events: the admin dashboard cannot
+<code>JOIN</code> users and bookings, so admin-service aggregates them through Feign, and cross-service
+consistency becomes eventual.</p>
+<p><strong>8. How is multi-tenancy implemented?</strong>
+Schema per tenant. <code>tenant-common</code> reads <code>X-Tenant-Id</code> and routes the connection to
+<code>&lt;service_db&gt;_&lt;tenantKey&gt;</code>. At boot, and whenever a <code>tenant.events</code> message arrives, each service
+creates and Flyway-migrates the schema for every tenant, so onboarding needs no restart.</p>
+<p><strong>9. Why schema-per-tenant rather than a <code>tenant_id</code> column?</strong>
+Isolation you cannot forget. With a discriminator column, one missing <code>WHERE tenant_id = ?</code> leaks
+another tenant's rows; with separate schemas the rows are not in the connection at all. The cost is
+migration fan-out — N tenants × M services schemas to keep in step — and connection pool pressure.
+At thousands of tenants I would move to row-level with a mandatory Hibernate filter, or shard.</p>
+<p><strong>10. How do you version the database?</strong>
+Flyway per service, <code>src/main/resources/db/migration/V&lt;n&gt;__*.sql</code>, run at startup. Applied
+migrations are immutable — a change means a new version file. That is how the <code>booking_code</code> fix
+shipped: <code>V2</code> widened the column rather than editing <code>V1</code>.</p>
+<p><strong>11. Tell me a Hibernate gotcha you hit.</strong>
+Enum fields. With Hibernate 6 on MySQL, <code>@Enumerated(EnumType.STRING)</code> alone makes the schema
+validator expect a native <code>ENUM(...)</code> column, which clashes with the <code>VARCHAR</code> Flyway created and
+the app fails at startup. Pairing it with <code>@JdbcTypeCode(SqlTypes.VARCHAR)</code> fixes it. It is a
+convention in the codebase now.</p>
+<p><strong>12. Transactions — where are your boundaries?</strong>
+<code>@Transactional</code> on service-layer methods, controllers stay thin. Within a service a state change
+and its ledger line commit together — escrow release credits the wallet and writes the transaction
+row in one transaction. Across services there is no distributed transaction: the flow is an event
+plus a compensating action.</p>
+<p><strong>13. How do you paginate?</strong>
+Spring Data <code>Pageable</code>, e.g. <code>/bookings/customer?page=0&amp;size=20</code>. It keeps the response bounded and
+pushes the limit into SQL rather than trimming in Java.</p>
+<hr />
+<h2 id="c-messaging-and-consistency">C. Messaging and consistency</h2>
+<p><strong>14. Which calls are synchronous and which are events?</strong>
+Synchronous (Feign) when the caller cannot proceed without the answer: review-service must know a
+booking is COMPLETED before accepting a review. Events (Kafka) when the caller should not wait:
+receipts, notifications, audit rows, search indexing, tenant provisioning.</p>
+<p><strong>15. Kafka delivers at least once. How do you cope?</strong>
+Consumers are idempotent. <code>PaymentEventConsumer</code> returns early if the booking is already PAID, so a
+redelivered <code>payment.completed</code> does not send a second receipt. Escrow guards on state: a RELEASED
+hold cannot be released again. The general rule: make the consumer's effect a function of state, not
+of the number of deliveries.</p>
+<p><strong>16. What if a consumer throws?</strong>
+Kafka redelivers the same offset and can park the whole consumer group on a poison message. The
+booking consumer catches and logs instead of rethrowing, which keeps the group moving; the honest
+trade-off is a dropped event, and the right fix is a dead-letter topic with retries.</p>
+<p><strong>17. Your dual-write problem — do you have one?</strong>
+Yes, and I would name it before the interviewer does. A service commits to MySQL and then publishes
+to Kafka; a crash in between leaves the database changed and no event sent. The fix is the
+transactional outbox: write the event to an outbox table inside the same transaction, and let a
+relay publish it. Worth doing first for the payment and escrow paths.</p>
+<p><strong>18. How would you make booking + payment a saga?</strong>
+Booking created (PENDING) → payment requested → on <code>payment.completed</code>, booking becomes PAID; on
+failure or timeout, a compensating event cancels the booking and releases the slot. No 2PC; each
+step is locally transactional with a compensation. Today the happy path is event-driven, but the
+compensations are thin — I would add a timeout sweeper.</p>
+<hr />
+<h2 id="d-security">D. Security</h2>
+<p><strong>19. How are passwords and tokens handled?</strong>
+BCrypt hashes, never plaintext. JWTs signed with a shared <code>JWT_SECRET</code> (auth-service signs, the
+gateway verifies) carrying subject, email, role, name and tenant. Short-lived access token plus a
+refresh token; failed-login counters lock an account.</p>
+<p><strong>20. Biggest weakness of JWT here?</strong>
+Revocation. A stolen token is valid until it expires. Mitigations: keep access tokens short, rotate
+refresh tokens, and — if needed — a Redis deny-list of revoked token ids checked by the gateway,
+which trades a little statelessness for real logout.</p>
+<p><strong>21. How is RBAC enforced?</strong>
+The role rides in the JWT and arrives as <code>X-User-Role</code>. Services check it explicitly, e.g. admin
+endpoints require <code>SUPER_ADMIN</code>, <code>ADMIN</code>, <code>SUB_ADMIN</code> or <code>REGIONAL_ADMIN</code>. A convention worth
+mentioning: role headers are declared <code>required = false</code> and null-checked, because a missing
+<em>required</em> header throws before the handler runs and surfaces as a generic 500 instead of a 403.</p>
+<p><strong>22. Payment security?</strong>
+The browser never decides that a payment succeeded. Razorpay returns an id and signature, and
+payment-service verifies the HMAC with the key secret server-side; Razorpay also calls a webhook.
+Only the <em>key id</em> is exposed to the browser — the secret lives in the container environment. The
+escrow invariant is the same idea: a hold becomes HELD only because its linked payment completed at
+the PSP, so nobody can talk the platform into releasing money that never arrived.</p>
+<p><strong>23. What is the audit log for and how is it trustworthy?</strong>
+Compliance and dispute resolution. Producers publish <code>audit.events</code> via <code>audit-common</code>;
+audit-service appends rows whose hash chains to the previous row, so editing history breaks the
+chain. An integrity endpoint re-walks it and reports the break. Append-only: no update, no delete.</p>
+<hr />
+<h2 id="e-spring-specifics-they-like-to-probe">E. Spring specifics they like to probe</h2>
+<p><strong>24. Config Server — what problem does it solve?</strong>
+One place for every service's configuration, environment by environment, so a change does not mean
+editing 16 jars. Here it runs in native mode serving <code>config-repo/*.yml</code> from its classpath; in
+production it would be a Git backend, giving versioned, reviewable config.</p>
+<p><strong>25. How does a service find the Config Server before it has any config?</strong>
+Bootstrap configuration — the config client's address is baked in as an environment variable, and it
+fetches everything else. That is why Config Server has a health check that gates every other
+container.</p>
+<p><strong>26. Feign vs <code>RestTemplate</code> vs <code>WebClient</code>?</strong>
+Feign for declarative, interface-based calls with Eureka resolution and Resilience4J — used for the
+service-to-service calls here. <code>WebClient</code> (reactive) on the gateway, because WebFlux is
+non-blocking. <code>RestTemplate</code> is in maintenance mode.</p>
+<p><strong>27. How do you handle errors consistently?</strong>
+Service methods throw <code>IllegalArgumentException</code> for client errors; each service's
+<code>@RestControllerAdvice</code> <code>GlobalExceptionHandler</code> maps that to 400 with a standard body and unexpected
+exceptions to 500. The frontend has a matching <code>apiError</code> helper.</p>
+<p><strong>28. MapStruct, Lombok — why?</strong>
+MapStruct generates entity↔DTO mappers at compile time (no reflection, compile errors when a field
+is missed). Lombok removes boilerplate. The important part is <em>why DTOs at all</em>: never serialise
+entities — it leaks columns and couples the API to the schema.</p>
+<p><strong>29. How do you test and what is missing?</strong>
+Unit tests on service classes, and the flows in <code>MODULE_STATUS.md</code> were verified live against the
+real stack with real JWTs — including negative paths like non-party 403s and duplicate rejections.
+Missing: broad integration tests with Testcontainers and contract tests between services. I would
+add Testcontainers first, because the bugs found here were integration bugs, not unit bugs.</p>
+<p><strong>30. How do you debug a request across 16 services?</strong>
+Zipkin tracing with a propagated trace id, plus per-service logs (<code>docker compose logs -f</code>), Eureka
+to confirm registration and actuator health endpoints. For a slow endpoint: trace first to find
+which hop is slow, then look at that service's SQL.</p>
+<hr />
+<h2 id="f-curveballs">F. Curveballs</h2>
+<p><strong>31. "This could be a monolith."</strong>
+Agreed, for this traffic. The split buys independent deploys and clear data ownership, and costs
+operational complexity and eventual consistency. If I were starting commercially, I would build a
+modular monolith with the same boundaries and split out the parts that actually need it — payments
+and search first.</p>
+<p><strong>32. "What would fall over first under load?"</strong>
+MySQL, because every service shares one instance here, and per-tenant schemas multiply the
+connection pools. Then Elasticsearch reindexing, which is a full sweep rather than incremental.
+Fixes: read replicas, connection pool budgets per service, incremental indexing off the event
+stream, and caching the hot read paths (catalogue and UI-config) in Redis.</p>
+<p><strong>33. "Show me something you deliberately did <em>not</em> build."</strong>
+Withdrawals. Money reaches wallets but cannot leave, because a payout needs PSP payout APIs plus a
+KYC-approved gate and a reconciliation story. Half-building that would have been worse than leaving
+a clean boundary: <code>held_balance</code> and the hold/release methods exist for the day it lands.</p></main></div>
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+mermaid.initialize({ startOnLoad: false, theme: dark ? 'dark' : 'default', securityLevel: 'loose',
+                      flowchart: { htmlLabels: true }, sequence: { useMaxWidth: false } });
+const blocks = [...document.querySelectorAll('pre.mermaid')];
+for (let i = 0; i < blocks.length; i++) {
+  const el = blocks[i];
+  const src = el.textContent;
+  try {
+    const { svg } = await mermaid.render('mmd' + i, src);
+    el.innerHTML = svg;
+    el.setAttribute('data-processed', 'true');
+  } catch (e) {
+    el.setAttribute('data-error', 'true');
+    el.textContent = 'Diagram error: ' + e.message + ' --- ' + src;
+  }
+}
+</script>
+</body></html>

@@ -6,6 +6,7 @@ import com.civileng.marketplace.auth.entity.UserStatus;
 import com.civileng.marketplace.auth.repository.RoleRepository;
 import com.civileng.marketplace.auth.repository.UserRepository;
 import com.civileng.marketplace.auth.service.AccountIdentifiers;
+import com.civileng.marketplace.auth.service.RefreshTokenService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -32,6 +33,7 @@ public class AdminUserController {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final AccountIdentifiers identifiers;
+    private final RefreshTokenService refreshTokenService;
 
     @GetMapping("/users")
     @Operation(summary = "Get paginated list of all users with search and filters")
@@ -171,6 +173,10 @@ public class AdminUserController {
                 user.setLockedUntil(null);
             }
             userRepository.save(user);
+            if (newStatus != UserStatus.ACTIVE && newStatus != UserStatus.PENDING_VERIFICATION) {
+                // Otherwise a suspended user keeps every open session until each token expires.
+                refreshTokenService.revokeAllUserTokens(userId.toString());
+            }
             log.info("Admin updated user {} status to {}", userId, newStatus);
             return ResponseEntity.ok(Map.of("success", true, "message", "User status updated to " + newStatus));
         } catch (IllegalArgumentException e) {
@@ -187,6 +193,7 @@ public class AdminUserController {
         user.setIsDeleted(true);
         user.setStatus(UserStatus.DELETED);
         userRepository.save(user);
+        refreshTokenService.revokeAllUserTokens(userId.toString());
         log.info("Admin soft-deleted user: {}", userId);
         return ResponseEntity.ok(Map.of("success", true, "message", "User deleted successfully"));
     }

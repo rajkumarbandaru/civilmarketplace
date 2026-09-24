@@ -50,3 +50,11 @@ services:
     environment:
       - KAFKA_HEAP_OPTS=-Xmx256m -Xms128m
     mem_limit: 512m
+  media-service:
+    environment: *jvm
+    mem_limit: 512m
+  minio:
+    mem_limit: 512m
+  procurement-service:
+    environment: *jvm
+    mem_limit: 512m

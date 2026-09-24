@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>07 — Flowcharts</title>
+<style>
+:root{--bg:#f6f7f9;--fg:#1f2933;--muted:#5b6770;--card:#fff;--line:#e3e6ea;--accent:#3730a3;--accent-bg:#eef2ff;--head:#0f172a;--code:#f1f3f6}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1115;--fg:#e6e8eb;--muted:#9aa4ad;--card:#171a20;--line:#2a2f37;--accent:#a5b4fc;--accent-bg:#1e2240;--head:#05070b;--code:#1f232b}}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.6 system-ui,-apple-system,Segoe UI,sans-serif;background:var(--bg);color:var(--fg)}
+header{background:var(--head);color:#fff;padding:18px 16px}
+header .in{max-width:1200px;margin:0 auto}
+header h1{margin:0;font-size:22px;line-height:1.3} header p{margin:4px 0 0;opacity:.75;font-size:13px}
+header a{color:#c7d2fe}
+.nav{max-width:1200px;margin:0 auto;padding:10px 16px 0;font-size:13px}
+.nav a{color:var(--accent);text-decoration:none;margin-right:6px;padding:3px 9px;border-radius:999px;background:var(--accent-bg);display:inline-block;margin-bottom:6px}
+.wrap{max-width:1200px;margin:0 auto;padding:0 16px 60px;display:flex;gap:24px;align-items:flex-start}
+nav.toc{position:sticky;top:12px;flex:0 0 250px;max-height:calc(100vh - 24px);overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:16px;font-size:13px}
+nav.toc ul{list-style:none;margin:0;padding-left:10px} nav.toc>ul{padding-left:0}
+nav.toc a{color:var(--accent);text-decoration:none;display:block;padding:2px 0}
+main{flex:1;min-width:0}
+main h1{display:none}
+h2{font-size:20px;margin:32px 0 10px;padding-top:8px;border-top:1px solid var(--line)}
+h3{font-size:16px;margin:20px 0 8px}
+a{color:var(--accent)}
+blockquote{margin:12px 0;padding:10px 14px;background:var(--accent-bg);border-left:4px solid var(--accent);border-radius:6px}
+blockquote p{margin:4px 0}
+table{border-collapse:collapse;width:100%;background:var(--card);font-size:14px;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:6px 10px;text-align:left;vertical-align:top}
+th{background:var(--accent-bg)}
+code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:13px}
+pre{background:var(--code);padding:12px;border-radius:8px;overflow-x:auto;font-size:13px;line-height:1.45}
+pre code{background:none;padding:0}
+pre.mermaid{background:var(--card);border:1px solid var(--line);text-align:center}
+hr{border:0;border-top:1px solid var(--line);margin:24px 0}
+@media (max-width:900px){.wrap{display:block}nav.toc{position:static;max-height:none;margin-top:16px}}
+</style></head><body>
+<header><div class="in"><h1>07 — Flowcharts</h1><p>Civil Engineering Marketplace · source ~/RAJKUMAR · generated from <code style="color:#fff;background:none">overview/flowcharts.md</code></p></div></header>
+<div class="nav"><a href="../index.html">Home</a><a href="../interview-guide.html">Interview guide</a><a href="../overview/architecture.html">Architecture</a><a href="../backend/backend-guide.html">Backend</a><a href="../ui/ui-guide.html">UI</a><a href="../docker/docker-guide.html">Docker</a><a href="../overview/action-flows.html">Action flows</a><a href="../interview/rapid-fire.html">Rapid fire</a></div>
+<div class="wrap"><nav class="toc"><b>Contents</b><div class="toc">
+<ul>
+<li><a href="#1-system-architecture">1. System architecture</a></li>
+<li><a href="#2-docker-startup-order">2. Docker startup order</a></li>
+<li><a href="#3-what-happens-when-one-service-boots">3. What happens when one service boots</a></li>
+<li><a href="#4-request-through-the-api-gateway-decision-flow">4. Request through the API gateway (decision flow)</a></li>
+<li><a href="#5-login-sequence">5. Login (sequence)</a></li>
+<li><a href="#6-otp-login-sequence">6. OTP login (sequence)</a></li>
+<li><a href="#7-authenticated-call-create-a-booking-sequence">7. Authenticated call: create a booking (sequence)</a></li>
+<li><a href="#8-kafka-event-flows">8. Kafka event flows</a></li>
+<li><a href="#9-service-to-service-call-review-needs-a-completed-booking">9. Service-to-service call (review needs a completed booking)</a></li>
+<li><a href="#10-escrow-payment-states">10. Escrow payment states</a></li>
+<li><a href="#11-support-ticket-states">11. Support ticket states</a></li>
+<li><a href="#12-multi-tenancy-data-path">12. Multi-tenancy data path</a></li>
+<li><a href="#13-ui-dev-mode-vs-docker-mode">13. UI: dev mode vs Docker mode</a></li>
+<li><a href="#14-how-to-start-which-option">14. How to start: which option?</a></li>
+<li><a href="#15-code-change-what-to-rebuild">15. Code change: what to rebuild</a></li>
+</ul>
+</div>
+</nav><main><h1 id="07-flowcharts">07 — Flowcharts</h1>
+<p>These diagrams are Mermaid. They render on GitHub and in the VS Code Markdown preview
+(install the "Markdown Preview Mermaid Support" extension if they show as code).
+A built <code>flowcharts.html</code> sits next to this file (<code>python3 tools/build_html.py</code> regenerates it).</p>
+<h2 id="1-system-architecture">1. System architecture</h2>
+<pre class="mermaid">flowchart TB
+    U[&quot;User / Browser&quot;]
+
+    subgraph EDGE[&quot;Edge&quot;]
+        FE[&quot;Frontend nginx :3000&lt;br/&gt;serves React bundle&lt;br/&gt;proxies /api to gateway&quot;]
+        VITE[&quot;Vite dev server :5173&lt;br/&gt;(dev mode only)&quot;]
+    end
+
+    subgraph GW[&quot;API Gateway :8080&quot;]
+        T1[&quot;Tenant resolution&lt;br/&gt;Host to X-Tenant-Id&quot;]
+        T2[&quot;Internal-path block&quot;]
+        T3[&quot;JWT check&lt;br/&gt;adds X-User-* headers&quot;]
+        T4[&quot;Route by path&lt;br/&gt;lb://service via Eureka&quot;]
+        T1 --&gt; T2 --&gt; T3 --&gt; T4
+    end
+
+    subgraph PLAT[&quot;Platform&quot;]
+        CFG[&quot;Config Server :8888&quot;]
+        EUR[&quot;Eureka Registry :8761&quot;]
+    end
+
+    subgraph SVC[&quot;Business microservices&quot;]
+        AUTH[&quot;auth&quot;]
+        USER[&quot;user&quot;]
+        BOOK[&quot;booking&quot;]
+        PAY[&quot;payment&quot;]
+        NOTI[&quot;notification&quot;]
+        ADM[&quot;admin&quot;]
+        PROJ[&quot;project&quot;]
+        REV[&quot;review&quot;]
+        SRCH[&quot;search&quot;]
+        MSG[&quot;messaging&quot;]
+        SUP[&quot;support&quot;]
+        AUD[&quot;audit&quot;]
+        TEN[&quot;tenant&quot;]
+    end
+
+    subgraph INFRA[&quot;Data and messaging&quot;]
+        MYSQL[(&quot;MySQL&quot;)]
+        REDIS[(&quot;Redis&quot;)]
+        KAFKA{{&quot;Kafka&quot;}}
+        RABBIT{{&quot;RabbitMQ&quot;}}
+        ES[(&quot;Elasticsearch&quot;)]
+    end
+
+    subgraph OBS[&quot;Observability&quot;]
+        ZIP[&quot;Zipkin&quot;]
+        PROM[&quot;Prometheus&quot;]
+        GRAF[&quot;Grafana&quot;]
+    end
+
+    U --&gt; FE
+    U -.-&gt; VITE
+    FE --&gt;|&quot;/api/**&quot;| T1
+    VITE -.-&gt;|&quot;/api/**&quot;| T1
+    T4 --&gt; SVC
+    SVC --&gt;|&quot;fetch config at boot&quot;| CFG
+    SVC --&gt;|&quot;register&quot;| EUR
+    T4 --&gt;|&quot;lookup&quot;| EUR
+    SVC --&gt; MYSQL
+    SVC --&gt; KAFKA
+    AUTH --&gt; REDIS
+    GW --&gt; REDIS
+    NOTI --&gt; RABBIT
+    SRCH --&gt; ES
+    SVC -.-&gt; ZIP
+    PROM -.-&gt;|&quot;scrape /actuator&quot;| SVC
+    GRAF --&gt; PROM
+</pre>
+<h2 id="2-docker-startup-order">2. Docker startup order</h2>
+<pre class="mermaid">flowchart TB
+    START([&quot;docker compose up -d --build&quot;]) --&gt; INF
+
+    subgraph INF[&quot;Step 1: infrastructure (parallel)&quot;]
+        direction LR
+        M[(&quot;mysql&quot;)]
+        R[(&quot;redis&quot;)]
+        Z[&quot;zookeeper&quot;] --&gt; K{{&quot;kafka&quot;}}
+        RB{{&quot;rabbitmq&quot;}}
+        E[(&quot;elasticsearch&quot;)]
+        P[&quot;prometheus&quot;] --&gt; G[&quot;grafana&quot;]
+        ZK[&quot;zipkin&quot;]
+    end
+
+    INF --&gt; C[&quot;Step 2: config-server&quot;]
+    C --&gt; CH{&quot;config-server&lt;br/&gt;healthy?&quot;}
+    CH -- no --&gt; C
+    CH -- yes --&gt; SR[&quot;Step 3: service-registry (Eureka)&quot;]
+    SR --&gt; SRH{&quot;Eureka&lt;br/&gt;healthy?&quot;}
+    SRH -- no --&gt; SR
+    SRH -- yes --&gt; APPS
+
+    subgraph APPS[&quot;Step 4: gateway + services (parallel)&quot;]
+        direction LR
+        A1[&quot;api-gateway&quot;]
+        A2[&quot;auth / user / booking&quot;]
+        A3[&quot;payment / notification / admin&quot;]
+        A4[&quot;project / review / audit&quot;]
+        A5[&quot;messaging / support / search / tenant&quot;]
+    end
+
+    APPS --&gt; FEC[&quot;Step 5: frontend (nginx :3000)&quot;]
+    FEC --&gt; NG[&quot;Step 6: nginx edge :8010&quot;]
+    NG --&gt; READY([&quot;Open http://localhost:3000&quot;])
+</pre>
+<h2 id="3-what-happens-when-one-service-boots">3. What happens when one service boots</h2>
+<pre class="mermaid">flowchart TB
+    S([&quot;java -jar app.jar&quot;]) --&gt; C1[&quot;Contact config-server&lt;br/&gt;load service.yml&quot;]
+    C1 --&gt; C1Q{&quot;Config&lt;br/&gt;reachable?&quot;}
+    C1Q -- no --&gt; FAIL1[&quot;Exit / retry&lt;br/&gt;fix: docker compose restart svc&quot;]
+    C1Q -- yes --&gt; DB[&quot;Connect MySQL&quot;]
+    DB --&gt; DBQ{&quot;MySQL&lt;br/&gt;ready?&quot;}
+    DBQ -- no --&gt; FAIL2[&quot;Startup error&lt;br/&gt;fix: restart svc after MySQL init&quot;]
+    DBQ -- yes --&gt; TEN[&quot;tenant-common reads tenant registry&quot;]
+    TEN --&gt; FLY[&quot;Run Flyway migrations&lt;br/&gt;for every tenant schema&quot;]
+    FLY --&gt; CONN[&quot;Connect Kafka / Redis /&lt;br/&gt;RabbitMQ / Elasticsearch as needed&quot;]
+    CONN --&gt; REG[&quot;Register in Eureka&quot;]
+    REG --&gt; UP([&quot;/actuator/health = UP&lt;br/&gt;gateway can route here&quot;])
+</pre>
+<h2 id="4-request-through-the-api-gateway-decision-flow">4. Request through the API gateway (decision flow)</h2>
+<pre class="mermaid">flowchart TB
+    IN([&quot;Request: /api/v1/...&quot;]) --&gt; H[&quot;Read Host header&lt;br/&gt;e.g. acme.localhost:3000&quot;]
+    H --&gt; TQ{&quot;Known tenant&lt;br/&gt;subdomain?&quot;}
+    TQ -- &quot;no / plain localhost&quot; --&gt; FB[&quot;Use fallback tenant&quot;]
+    TQ -- yes --&gt; TK[&quot;Tenant = acme&quot;]
+    FB --&gt; STRIP
+    TK --&gt; STRIP[&quot;Remove client X-Tenant-Id&lt;br/&gt;set real X-Tenant-Id&quot;]
+    STRIP --&gt; IQ{&quot;Internal-only path?&lt;br/&gt;e.g. /api/v1/bookings/admin&quot;}
+    IQ -- yes --&gt; X403A[&quot;Blocked (403/404)&quot;]
+    IQ -- no --&gt; RQ{&quot;Which route&lt;br/&gt;matches path?&quot;}
+    RQ -- &quot;none&quot; --&gt; X404[&quot;404&quot;]
+    RQ -- &quot;public route&lt;br/&gt;auth, geo, catalogue,&lt;br/&gt;content, webhooks,&lt;br/&gt;tenant-resolution&quot; --&gt; FWD
+    RQ -- &quot;protected route&quot; --&gt; JQ{&quot;Bearer token present&lt;br/&gt;and signature valid&lt;br/&gt;and not expired?&quot;}
+    JQ -- no --&gt; X401[&quot;401 Unauthorized&quot;]
+    JQ -- yes --&gt; CQ{&quot;JWT tenant claim&lt;br/&gt;equals resolved tenant?&quot;}
+    CQ -- no --&gt; X403B[&quot;403 cross-tenant token&quot;]
+    CQ -- yes --&gt; ADD[&quot;Add X-User-Id, X-User-Email,&lt;br/&gt;X-User-Role, X-User-Name&quot;]
+    ADD --&gt; RL{&quot;Rate limit OK?&lt;br/&gt;(Redis)&quot;}
+    RL -- no --&gt; X429[&quot;429 Too Many Requests&quot;]
+    RL -- yes --&gt; FWD[&quot;Eureka lookup lb://service&quot;]
+    FWD --&gt; SQ{&quot;Service&lt;br/&gt;registered?&quot;}
+    SQ -- no --&gt; X503[&quot;503 / fallback&quot;]
+    SQ -- yes --&gt; SVC([&quot;Service handles request&lt;br/&gt;in tenant schema&quot;])
+</pre>
+<h2 id="5-login-sequence">5. Login (sequence)</h2>
+<pre class="mermaid">sequenceDiagram
+    autonumber
+    actor User
+    participant UI as React UI
+    participant NX as Frontend nginx :3000
+    participant GW as API Gateway :8080
+    participant EU as Eureka
+    participant AU as auth-service
+    participant DB as MySQL (auth_tenant schema)
+    participant AD as admin-service
+
+    User-&gt;&gt;UI: Enter email + password
+    UI-&gt;&gt;NX: POST /api/v1/auth/login
+    NX-&gt;&gt;GW: proxy (Host header kept)
+    GW-&gt;&gt;GW: Resolve tenant from Host, set X-Tenant-Id
+    GW-&gt;&gt;EU: Where is auth-service?
+    EU--&gt;&gt;GW: auth-service:8081
+    GW-&gt;&gt;AU: forward (public route, no JWT check)
+    AU-&gt;&gt;DB: Load user in tenant schema
+    DB--&gt;&gt;AU: user row
+    AU-&gt;&gt;AU: Check password, lockout
+    AU--&gt;&gt;GW: accessToken (JWT) + refreshToken
+    GW--&gt;&gt;NX: 200 tokens
+    NX--&gt;&gt;UI: 200 tokens
+    UI-&gt;&gt;UI: Save token in Redux store
+    UI-&gt;&gt;NX: GET /api/v1/ui-config/me (Bearer JWT)
+    NX-&gt;&gt;GW: proxy
+    GW-&gt;&gt;GW: Validate JWT, add X-User-* headers
+    GW-&gt;&gt;AD: forward
+    AD--&gt;&gt;UI: theme + UI config
+    UI--&gt;&gt;User: Dashboard (themed)
+</pre>
+<h2 id="6-otp-login-sequence">6. OTP login (sequence)</h2>
+<pre class="mermaid">sequenceDiagram
+    autonumber
+    actor User
+    participant UI as React UI
+    participant GW as API Gateway
+    participant AU as auth-service
+    participant RD as Redis
+    participant KF as Kafka
+    participant NO as notification-service
+
+    User-&gt;&gt;UI: Enter phone / email
+    UI-&gt;&gt;GW: POST /api/v1/auth/otp/send
+    GW-&gt;&gt;AU: forward
+    AU-&gt;&gt;RD: Store OTP with expiry
+    AU-&gt;&gt;KF: publish OTP event
+    KF-&gt;&gt;NO: consume
+    alt provider = log
+        NO-&gt;&gt;NO: Write OTP to service log
+    else real provider
+        NO--&gt;&gt;User: Email / SMS / WhatsApp
+    end
+    User-&gt;&gt;UI: Enter OTP
+    UI-&gt;&gt;GW: POST /api/v1/auth/otp/verify
+    GW-&gt;&gt;AU: forward
+    AU-&gt;&gt;RD: Compare OTP
+    AU--&gt;&gt;UI: JWT tokens
+</pre>
+<h2 id="7-authenticated-call-create-a-booking-sequence">7. Authenticated call: create a booking (sequence)</h2>
+<pre class="mermaid">sequenceDiagram
+    autonumber
+    participant UI as React UI
+    participant GW as API Gateway
+    participant BK as booking-service
+    participant DB as MySQL (bookings_tenant)
+    participant KF as Kafka
+    participant NO as notification-service
+
+    UI-&gt;&gt;GW: POST /api/v1/bookings (Bearer JWT)
+    GW-&gt;&gt;GW: tenant + JWT check, add X-User-* / X-Tenant-Id
+    GW-&gt;&gt;BK: forward via Eureka
+    BK-&gt;&gt;BK: Read X-User-Id header (no JWT re-check)
+    BK-&gt;&gt;DB: INSERT booking (tenant schema)
+    BK-&gt;&gt;KF: publish booking event
+    BK--&gt;&gt;GW: 201 booking
+    GW--&gt;&gt;UI: 201 booking
+    KF-&gt;&gt;NO: consume event
+    NO-&gt;&gt;NO: Create in-app notification
+</pre>
+<h2 id="8-kafka-event-flows">8. Kafka event flows</h2>
+<pre class="mermaid">flowchart LR
+    subgraph PROD[&quot;Producers&quot;]
+        AU[&quot;auth-service&quot;]
+        BK[&quot;booking-service&quot;]
+        MS[&quot;messaging-service&quot;]
+        TS[&quot;tenant-service&quot;]
+        AP[&quot;audit-common inside:&lt;br/&gt;user, payment, project,&lt;br/&gt;notification, support, admin&quot;]
+    end
+
+    subgraph TOP[&quot;Kafka topics&quot;]
+        T1{{&quot;OTP / auth events&quot;}}
+        T2{{&quot;booking events&quot;}}
+        T3{{&quot;message.sent&quot;}}
+        T4{{&quot;tenant.events&quot;}}
+        T5{{&quot;audit events&quot;}}
+    end
+
+    subgraph CONS[&quot;Consumers&quot;]
+        NO[&quot;notification-service&lt;br/&gt;email / SMS / WhatsApp / in-app&quot;]
+        AD[&quot;audit-service&lt;br/&gt;hash-chained log&quot;]
+        ALL[&quot;every tenanted service&lt;br/&gt;create schema + Flyway&quot;]
+    end
+
+    AU --&gt; T1 --&gt; NO
+    BK --&gt; T2 --&gt; NO
+    MS --&gt; T3 --&gt; NO
+    TS --&gt; T4 --&gt; ALL
+    AP --&gt; T5 --&gt; AD
+</pre>
+<h2 id="9-service-to-service-call-review-needs-a-completed-booking">9. Service-to-service call (review needs a completed booking)</h2>
+<pre class="mermaid">flowchart TB
+    A([&quot;POST /api/v1/bookings/42/reviews&quot;]) --&gt; GW[&quot;Gateway route booking-reviews&lt;br/&gt;JWT check&quot;]
+    GW --&gt; RV[&quot;review-service&quot;]
+    RV --&gt; F[&quot;Feign call lb://booking-service&lt;br/&gt;get booking 42&quot;]
+    F --&gt; Q1{&quot;Booking&lt;br/&gt;COMPLETED?&quot;}
+    Q1 -- no --&gt; E1[&quot;400 not allowed yet&quot;]
+    Q1 -- yes --&gt; Q2{&quot;Caller is customer&lt;br/&gt;or worker of it?&quot;}
+    Q2 -- no --&gt; E2[&quot;403 not a party&quot;]
+    Q2 -- yes --&gt; Q3{&quot;Already reviewed&lt;br/&gt;by this user?&quot;}
+    Q3 -- yes --&gt; E3[&quot;400 duplicate&quot;]
+    Q3 -- no --&gt; SAVE[&quot;Save review&quot;]
+    SAVE --&gt; AVG[&quot;Recompute RatingSummary average&quot;]
+    AVG --&gt; OK([&quot;201 Created&quot;])
+</pre>
+<h2 id="10-escrow-payment-states">10. Escrow payment states</h2>
+<pre class="mermaid">stateDiagram-v2
+    [*] --&gt; PENDING_FUNDING: POST /api/v1/escrow
+    PENDING_FUNDING --&gt; HELD: Razorpay payment COMPLETED
+    PENDING_FUNDING --&gt; CANCELLED: cancel
+    HELD --&gt; RELEASED: payer releases
+    HELD --&gt; RELEASED: auto-release after 7 days
+    HELD --&gt; REFUNDED: refund
+    HELD --&gt; DISPUTED: payer or payee disputes
+    DISPUTED --&gt; RELEASED: admin resolves RELEASE
+    DISPUTED --&gt; REFUNDED: admin resolves REFUND
+    DISPUTED --&gt; HELD: admin resolves HOLD
+    RELEASED --&gt; [*]: 5% commission, payee wallet credited
+    REFUNDED --&gt; [*]
+    CANCELLED --&gt; [*]
+</pre>
+<h2 id="11-support-ticket-states">11. Support ticket states</h2>
+<pre class="mermaid">stateDiagram-v2
+    [*] --&gt; OPEN: reporter creates ticket
+    OPEN --&gt; IN_PROGRESS: admin assigns
+    IN_PROGRESS --&gt; RESOLVED: admin resolves
+    IN_PROGRESS --&gt; CLOSED: admin closes
+    OPEN --&gt; CLOSED: admin closes
+    RESOLVED --&gt; [*]: no new replies
+    CLOSED --&gt; [*]: no new replies
+</pre>
+<h2 id="12-multi-tenancy-data-path">12. Multi-tenancy data path</h2>
+<pre class="mermaid">flowchart LR
+    B1[&quot;acme.localhost:3000&quot;] --&gt; N[&quot;Frontend nginx&lt;br/&gt;Host kept&quot;]
+    B2[&quot;hostelfee.localhost:3000&quot;] --&gt; N
+    N --&gt; G[&quot;Gateway&lt;br/&gt;X-Tenant-Id = acme / hostelfee&quot;]
+    G --&gt; S[&quot;Any service&lt;br/&gt;tenant-common&quot;]
+    S --&gt;|&quot;acme&quot;| D1[(&quot;civil_engineer_bookings_acme&quot;)]
+    S --&gt;|&quot;hostelfee&quot;| D2[(&quot;civil_engineer_bookings_hostelfee&quot;)]
+</pre>
+<h2 id="13-ui-dev-mode-vs-docker-mode">13. UI: dev mode vs Docker mode</h2>
+<pre class="mermaid">flowchart TB
+    subgraph DEV[&quot;Dev mode: npm run dev&quot;]
+        D1[&quot;Browser :5173&quot;] --&gt; D2[&quot;Vite dev server&lt;br/&gt;hot reload&quot;]
+        D2 --&gt;|&quot;proxy /api, /ws&quot;| D3[&quot;localhost:8080 gateway&quot;]
+    end
+    subgraph DOCK[&quot;Docker mode&quot;]
+        K1[&quot;docker compose build frontend&quot;] --&gt; K2[&quot;Stage 1 node:20&lt;br/&gt;npm ci, npm run build&quot;]
+        K2 --&gt; K3[&quot;Stage 2 nginx&lt;br/&gt;copy dist/&quot;]
+        K3 --&gt; K4[&quot;Browser :3000&quot;]
+        K4 --&gt;|&quot;/api/ proxy&quot;| K5[&quot;api-gateway:8080&lt;br/&gt;(inside Docker network)&quot;]
+    end
+</pre>
+<h2 id="14-how-to-start-which-option">14. How to start: which option?</h2>
+<pre class="mermaid">flowchart TB
+    Q0([&quot;What are you working on?&quot;]) --&gt; Q1{&quot;Just run / demo&lt;br/&gt;the whole app?&quot;}
+    Q1 -- yes --&gt; O1[&quot;Option 1: all in Docker&quot;]
+    Q1 -- no --&gt; Q2{&quot;Changing UI code?&quot;}
+    Q2 -- yes --&gt; O2[&quot;Option 2: backend in Docker&lt;br/&gt;+ npm run dev&quot;]
+    Q2 -- no --&gt; Q3{&quot;Debugging one&lt;br/&gt;Java service?&quot;}
+    Q3 -- yes --&gt; O3[&quot;Option 3: stop that container&lt;br/&gt;mvn spring-boot:run locally&quot;]
+    Q3 -- no --&gt; O1
+
+    O1 --&gt; B1[&quot;mvn clean package -DskipTests&lt;br/&gt;(JDK 21)&quot;]
+    B1 --&gt; B2[&quot;docker compose -f docker-compose.yml&lt;br/&gt;-f docker-compose.lean.yml up -d --build&quot;]
+    B2 --&gt; B3[&quot;docker compose ps&lt;br/&gt;check Eureka :8761&quot;]
+    B3 --&gt; B4([&quot;http://localhost:3000&lt;br/&gt;superadmin@civileng.test&quot;])
+
+    O2 --&gt; C1[&quot;docker compose up -d&lt;br/&gt;infra + backend services&quot;]
+    C1 --&gt; C2[&quot;cd frontend; npm install; npm run dev&quot;]
+    C2 --&gt; C3([&quot;http://localhost:5173&quot;])
+
+    O3 --&gt; E1[&quot;docker compose stop svc&quot;]
+    E1 --&gt; E2[&quot;mvn -pl svc -am spring-boot:run&lt;br/&gt;use host ports 8889, 8761, 3309, 29093&quot;]
+</pre>
+<h2 id="15-code-change-what-to-rebuild">15. Code change: what to rebuild</h2>
+<pre class="mermaid">flowchart TB
+    CH([&quot;I changed...&quot;]) --&gt; Q{&quot;What?&quot;}
+    Q -- &quot;Java in one service&quot; --&gt; J1[&quot;mvn -pl svc -am package -DskipTests&quot;] --&gt; J2[&quot;docker compose up -d --build svc&quot;]
+    Q -- &quot;shared lib&lt;br/&gt;audit/tenant/web-common&quot; --&gt; L1[&quot;mvn -pl svc1,svc2 -am package&quot;] --&gt; L2[&quot;docker compose up -d --build svc1 svc2&quot;]
+    Q -- &quot;config-repo YAML&quot; --&gt; Y1[&quot;docker compose up -d --build config-server&quot;] --&gt; Y2[&quot;docker compose restart affected svc&quot;]
+    Q -- &quot;frontend code&quot; --&gt; F1{&quot;Dev mode?&quot;}
+    F1 -- yes --&gt; F2[&quot;Nothing: Vite hot reloads&quot;]
+    F1 -- no --&gt; F3[&quot;docker compose up -d --build frontend&quot;]
+    Q -- &quot;VITE_* variable&quot; --&gt; V1[&quot;Rebuild frontend image&lt;br/&gt;or restart npm run dev&quot;]
+    Q -- &quot;docker/.env&quot; --&gt; E1[&quot;docker compose up -d&lt;br/&gt;(recreates changed containers)&quot;]
+    Q -- &quot;Flyway migration&quot; --&gt; M1[&quot;Add new V_n file, never edit old&quot;] --&gt; J1
+</pre></main></div>
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+mermaid.initialize({ startOnLoad: false, theme: dark ? 'dark' : 'default', securityLevel: 'loose',
+                      flowchart: { htmlLabels: true }, sequence: { useMaxWidth: false } });
+const blocks = [...document.querySelectorAll('pre.mermaid')];
+for (let i = 0; i < blocks.length; i++) {
+  const el = blocks[i];
+  const src = el.textContent;
+  try {
+    const { svg } = await mermaid.render('mmd' + i, src);
+    el.innerHTML = svg;
+    el.setAttribute('data-processed', 'true');
+  } catch (e) {
+    el.setAttribute('data-error', 'true');
+    el.textContent = 'Diagram error: ' + e.message + ' --- ' + src;
+  }
+}
+</script>
+</body></html>

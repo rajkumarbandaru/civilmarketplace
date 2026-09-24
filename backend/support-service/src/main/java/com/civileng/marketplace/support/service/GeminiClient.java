@@ -1,6 +1,10 @@
 package com.civileng.marketplace.support.service;
 
 import com.civileng.marketplace.support.dto.AiChatRequest;
+import com.civileng.marketplace.tenant.common.integration.IntegrationCapability;
+import com.civileng.marketplace.tenant.common.integration.ResolvedIntegration;
+import com.civileng.marketplace.tenant.common.integration.TenantIntegrationResolver;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
@@ -12,6 +16,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Calls Google's Gemini API for the Civil AI Assistant.
@@ -26,11 +31,12 @@ import java.util.Objects;
  * forbids it from inventing prices, refund windows or timelines.
  */
 @Component
+@RequiredArgsConstructor
 @Slf4j
 public class GeminiClient {
 
     private static final String ENDPOINT_TEMPLATE =
-            "https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent?key=%s";
+            "https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent";
 
     /**
      * How many prior turns are forwarded. Enough for a follow-up question to make sense
@@ -80,8 +86,11 @@ public class GeminiClient {
             .requestFactory(timeoutFactory())
             .build();
 
+    /** The platform's own key: the operator tenant's, and tenants on the shared AI account. */
     @Value("${app.ai.gemini.api-key:}")
     private String apiKey;
+
+    private final TenantIntegrationResolver integrationResolver;
 
     /** Overridable so the model can be changed by config when a free tier is retired. */
     @Value("${app.ai.gemini.model:gemini-3.6-flash}")
@@ -113,8 +122,22 @@ public class GeminiClient {
         return factory;
     }
 
+    /** Whether the current tenant has an AI key to use — its own, or the shared platform one. */
     public boolean isConfigured() {
-        return enabled && apiKey != null && !apiKey.isBlank();
+        return enabled && currentKey() != null;
+    }
+
+    /**
+     * The current tenant's key: its own when it brings one, the platform's when it is on the shared
+     * AI account, and none at all when it has no AI integration — never the platform's by default.
+     */
+    private String currentKey() {
+        Optional<ResolvedIntegration> resolved = integrationResolver.find(IntegrationCapability.AI);
+        if (resolved.isEmpty()) {
+            return null;
+        }
+        String key = resolved.get().usesPlatformCredentials() ? apiKey : resolved.get().secret("apiKey");
+        return key == null || key.isBlank() ? null : key;
     }
 
     /**
@@ -122,6 +145,10 @@ public class GeminiClient {
      *         sees, because "the assistant is down" is a support message, not an API detail
      */
     public String ask(String message, List<AiChatRequest.Turn> history, String siteRateCard) {
+        String key = currentKey();
+        if (key == null) {
+            return null;
+        }
         List<Map<String, Object>> contents = new ArrayList<>();
 
         // The rate card rides in the system instruction, not in the conversation: it is data the
@@ -167,7 +194,10 @@ public class GeminiClient {
             String candidate = candidates.get(i);
             try {
                 Map<?, ?> response = restClient.post()
-                        .uri(String.format(ENDPOINT_TEMPLATE, candidate, apiKey))
+                        // In a header, not the query string: a URL ends up in exception messages,
+                        // and the catch below logs those.
+                        .uri(String.format(ENDPOINT_TEMPLATE, candidate))
+                        .header("x-goog-api-key", key)
                         .contentType(MediaType.APPLICATION_JSON)
                         .body(body)
                         .retrieve()

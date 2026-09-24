@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Projects in VIPLine-billing</title>
+<style>
+:root{--bg:#f6f7f9;--fg:#1f2933;--muted:#5b6770;--card:#fff;--line:#e3e6ea;--accent:#3730a3;--accent-bg:#eef2ff;--head:#0f172a;--code:#f1f3f6}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1115;--fg:#e6e8eb;--muted:#9aa4ad;--card:#171a20;--line:#2a2f37;--accent:#a5b4fc;--accent-bg:#1e2240;--head:#05070b;--code:#1f232b}}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.6 system-ui,-apple-system,Segoe UI,sans-serif;background:var(--bg);color:var(--fg)}
+header{background:var(--head);color:#fff;padding:18px 16px}
+header .in{max-width:1200px;margin:0 auto}
+header h1{margin:0;font-size:22px;line-height:1.3} header p{margin:4px 0 0;opacity:.75;font-size:13px}
+header a{color:#c7d2fe}
+.wrap{max-width:1200px;margin:0 auto;padding:0 16px 60px;display:flex;gap:24px;align-items:flex-start}
+nav.toc{position:sticky;top:12px;flex:0 0 250px;max-height:calc(100vh - 24px);overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:16px;font-size:13px}
+nav.toc ul{list-style:none;margin:0;padding-left:10px} nav.toc>ul{padding-left:0}
+nav.toc a{color:var(--accent);text-decoration:none;display:block;padding:2px 0}
+main{flex:1;min-width:0}
+main h1{display:none}
+h2{font-size:20px;margin:32px 0 10px;padding-top:8px;border-top:1px solid var(--line)}
+h3{font-size:16px;margin:20px 0 8px}
+a{color:var(--accent)}
+blockquote{margin:12px 0;padding:10px 14px;background:var(--accent-bg);border-left:4px solid var(--accent);border-radius:6px}
+blockquote p{margin:4px 0}
+table{border-collapse:collapse;width:100%;background:var(--card);font-size:14px;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:6px 10px;text-align:left;vertical-align:top}
+th{background:var(--accent-bg)}
+code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:13px}
+pre{background:var(--code);padding:12px;border-radius:8px;overflow-x:auto;font-size:13px;line-height:1.45}
+pre code{background:none;padding:0}
+pre.mermaid{background:var(--card);border:1px solid var(--line);text-align:center}
+hr{border:0;border-top:1px solid var(--line);margin:24px 0}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin:12px 0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px}
+.card h3{margin:0 0 6px;font-size:16px}.card p{margin:0;color:var(--muted);font-size:13px}
+.card .meta{margin-top:8px;font-size:12px;color:var(--muted)}
+@media (max-width:900px){.wrap{display:block}nav.toc{position:static;max-height:none;margin-top:16px}}
+</style></head><body>
+<header><div class="in"><h1>Projects in VIPLine-billing</h1><p>2 Angular apps &middot; 14 products &middot; <a href="../index.html">Interview guide</a></p></div></header>
+<div class="wrap"><nav class="toc"><b>Contents</b><div class="toc">
+<ul>
+<li><a href="#summary">Summary</a></li>
+<li><a href="#the-14-products-built-from-aryadash-dashboard">The 14 products built from AryaDash Dashboard</a></li>
+<li><a href="#how-the-projects-relate">How the projects relate</a></li>
+<li><a href="#one-line-description-of-each-product">One-line description of each product</a></li>
+</ul>
+</div>
+</nav><main><div class="cards"><a class="card" style="text-decoration:none;color:inherit" href="01-aryadash-dashboard.html"><h3>A. AryaDash Dashboard</h3><p>Angular 15 config-driven engine. Builds all 14 products.</p></a><a class="card" style="text-decoration:none;color:inherit" href="02-aryadash-designer.html"><h3>B. AryaDash Designer</h3><p>Angular 21 standalone + signals. AI generates the JSON configs.</p></a></div><div class="cards"><a class="card" style="text-decoration:none;color:inherit" href="products/vip-line.html"><h3>1. VIP Line</h3><p>Reseller and admin portal for a private mobile/VoIP operator: SIM cards, activations, calls and SMS, data, DIDs, finances, rate sheets, SIM transfer and reseller management.</p><div class="meta">15 menus &middot; 43 screen JSON &middot; session auth</div></a><a class="card" style="text-decoration:none;color:inherit" href="products/arya-crm.html"><h3>2. Arya CRM</h3><p>Ticketing and customer-care CRM: raise and track tickets, approvals, support and CRM chats, web channels, bot flows, staff rosters, agent break requests and a live agent panel.</p><div class="meta">13 menus &middot; 46 screen JSON &middot; session auth</div></a><a class="card" style="text-decoration:none;color:inherit" href="products/arya-billing-admin.html"><h3>3. Arya Billing Admin (Xmobee)</h3><p>The largest product: full billing back office for an MVNO - MNO, customer, reseller, product, wallet, warehouse and SIM management, finance, dunning, invoices, tax and business-activation reports.</p><div class="meta">18 menus &middot; 219 screen JSON &middot; session auth</div></a><a class="card" style="text-decoration:none;color:inherit" href="products/arya-billing.html"><h3>4. Arya Billing (reseller)</h3><p>Reseller-facing billing portal (infimobile): activation, registration, staff, product and stock requests, e-top-up and voucher sales, returns and recalls.</p><div class="meta">12 menus &middot; 27 screen JSON &middot; session auth</div></a><a class="card" style="text-decoration:none;color:inherit" href="products/arya-connect.html"><h3>5. AryaConnect</h3><p>CPaaS e-mail workspace: accounts, staff, roster, inbox, outbox, folders and mail sync logs.</p><div class="meta">9 menus &middot; 7 screen JSON &middot; session auth</div></a><a class="card" style="text-decoration:none;color:inherit" href="products/arya-spect.html"><h3>6. Arya Spect (IMBIL Telecom)</h3><p>Monitoring / lawful-intercept style console: targets, users, audit events, error logs, tenants and subscriptions.</p><div class="meta">7 menus &middot; 6 screen JSON &middot; session auth</div></a><a class="card" style="text-decoration:none;color:inherit" href="products/bss-metrics.html"><h3>7. MetriXcope (BSS Metrics)</h3><p>Read-only BSS analytics: dashboards for orders, activations, payments, services, recharges and finance.</p><div class="meta">8 menus &middot; 7 screen JSON &middot; session auth</div></a><a class="card" style="text-decoration:none;color:inherit" href="products/daily-reports.html"><h3>8. Daily Reports (Lyca Mobile)</h3><p>Daily operational reporting: reports, data validations and analytics dashboards.</p><div class="meta">4 menus &middot; 17 screen JSON &middot; session auth</div></a><a class="card" style="text-decoration:none;color:inherit" href="products/edr-system.html"><h3>9. EDR System</h3><p>Endpoint / EDR admin console: users, devices, audit logs and settings.</p><div class="meta">5 menus &middot; 4 screen JSON &middot; session auth</div></a><a class="card" style="text-decoration:none;color:inherit" href="products/multi-tenant.html"><h3>10. Multi-Tenant Admin</h3><p>Tenant onboarding and administration for the multi-tenant platform: onboarding, users, audit events, error logs, tenants, subscriptions.</p><div class="meta">7 menus &middot; 1 screen JSON &middot; session auth</div></a><a class="card" style="text-decoration:none;color:inherit" href="products/ocs-monitor.html"><h3>11. OCS Monitor</h3><p>Online Charging System monitor: recharges, rated CDRs, servers, subscriptions, USSD menus and tariffs.</p><div class="meta">8 menus &middot; 12 screen JSON &middot; session auth</div></a><a class="card" style="text-decoration:none;color:inherit" href="products/port-mnp-solutions.html"><h3>12. Portease MNP Solutions</h3><p>Mobile Number Portability portal: port-in, port-out and routing requests.</p><div class="meta">4 menus &middot; 3 screen JSON &middot; session auth</div></a><a class="card" style="text-decoration:none;color:inherit" href="products/projectile.html"><h3>13. Projectile</h3><p>Project delivery tool: accounts, projects, change requests, QA review tool, AI chat, KPIs.</p><div class="meta">8 menus &middot; 14 screen JSON &middot; session auth</div></a><a class="card" style="text-decoration:none;color:inherit" href="products/wirepay.html"><h3>14. Wirepay (Wirecard Solutions Operations)</h3><p>Payments operations console: overview, onboarding, resellers, wallets and float. Uses JWT bearer login and an X-TENANT-ID header.</p><div class="meta">4 menus &middot; 3 screen JSON &middot; bearer auth</div></a></div><h1 id="projects-in-vipline-billing">Projects in VIPLine-billing</h1>
+<blockquote>
+<p><a href="../index.html">Interview guide</a></p>
+</blockquote>
+<h2 id="summary">Summary</h2>
+<p>The repository contains <strong>2 Angular applications</strong>. The first one is an engine that is built into <strong>14 separately branded products</strong>, so there are <strong>16 things</strong> you can describe as "projects".</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Project</th>
+<th>Kind</th>
+<th>Angular</th>
+<th>Details</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A</td>
+<td><a href="01-aryadash-dashboard.html">AryaDash Dashboard</a></td>
+<td>Application (engine)</td>
+<td>15.2, NgModule</td>
+<td>Config-driven UI engine; source of all 14 products</td>
+</tr>
+<tr>
+<td>B</td>
+<td><a href="02-aryadash-designer.html">AryaDash Designer</a></td>
+<td>Application (tool)</td>
+<td>21.1, standalone + signals</td>
+<td>AI assistant that writes AryaDash JSON configs</td>
+</tr>
+</tbody>
+</table>
+<h2 id="the-14-products-built-from-aryadash-dashboard">The 14 products built from AryaDash Dashboard</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Product</th>
+<th>Folder</th>
+<th>Menu</th>
+<th>Pages</th>
+<th>Screen JSON</th>
+<th>Auth</th>
+<th>Serve with</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><a href="products/vip-line.html">VIP Line</a></td>
+<td><code>vip-line</code></td>
+<td>15</td>
+<td>43</td>
+<td>43</td>
+<td>session</td>
+<td><code>development</code></td>
+</tr>
+<tr>
+<td>2</td>
+<td><a href="products/arya-crm.html">Arya CRM</a></td>
+<td><code>arya-crm</code></td>
+<td>13</td>
+<td>47</td>
+<td>46</td>
+<td>session</td>
+<td><code>arya-crm</code></td>
+</tr>
+<tr>
+<td>3</td>
+<td><a href="products/arya-billing-admin.html">Arya Billing Admin (Xmobee)</a></td>
+<td><code>arya-billing-admin</code></td>
+<td>18</td>
+<td>213</td>
+<td>219</td>
+<td>session</td>
+<td><code>arya-billing-admin</code></td>
+</tr>
+<tr>
+<td>4</td>
+<td><a href="products/arya-billing.html">Arya Billing (reseller)</a></td>
+<td><code>arya-billing</code></td>
+<td>12</td>
+<td>27</td>
+<td>27</td>
+<td>session</td>
+<td><code>arya-billing</code></td>
+</tr>
+<tr>
+<td>5</td>
+<td><a href="products/arya-connect.html">AryaConnect</a></td>
+<td><code>arya-connect</code></td>
+<td>9</td>
+<td>8</td>
+<td>7</td>
+<td>session</td>
+<td><code>arya-connect</code></td>
+</tr>
+<tr>
+<td>6</td>
+<td><a href="products/arya-spect.html">Arya Spect (IMBIL Telecom)</a></td>
+<td><code>arya-spect</code></td>
+<td>7</td>
+<td>7</td>
+<td>6</td>
+<td>session</td>
+<td><code>arya-spect</code></td>
+</tr>
+<tr>
+<td>7</td>
+<td><a href="products/bss-metrics.html">MetriXcope (BSS Metrics)</a></td>
+<td><code>bss-metrics</code></td>
+<td>8</td>
+<td>8</td>
+<td>7</td>
+<td>session</td>
+<td><code>bss-metrics</code></td>
+</tr>
+<tr>
+<td>8</td>
+<td><a href="products/daily-reports.html">Daily Reports (Lyca Mobile)</a></td>
+<td><code>daily-reports</code></td>
+<td>4</td>
+<td>14</td>
+<td>17</td>
+<td>session</td>
+<td><code>daily-reports</code></td>
+</tr>
+<tr>
+<td>9</td>
+<td><a href="products/edr-system.html">EDR System</a></td>
+<td><code>edr-system</code></td>
+<td>5</td>
+<td>4</td>
+<td>4</td>
+<td>session</td>
+<td><code>edr-system</code></td>
+</tr>
+<tr>
+<td>10</td>
+<td><a href="products/multi-tenant.html">Multi-Tenant Admin</a></td>
+<td><code>multi-tenant</code></td>
+<td>7</td>
+<td>7</td>
+<td>1</td>
+<td>session</td>
+<td><code>multi-tenant</code></td>
+</tr>
+<tr>
+<td>11</td>
+<td><a href="products/ocs-monitor.html">OCS Monitor</a></td>
+<td><code>ocs-monitor</code></td>
+<td>8</td>
+<td>16</td>
+<td>12</td>
+<td>session</td>
+<td><code>ocs-monitor</code></td>
+</tr>
+<tr>
+<td>12</td>
+<td><a href="products/port-mnp-solutions.html">Portease MNP Solutions</a></td>
+<td><code>port-mnp-solutions</code></td>
+<td>4</td>
+<td>3</td>
+<td>3</td>
+<td>session</td>
+<td><code>port-mnp-solutions</code></td>
+</tr>
+<tr>
+<td>13</td>
+<td><a href="products/projectile.html">Projectile</a></td>
+<td><code>projectile</code></td>
+<td>8</td>
+<td>16</td>
+<td>14</td>
+<td>session</td>
+<td><code>projectile</code></td>
+</tr>
+<tr>
+<td>14</td>
+<td><a href="products/wirepay.html">Wirepay (Wirecard Solutions Operations)</a></td>
+<td><code>wirepay</code></td>
+<td>4</td>
+<td>4</td>
+<td>3</td>
+<td>bearer</td>
+<td><code>wirepay</code></td>
+</tr>
+</tbody>
+</table>
+<p>Total screen JSON files: <strong>409</strong>. Note: <code>angular.json</code> also has a <code>validata</code> build that points at <code>src/config/validata/global.json</code>, which does not exist in the repo, so it is not counted.</p>
+<h2 id="how-the-projects-relate">How the projects relate</h2>
+<pre class="mermaid">flowchart LR
+    DES[&quot;AryaDash Designer&lt;br/&gt;Angular 21&quot;] -- &quot;generates JSON configs&quot; --&gt; CFGS[&quot;src/config/{product}/*.json&quot;]
+    ENG[&quot;AryaDash Dashboard engine&lt;br/&gt;Angular 15, ~80 components&quot;] --&gt; CFGS
+    CFGS --&gt; P1[&quot;VIP Line&quot;]
+    CFGS --&gt; P2[&quot;Arya CRM&quot;]
+    CFGS --&gt; P3[&quot;Arya Billing Admin (Xmobee)&quot;]
+    CFGS --&gt; P4[&quot;Arya Billing (reseller)&quot;]
+    CFGS --&gt; P5[&quot;AryaConnect&quot;]
+    CFGS --&gt; P6[&quot;Arya Spect (IMBIL Telecom)&quot;]
+    CFGS --&gt; P7[&quot;MetriXcope (BSS Metrics)&quot;]
+    CFGS --&gt; P8[&quot;Daily Reports (Lyca Mobile)&quot;]
+    CFGS --&gt; P9[&quot;EDR System&quot;]
+    CFGS --&gt; P10[&quot;Multi-Tenant Admin&quot;]
+    CFGS --&gt; P11[&quot;OCS Monitor&quot;]
+    CFGS --&gt; P12[&quot;Portease MNP Solutions&quot;]
+    CFGS --&gt; P13[&quot;Projectile&quot;]
+    CFGS --&gt; P14[&quot;Wirepay (Wirecard Solutions Operations)&quot;]
+</pre>
+<h2 id="one-line-description-of-each-product">One-line description of each product</h2>
+<ol>
+<li><strong>VIP Line</strong> - Reseller and admin portal for a private mobile/VoIP operator: SIM cards, activations, calls and SMS, data, DIDs, finances, rate sheets, SIM transfer and reseller management.</li>
+<li><strong>Arya CRM</strong> - Ticketing and customer-care CRM: raise and track tickets, approvals, support and CRM chats, web channels, bot flows, staff rosters, agent break requests and a live agent panel.</li>
+<li><strong>Arya Billing Admin (Xmobee)</strong> - The largest product: full billing back office for an MVNO - MNO, customer, reseller, product, wallet, warehouse and SIM management, finance, dunning, invoices, tax and business-activation reports.</li>
+<li><strong>Arya Billing (reseller)</strong> - Reseller-facing billing portal (infimobile): activation, registration, staff, product and stock requests, e-top-up and voucher sales, returns and recalls.</li>
+<li><strong>AryaConnect</strong> - CPaaS e-mail workspace: accounts, staff, roster, inbox, outbox, folders and mail sync logs.</li>
+<li><strong>Arya Spect (IMBIL Telecom)</strong> - Monitoring / lawful-intercept style console: targets, users, audit events, error logs, tenants and subscriptions.</li>
+<li><strong>MetriXcope (BSS Metrics)</strong> - Read-only BSS analytics: dashboards for orders, activations, payments, services, recharges and finance.</li>
+<li><strong>Daily Reports (Lyca Mobile)</strong> - Daily operational reporting: reports, data validations and analytics dashboards.</li>
+<li><strong>EDR System</strong> - Endpoint / EDR admin console: users, devices, audit logs and settings.</li>
+<li><strong>Multi-Tenant Admin</strong> - Tenant onboarding and administration for the multi-tenant platform: onboarding, users, audit events, error logs, tenants, subscriptions.</li>
+<li><strong>OCS Monitor</strong> - Online Charging System monitor: recharges, rated CDRs, servers, subscriptions, USSD menus and tariffs.</li>
+<li><strong>Portease MNP Solutions</strong> - Mobile Number Portability portal: port-in, port-out and routing requests.</li>
+<li><strong>Projectile</strong> - Project delivery tool: accounts, projects, change requests, QA review tool, AI chat, KPIs.</li>
+<li><strong>Wirepay (Wirecard Solutions Operations)</strong> - Payments operations console: overview, onboarding, resellers, wallets and float. Uses JWT bearer login and an X-TENANT-ID header.</li>
+</ol></main></div>
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+mermaid.initialize({ startOnLoad: false, theme: dark ? 'dark' : 'default', securityLevel: 'loose', flowchart: { htmlLabels: true } });
+const blocks = [...document.querySelectorAll('pre.mermaid')];
+for (let i = 0; i < blocks.length; i++) {
+  const el = blocks[i];
+  const src = el.textContent;
+  try {
+    const { svg } = await mermaid.render('mmd' + i, src);
+    el.innerHTML = svg;
+    el.setAttribute('data-processed', 'true');
+  } catch (e) {
+    el.setAttribute('data-error', 'true');
+    el.textContent = 'Diagram error: ' + e.message + ' --- ' + src;
+  }
+}
+</script>
+</body></html>

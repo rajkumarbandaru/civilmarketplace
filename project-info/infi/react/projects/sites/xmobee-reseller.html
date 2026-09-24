@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Site 4 · Xmobee Reseller Portal — `config/xmobee-reseller`</title>
+<style>
+:root{--bg:#f6f7f9;--fg:#1f2933;--muted:#5b6770;--card:#fff;--line:#e3e6ea;--accent:#3730a3;--accent-bg:#eef2ff;--head:#0f172a;--code:#f1f3f6}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1115;--fg:#e6e8eb;--muted:#9aa4ad;--card:#171a20;--line:#2a2f37;--accent:#a5b4fc;--accent-bg:#1e2240;--head:#05070b;--code:#1f232b}}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.6 system-ui,-apple-system,Segoe UI,sans-serif;background:var(--bg);color:var(--fg)}
+header{background:var(--head);color:#fff;padding:18px 16px}
+header .in{max-width:1200px;margin:0 auto}
+header h1{margin:0;font-size:22px;line-height:1.3} header p{margin:4px 0 0;opacity:.75;font-size:13px}
+header a{color:#c7d2fe}
+.wrap{max-width:1200px;margin:0 auto;padding:0 16px 60px;display:flex;gap:24px;align-items:flex-start}
+nav.toc{position:sticky;top:12px;flex:0 0 250px;max-height:calc(100vh - 24px);overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:16px;font-size:13px}
+nav.toc ul{list-style:none;margin:0;padding-left:10px} nav.toc>ul{padding-left:0}
+nav.toc a{color:var(--accent);text-decoration:none;display:block;padding:2px 0}
+main{flex:1;min-width:0}
+main h1{display:none}
+h2{font-size:20px;margin:32px 0 10px;padding-top:8px;border-top:1px solid var(--line)}
+h3{font-size:16px;margin:20px 0 8px}
+a{color:var(--accent)}
+blockquote{margin:12px 0;padding:10px 14px;background:var(--accent-bg);border-left:4px solid var(--accent);border-radius:6px}
+blockquote p{margin:4px 0}
+table{border-collapse:collapse;width:100%;background:var(--card);font-size:14px;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:6px 10px;text-align:left;vertical-align:top}
+th{background:var(--accent-bg)}
+code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:13px}
+pre{background:var(--code);padding:12px;border-radius:8px;overflow-x:auto;font-size:13px;line-height:1.45}
+pre code{background:none;padding:0}
+pre.mermaid{background:var(--card);border:1px solid var(--line);text-align:center}
+hr{border:0;border-top:1px solid var(--line);margin:24px 0}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin:12px 0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px}
+.card h3{margin:0 0 6px;font-size:16px}.card p{margin:0;color:var(--muted);font-size:13px}
+.card .meta{margin-top:8px;font-size:12px;color:var(--muted)}
+@media (max-width:900px){.wrap{display:block}nav.toc{position:static;max-height:none;margin-top:16px}}
+</style></head><body>
+<header><div class="in"><h1>Site 4 · Xmobee Reseller Portal — `config/xmobee-reseller`</h1><p>Source: ~/june-24/arya-cms/jc-cms · generated from <code style="color:#fff;background:none">projects/sites/xmobee-reseller.md</code></p></div></header>
+<div class="wrap"><nav class="toc"><b>Contents</b><div class="toc">
+<ul>
+<li><a href="#facts">Facts</a></li>
+<li><a href="#pages-beyond-the-infimobile-portal">Pages beyond the InfiMobile portal</a></li>
+<li><a href="#porting-a-feature-between-the-two-portals">Porting a feature between the two portals</a></li>
+<li><a href="#saved-billing-address-auto-bind-activations-recharge-load-wallet">Saved billing address auto-bind (activations / recharge / load-wallet)</a></li>
+</ul>
+</div>
+</nav><main><p style="font-size:13px"><a href="../../index.html">Interview guide</a> · <a href="../../five-years-experience-playbook.html">5-yr playbook</a> · <a href="../../projects/index.html">All projects</a></p><h1 id="site-4-xmobee-reseller-portal-configxmobee-reseller">Site 4 · Xmobee Reseller Portal — <code>config/xmobee-reseller</code></h1>
+<p>The Xmobee brand's reseller portal. Started as a copy of the InfiMobile reseller portal and
+has grown more screens: physical stock requests, retailer pricing/commissions, split reports and
+customer tools.</p>
+<h2 id="facts">Facts</h2>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Brand / theme</td>
+<td>Xmobee</td>
+</tr>
+<tr>
+<td>Layout</td>
+<td>side nav + topbar, light/dark toggle</td>
+</tr>
+<tr>
+<td>Auth</td>
+<td><code>required: true</code>, <code>initialPage: login</code>, <code>landingPage: dashboard</code></td>
+</tr>
+<tr>
+<td>Roles</td>
+<td>Reseller Aggregator · Reseller Retailer · Reseller Staff</td>
+</tr>
+<tr>
+<td>Size</td>
+<td>53 pages · 39 modals · 221 scripts · 25 CSS files</td>
+</tr>
+<tr>
+<td>API contract</td>
+<td>22 backends · 116 APIs</td>
+</tr>
+<tr>
+<td>Run</td>
+<td><code>npm run dev:xmobee-reseller</code> (port 4013)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="pages-beyond-the-infimobile-portal">Pages beyond the InfiMobile portal</h2>
+<table>
+<thead>
+<tr>
+<th>Area</th>
+<th>Extra pages</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Stock</td>
+<td><code>stock-request-physical</code></td>
+</tr>
+<tr>
+<td>Pricing</td>
+<td><code>staff-retail-pricing</code>, <code>retailer-pricing</code>, <code>retailer-commissions</code></td>
+</tr>
+<tr>
+<td>Reports</td>
+<td><code>reports-wallet-credit</code>, <code>reports-wallet-debit</code>, <code>reports-activations</code>, <code>reports-stock-balance</code>, <code>reports-commissions</code>, <code>reports-commission-transfers</code></td>
+</tr>
+<tr>
+<td>Customer tools</td>
+<td><code>customer-tools-trial-port</code>, <code>customer-tools-sim-swap</code>, <code>customer-tools-port-check</code>, <code>customer-tools-device-check</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="porting-a-feature-between-the-two-portals">Porting a feature between the two portals</h2>
+<pre class="mermaid">flowchart TD
+  A[&quot;Feature exists in reseller (e.g. bulk-requests)&quot;] --&gt; B[&quot;diff both sites' JSON, scripts, CSS&quot;]
+  B --&gt; C[&quot;remove dead old implementation first&lt;br/&gt;(unreachable bulk tabs in activations.json)&quot;]
+  C --&gt; D[&quot;copy page JSON + scripts (brand-neutral)&quot;]
+  D --&gt; E[&quot;add missing APIs to api.json&quot;]
+  E --&gt; F[&quot;re-apply brand deltas on top of copied CSS&quot;]
+  F --&gt; G[&quot;static checks: JSON parses, every scriptfile / apiname / modal / component type resolves&quot;]
+</pre>
+<h2 id="saved-billing-address-auto-bind-activations-recharge-load-wallet">Saved billing address auto-bind (activations / recharge / load-wallet)</h2>
+<pre class="mermaid">flowchart LR
+  L[&quot;page load&quot;] --&gt; B[&quot;buildAddressOptions.js autoApplyFirstAddress&quot;]
+  B --&gt; Q{&quot;complete saved billing address?&quot;}
+  Q -- yes --&gt; H[&quot;auto-apply, hide picker + manual form&lt;br/&gt;billingAddressAutoResolved = true&quot;]
+  H --&gt; Z[&quot;triggerZipTaxIfAutoBound.js → zip lookup + tax&quot;]
+  Q -- no --&gt; M[&quot;show picker / manual form&quot;]
+</pre></main></div>
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+mermaid.initialize({ startOnLoad: false, theme: dark ? 'dark' : 'default', securityLevel: 'loose', flowchart: { htmlLabels: true } });
+const blocks = [...document.querySelectorAll('pre.mermaid')];
+for (let i = 0; i < blocks.length; i++) {
+  const el = blocks[i];
+  const src = el.textContent;
+  try {
+    const { svg } = await mermaid.render('mmd' + i, src);
+    el.innerHTML = svg;
+    el.setAttribute('data-processed', 'true');
+  } catch (e) {
+    el.setAttribute('data-error', 'true');
+    el.textContent = 'Diagram error: ' + e.message + ' --- ' + src;
+  }
+}
+</script>
+</body></html>

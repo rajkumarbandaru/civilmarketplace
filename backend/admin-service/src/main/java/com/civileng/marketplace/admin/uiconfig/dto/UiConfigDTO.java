@@ -76,7 +76,9 @@ public final class UiConfigDTO {
             String buttonStyle,
             String layoutStyle,
             String density,
-            int version) {
+            int version,
+            /** Website page arrangement (frontend registry: marketplace | corporate | ecommerce). */
+            String siteLayout) {
     }
 
     /**
@@ -256,7 +258,8 @@ public final class UiConfigDTO {
             String uiStyle,
             String buttonStyle,
             String layoutStyle,
-            String density) {
+            String density,
+            String siteLayout) {
     }
 
     /**

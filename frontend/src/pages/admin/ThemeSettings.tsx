@@ -10,9 +10,10 @@ import {
   Typography,
 } from '@mui/material';
 import ThemeEditor from '../../components/admin/ThemeEditor';
+import ThemeHistory from '../../components/admin/ThemeHistory';
 import { apiErrorMessage } from '../../services/apiError';
 import { useUiConfig } from '../../providers/UiConfigProvider';
-import {
+import { createThemePreview,
   fetchEffectiveWorkspaceTheme,
   fetchPlatformTheme,
   fetchWorkspaces,
@@ -63,7 +64,8 @@ const ThemeSettings: React.FC = () => {
   });
 
   const onSaved = (saved: typeof data) => {
-    queryClient.setQueryData(themeKey, saved);
+    if (saved) queryClient.setQueryData(themeKey, saved);
+    queryClient.invalidateQueries({ queryKey: ['config-releases', scope] });
     queryClient.invalidateQueries({ queryKey: [...themeKey, 'effective'] });
     queryClient.invalidateQueries({ queryKey: ['ui-config', 'workspaces'] });
     // Re-read the signed-in user's snapshot so the change is visible immediately rather than
@@ -82,6 +84,7 @@ const ThemeSettings: React.FC = () => {
     onSuccess: onSaved,
   });
 
+  const [previewError, setPreviewError] = useState<string | null>(null);
   const workspaceLabel = workspaces?.find((w) => w.role === scope)?.label || scope;
   const scopeLabel = isPlatform ? 'The platform theme' : `${workspaceLabel}'s workspace`;
 
@@ -124,6 +127,7 @@ const ThemeSettings: React.FC = () => {
         </Alert>
       )}
       {save.isSuccess && <Alert severity="success" sx={{ mb: 2 }}>Theme saved.</Alert>}
+      {previewError && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setPreviewError(null)}>{previewError}</Alert>}
       {reset.isError && (
         <Alert severity="error" sx={{ mb: 2 }}>
           {apiErrorMessage(reset.error, 'The override could not be removed.')}
@@ -144,16 +148,37 @@ const ThemeSettings: React.FC = () => {
         <ThemeEditor
           // Remounting on a scope change drops the previous scope's unsaved edits rather than
           // carrying them into the next one, where saving would apply them to the wrong theme.
-          key={scope}
+          key={`${scope}:${data?.version}`}
           value={data}
           effective={effective || data}
           saving={save.isPending || reset.isPending}
           scopeLabel={scopeLabel}
           onSave={(command) => save.mutate(command)}
+          // The whole workspace's look can be previewed in the real app before it is published.
+          onPreview={isPlatform ? async (command) => {
+            const tab = window.open('', '_blank');
+            try {
+              const { path } = await createThemePreview(command);
+              if (tab) { tab.opener = null; tab.location.href = path; } else window.location.assign(path);
+            } catch (e) {
+              tab?.close();
+              setPreviewError(apiErrorMessage(e, 'The preview could not be created.'));
+            }
+          } : undefined}
           onReset={isPlatform ? undefined : () => reset.mutate()}
           resetLabel="Follow the platform theme"
         />
       )}
+
+      {/* After the editor: a rollback replaces what it shows, so it re-mounts on the new version. */}
+      <ThemeHistory
+        key={scope}
+        scope={scope}
+        onRolledBack={() => {
+          queryClient.invalidateQueries({ queryKey: themeKey });
+          onSaved(undefined as never);
+        }}
+      />
     </Box>
   );
 };

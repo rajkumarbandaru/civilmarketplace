@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tech Stack Map</title>
+<style>
+:root{
+  --bg:#f6f7fb; --surface:#ffffff; --surface-2:#f0f2f7; --text:#1b1f2a; --muted:#5b6475; --border:#dde1ea;
+  --accent:#3b5bdb; --ok:#2b8a3e; --part:#b7791f; --off:#868e96; --warn:#c92a2a;
+  --shadow:0 1px 2px rgba(20,30,60,.06),0 4px 14px rgba(20,30,60,.06);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f1218; --surface:#171b24; --surface-2:#1e2330; --text:#e6e9f0; --muted:#98a1b3; --border:#2a3040;
+    --accent:#7b94ff; --ok:#51cf66; --part:#fcc419; --off:#98a1b3; --warn:#ff6b6b;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 14px rgba(0,0,0,.3);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f1218; --surface:#171b24; --surface-2:#1e2330; --text:#e6e9f0; --muted:#98a1b3; --border:#2a3040;
+  --accent:#7b94ff; --ok:#51cf66; --part:#fcc419; --off:#98a1b3; --warn:#ff6b6b;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 14px rgba(0,0,0,.3);
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px}
+.wrap{max-width:1240px;margin:0 auto;padding:22px 16px 56px}
+.home{display:inline-block;margin-bottom:6px;color:var(--accent);text-decoration:none;font-size:13px}
+.home:hover{text-decoration:underline}
+.top{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:flex-start}
+h1{font-size:25px;margin:0 0 6px}
+.lead{margin:0;color:var(--muted);max-width:780px}
+.btn{flex:none;border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:8px;padding:7px 12px;cursor:pointer;font:inherit;font-size:14px}
+.btn:hover{border-color:var(--accent)}
+
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:22px 0}
+@media (max-width:760px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;box-shadow:var(--shadow)}
+.stat b{display:block;font-size:28px;line-height:1.1;font-variant-numeric:tabular-nums}
+.stat span{color:var(--muted);font-size:13px}
+
+h2{font-size:18px;margin:30px 0 12px}
+.layers{background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow);padding:16px}
+.layer{display:grid;grid-template-columns:170px 1fr;gap:12px;align-items:center;padding:10px 0;border-top:1px dashed var(--border)}
+.layer:first-child{border-top:0}
+@media (max-width:760px){.layer{grid-template-columns:1fr}}
+.layer .name{font-weight:600;font-size:14px}
+.layer .name small{display:block;color:var(--muted);font-weight:400;font-size:12px}
+.pills{display:flex;flex-wrap:wrap;gap:6px}
+.pill{border:1px solid color-mix(in srgb,var(--cc) 50%,var(--border));background:color-mix(in srgb,var(--cc) 10%,var(--surface));
+  border-radius:999px;padding:4px 10px;font-size:13px;cursor:pointer;display:inline-flex;gap:6px;align-items:center}
+.pill:hover{border-color:var(--cc)}
+.pill i{width:7px;height:7px;border-radius:50%;background:var(--st)}
+.flowline{color:var(--muted);font-size:13px;text-align:center;padding:2px 0}
+
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 12px}
+.search{flex:1 1 220px;min-width:180px;border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:8px;padding:8px 12px;font:inherit;font-size:14px}
+.fchip{border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:999px;padding:5px 11px;cursor:pointer;font:inherit;font-size:13px}
+.fchip.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:14px}
+@media (max-width:400px){.grid{grid-template-columns:1fr}}
+.tool{background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);padding:14px 16px;display:flex;flex-direction:column;gap:8px;border-top:4px solid var(--cc);scroll-margin-top:16px}
+.tool.flash{outline:3px solid color-mix(in srgb,var(--accent) 45%,transparent)}
+.tool .h{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.tool h3{margin:0;font-size:16px}
+.tool .cat{font-size:12px;color:var(--muted)}
+.status{flex:none;font:700 10.5px/1 ui-monospace,Menlo,monospace;padding:4px 7px;border-radius:5px;border:1px solid}
+.status.Active{color:var(--ok);border-color:var(--ok)} .status.Partial{color:var(--part);border-color:var(--part)} .status.Dormant{color:var(--off);border-color:var(--off)}
+.tool p{margin:0;font-size:14px}
+.kv{display:grid;grid-template-columns:78px 1fr;gap:3px 10px;font-size:13px}
+.kv dt{color:var(--muted)} .kv dd{margin:0;overflow-wrap:anywhere}
+.risk{font-size:13px;border-left:3px solid var(--warn);background:color-mix(in srgb,var(--warn) 8%,transparent);padding:6px 9px;border-radius:0 6px 6px 0}
+.empty{color:var(--muted);padding:20px;text-align:center}
+.foot{color:var(--muted);font-size:13px;margin-top:22px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="home" href="index.html">← All flows</a>
+  <div class="top">
+    <div>
+      <h1>Tech stack: every tool in <code>billing_micro_services</code> and what it does here</h1>
+      <p class="lead">Counted from the Maven build (<code>pom.xml</code> files), properties files and the Jenkinsfile, not from a generic list.
+        "Modules" means how many module <code>pom.xml</code> files declare the dependency. <b>Active</b> is on a live code path,
+        <b>Partial</b> is present but limited or inconsistent, and <b>Dormant</b> is implemented but not switched on.</p>
+    </div>
+    <button class="btn" id="b-theme">Theme</button>
+  </div>
+
+  <div class="stats" id="stats"></div>
+
+  <h2>How the layers fit together</h2>
+  <div class="layers" id="layers"></div>
+
+  <h2>All tools</h2>
+  <div class="controls">
+    <input class="search" id="q" type="search" placeholder="Search tools, modules, purpose…" aria-label="Search tools">
+    <div id="filters" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+  </div>
+  <div class="grid" id="grid"></div>
+
+  <p class="foot">Module counts come from <code>grep</code> over <code>pom.xml</code> files at the time of writing. <code>log4j</code>, Actuator and the Micrometer
+    Prometheus registry are declared in the root <code>pom.xml</code>, so every reactor module inherits them.</p>
+</div>
+
+<script>
+const CATS = {
+  lang:   {n:'Language & build',        c:'#5c7cfa', layer:'Build',          sub:'compile & package'},
+  fw:     {n:'Application framework',   c:'#40c057', layer:'Services',       sub:'Spring Boot microservices'},
+  data:   {n:'Data & caching',          c:'#f59f00', layer:'Data',           sub:'persistence'},
+  msg:    {n:'Messaging & events',      c:'#868e96', layer:'Events',         sub:'async between services'},
+  integ:  {n:'Integration & resilience',c:'#12b886', layer:'Integration',    sub:'service-to-service & external'},
+  ext:    {n:'External SDKs & APIs',    c:'#e64980', layer:'External',       sub:'3rd-party systems'},
+  doc:    {n:'Documents & notifications',c:'#ae3ec9',layer:'Output',         sub:'PDF, Excel, email, SMS'},
+  sec:    {n:'Security',                c:'#e03131', layer:'Security',       sub:'auth & secrets'},
+  obs:    {n:'Observability',           c:'#1c7ed6', layer:'Observability',  sub:'monitor & log'},
+  ops:    {n:'CI/CD & runtime',         c:'#a9744f', layer:'Delivery',       sub:'build → deploy → run'}
+};
+
+const T = [
+  // ---------- language & build ----------
+  {id:'java', n:'Java 8', cat:'lang', st:'Active', ver:'1.8', used:'All modules',
+   how:'Every service and library is compiled for Java 8 (java.version 1.8 in the root pom).',
+   ev:'pom.xml:11'},
+  {id:'maven', n:'Maven (multi-module reactor)', cat:'lang', st:'Active', used:'117 active <module> entries (+6 commented out)',
+   how:'One root pom builds everything. Jenkins builds a single service with its dependencies using "mvn -pl <module> -am clean install". About 49 modules are runnable Spring Boot apps; the rest are shared *-utils / *-repo libraries.',
+   ev:'pom.xml <modules> · Jenkinsfile:397'},
+  {id:'python', n:'Python', cat:'lang', st:'Partial', used:'verifiers/, upgrade_verifier/, validation_scripts/',
+   how:'Operational scripts outside the Java build: DB and API verifiers and an alerting scheduler that detect duplicate charges, stuck CDRs and failed activations after the fact.',
+   ev:'.claude/context/03-tech-stack.md'},
+
+  // ---------- framework ----------
+  {id:'boot', n:'Spring Boot', cat:'fw', st:'Active', ver:'from Spring Cloud 2020.0.0 parent', used:'49 @SpringBootApplication classes · 51 modules use starter-web',
+   how:'Each microservice is a Spring Boot app with embedded Tomcat exposing REST controllers (@RequestMapping). There is no API gateway or service discovery: clients and services call each other by configured host names.',
+   ev:'grep @SpringBootApplication · pom.xml:14-17'},
+  {id:'cloud', n:'Spring Cloud', cat:'fw', st:'Active', ver:'2020.0.0', used:'Parent pom · config client in 30 modules',
+   how:'Used mainly for centralized configuration (Config client). No Eureka, no Feign and no Spring Cloud Gateway.',
+   ev:'pom.xml:14-17'},
+  {id:'config', n:'Spring Cloud Config Server', cat:'fw', st:'Active', used:'config-server (port 8094) · imported by 38 properties files',
+   how:'At startup each service loads its properties from config-hub:8094 (spring.config.import=configserver:…). Passwords are stored {cipher}-encrypted. If the config server is down, services cannot boot.',
+   ev:'config-server server.port=8094 · 38 *.properties with spring.config.import',
+   risk:'Single point of failure at startup, and config-server has no Jenkins deploy entry.'},
+  {id:'jpa', n:'Spring Data JPA / Hibernate', cat:'fw', st:'Active', used:'54 modules',
+   how:'Entities (@Entity / @Table, e.g. order_table, subscription, gateway_transaction) with JpaRepository plus many native SQL @Query methods. ddl-auto=update means entity changes alter the production schema on deploy; there is no Flyway or Liquibase.',
+   ev:'RMQEventRepository.java:19 (native query) · .claude/context/08',
+   risk:'No migration tool; schema changes are automatic and irreversible.'},
+  {id:'activiti', n:'Activiti BPMN', cat:'fw', st:'Partial', used:'billing-workflow, billing-integ, billing-loyalty',
+   how:'BPMN process engine for subscription activation and deactivation workflows (subscriptionActivation.bpmn20.xml). billing-workflow shows compile-break evidence, so live activation runs through user-management controllers instead.',
+   ev:'pom grep · .claude/context/26 Process 1'},
+  {id:'lombok', n:'Lombok', cat:'fw', st:'Active', used:'32 modules', how:'Generates getters, setters and builders for DTOs and entities (e.g. OrderResponse builder).', ev:'pom grep'},
+  {id:'gson', n:'Gson', cat:'fw', st:'Active', used:'40 modules',
+   how:'The JSON workhorse. It serializes commands into event payloads (e.g. the full activation command in SubscriptionEvent.extraInfo) and parked data (the OrderCommand in payment_order_info.order_request).',
+   ev:'SubscriptionActivationController.java:2214 · UserMgmtEventHooks.java:200'},
+  {id:'modelmapper', n:'ModelMapper', cat:'fw', st:'Active', used:'1 module', how:'Maps request commands onto entities, e.g. mapper.map(command, GatewayTransaction.class) in the payment path.', ev:'CustomerSelfRechargeController.java:~7939'},
+  {id:'swagger', n:'Swagger / Springfox / Springdoc', cat:'fw', st:'Active', used:'25 modules', how:'Generates REST API documentation for the controllers.', ev:'pom grep'},
+
+  // ---------- data ----------
+  {id:'mysql', n:'MySQL', cat:'data', st:'Active', used:'41 modules (connector)',
+   how:'The system of record: one physical MySQL host per business domain, with some tables shared across services (e.g. subscription, order_table). It also holds the event bus table rmq_events.',
+   ev:'.claude/context/08 · RMQEventRepository.java'},
+  {id:'hikari', n:'HikariCP', cat:'data', st:'Active', used:'All JPA services',
+   how:'JDBC connection pool, configured through a hand-rolled hikari.poolsize property. Sizes range from 2 to 30 across services.', ev:'.claude/context/08 §8.2'},
+  {id:'mongo', n:'MongoDB', cat:'data', st:'Active', used:'7 modules: prr-cdr-repo, pwg-cdr-repo, gupi-cdr-repo, billing-ofcs-lte-repo, revenue-issuance-repo, billing-common-repository, dummy_lib/cdrrepo',
+   how:'Stores raw call detail records (Voice / SMS / Data CDR collections) for Verizon, T-Mobile and Tata. This data is high-volume and append-only, so it stays out of MySQL.', ev:'pom grep'},
+  {id:'ehcache', n:'EhCache', cat:'data', st:'Active', used:'9 modules · 27 ehcache.xml files',
+   how:'In-process cache per pod, used for config rows and lookups. It is not distributed, so each replica has its own copy. There is no Redis.', ev:'find ehcache.xml'},
+
+  // ---------- messaging ----------
+  {id:'dbbus', n:'DB-polling event bus', cat:'msg', st:'Active', used:'event-mgmt-utils + rmq_events table (billing-repostiory)',
+   how:'The real async backbone. Producers insert event rows (e.g. Subscription ACTIVATED, Order SUBMIT_ORDER, PrepaidSubscriptionRecord BUNDLE_ACTIVATION); each service polls rmq_events for its topics by timestamp window and dispatches to its EventHooks.',
+   ev:'RMQEventRepository.java:19-28 · EventService.java:1441',
+   risk:'A failed handler is marked processed after one attempt: no retry, no dead-letter queue.'},
+  {id:'mqtt', n:'MQTT (Eclipse Paho)', cat:'msg', st:'Dormant', ver:'1.2.0', used:'event-mgmt-utils',
+   how:'An alternative event transport to broker tcp://mqttbroker:1883 (QoS 2). Implemented but not enabled in any config found.', ev:'pom grep · .claude/context/10'},
+  {id:'rabbit', n:'RabbitMQ (amqp-client)', cat:'msg', st:'Dormant', used:'event_mgmt/server, event_mgmt/lib',
+   how:'A second implemented-but-dormant transport. As written it auto-acks before processing, so it would be weaker than the DB bus.', ev:'pom grep · .claude/context/10'},
+  {id:'sched', n:'Spring @Scheduled crons', cat:'msg', st:'Active', used:'Most services',
+   how:'Batch work runs as in-process cron jobs: CDR pulls every 1 minute / 15 s / 25 s, hourly shipment tracking, the monthly postpaid invoice (0 0 0 1 * ?) and carrier fulfilment retries. There is no Spring Batch and no ShedLock, so every replica runs every cron.',
+   ev:'.claude/context/10 §10.7 · 26 Process 9/13'},
+
+  // ---------- integration ----------
+  {id:'httpclient', n:'Apache HttpClient (hand-rolled)', cat:'integ', st:'Active', used:'15 modules',
+   how:'All service-to-service REST calls and most external calls go through wrapper classes (ApacheHttpClientInterface, HttpConnection, AccountBalanceInterface). Examples: user-management → mno-gateway-api validate_device, inventory → shipment-mgmt:8099.',
+   ev:'SubscriptionActivationController.java:842 · SubscriptionServiceImpl.java:147',
+   risk:'Wrappers often swallow exceptions and return null, and one wrapper ignores the timeout passed in.'},
+  {id:'xml', n:'JAXB / XML (SOAP-style)', cat:'integ', st:'Active', used:'26 modules',
+   how:'Carrier integrations are XML: Verizon ResellerOrder to the OAS OrderGateway, and vCare WholeSaleApi for T-Mobile. JAXB-generated types include ResellerAddSubscriberType.', ev:'MnoSubscriberUtils.java · pwg-api Constants.java:90'},
+  {id:'r4j', n:'Resilience4j circuit breakers', cat:'integ', st:'Active', used:'circuit-breaker-utils → mno_mgmt, pwg-mno-mgmt, ild-service-mgmt, inventory-management, shipment-management, tax-management, seller-api-gw',
+   how:'Wraps outbound calls (e.g. pwgMnoCB around pwg-mno-mgmt → pwg-api, mnoCB for Verizon) to fail fast with a fallback. Enablement is driven by DB config rows.',
+   ev:'pom grep (circuit-breaker-utils consumers)',
+   risk:'gupi_mgmt (Tata) has no circuit breaker, no effective timeout and no retry.'},
+  {id:'carriers', n:'Carrier APIs', cat:'ext', st:'Active', used:'mno_mgmt + mno-gateway-api, pwg-mno-mgmt + pwg-api, gupi_mgmt, ild-service-mgmt / netip-gw',
+   how:'Verizon OAS (XML) for activation and plan changes, and Verizon ReportGateway for usage. vCare / T-Mobile WholeSaleApi (XML). Tata MOVE (REST, OAuth2). NetworkIP for international calling (REST and SOAP).',
+   ev:'SubscriptionServiceImpl.java:147 · PwgGlobalConfigController.java:42'},
+
+  // ---------- external SDKs ----------
+  {id:'stripe', n:'Stripe Java SDK', cat:'ext', st:'Active', ver:'20.119.0 · 20.132.0 · 26.7.0', used:'self-service-payment, inventory-management, revenue-issuance-mgmt',
+   how:'Card payments: GatewayRoutingEngine picks Stripe, StripePaymentGateway creates Checkout Sessions, and signed webhooks confirm payment through PaymentFacade.confirmPayment. revenue-issuance-mgmt reconciles.',
+   ev:'pom grep · PaymentFacade.java:601', risk:'Three different SDK versions across three modules.'},
+  {id:'paypal', n:'PayPal SDK', cat:'ext', st:'Active', used:'2 modules',
+   how:'Alternate gateway with its own webhook controller.', ev:'pom grep', risk:'Repo docs report no webhook signature verification and no dedup.'},
+  {id:'aws', n:'AWS SDK (SES, Secrets Manager)', cat:'ext', st:'Active', used:'email-utils, billing-integ, billing-reports, catalogue-management, billing-common-repository',
+   how:'SES sends invoice, purchase and notification emails from billing-integ / email-utils. Secrets Manager holds an AES key, read at startup.', ev:'pom grep · .claude/context/12 §12.9'},
+  {id:'twilio', n:'Twilio', cat:'ext', st:'Partial', used:'DMI, dmi-utils', how:'DID phone-number provisioning (DMI service; deploy path unconfirmed).', ev:'pom grep'},
+  {id:'couriers', n:'USPS / UPS APIs', cat:'ext', st:'Active', used:'shipment-management (called by inventory-management)',
+   how:'Shipping labels, pickup scheduling and hourly tracking. USPS has two API generations: REST v3 with OAuth2 and legacy XML.', ev:'WarehouseController.java:593 · .claude/context/17 §17.7'},
+  {id:'market', n:'Marketplace APIs (Amazon SP-API, Temu)', cat:'ext', st:'Active', used:'seller-api-gw', how:'Syncs e-commerce SIM orders from marketplaces into the order pipeline.', ev:'.claude/context/04'},
+
+  // ---------- documents ----------
+  {id:'pdf', n:'PDF libraries (iText / PDFBox / OpenPDF)', cat:'doc', st:'Active', used:'8 modules', how:'Invoice and label PDF generation.', ev:'pom grep'},
+  {id:'poi', n:'Apache POI', cat:'doc', st:'Active', used:'5 modules', how:'Excel exports for reports and churn / reconciliation files.', ev:'pom grep'},
+  {id:'mail', n:'JavaMail / Spring Mail', cat:'doc', st:'Active', used:'6 modules', how:'SMTP email alongside SES.', ev:'pom grep'},
+
+  // ---------- security ----------
+  {id:'session', n:'Custom session auth (@ApiScope + SESSIONID)', cat:'sec', st:'Partial', used:'billing-sessions library; login in user-kyc',
+   how:'user-kyc LoginController issues an opaque session token stored in the session table. Clients send it as the SESSIONID header, and an @ApiScope-driven interceptor plus SessionController.checkSessionPermissions gate endpoints. API_KEY headers are used for partners.',
+   ev:'user-kyc/…/LoginController.java · SubscriptionActivationController.java:536',
+   risk:'Repo docs report checkSessionPermissions as currently a no-op, and the interceptor is wired in only a minority of services.'},
+  {id:'springsec', n:'Spring Security', cat:'sec', st:'Partial', used:'1 module (config-server)', how:'Only protects the config server\'s own Basic-auth endpoint. Business services do not use it.', ev:'pom grep'},
+  {id:'jwt', n:'jose4j (JWT)', cat:'sec', st:'Dormant', used:'api-security', how:'A JWT (RSA) service exists but has no in-repo consumers.', ev:'pom grep · .claude/context/12'},
+  {id:'cipher', n:'Config {cipher} encryption', cat:'sec', st:'Active', used:'config-server', how:'Datasource passwords in properties are encrypted and decrypted by the config server when a service boots.', ev:'.claude/context/12 §12.7'},
+
+  // ---------- observability ----------
+  {id:'melody', n:'JavaMelody', cat:'obs', st:'Active', used:'39 modules', how:'In-app APM dashboard (/monitoring) for JVM, SQL and HTTP stats per service.', ev:'pom grep', risk:'Shared cleartext admin credential across services.'},
+  {id:'actuator', n:'Spring Boot Actuator + Micrometer (Prometheus)', cat:'obs', st:'Partial', used:'Root pom (all modules)',
+   how:'Health, metrics and /actuator/prometheus endpoints are exposed, but no custom business metrics exist and no confirmed Prometheus scraper does either.', ev:'pom.xml:24-33'},
+  {id:'log4j', n:'Log4j 1.x', cat:'obs', st:'Active', used:'Root pom (all modules)',
+   how:'Dominant logging framework, plus a custom LoggingUtils that writes step-by-step purchase and activation debug logs. There is no correlation ID, tracing or ELK shipping.', ev:'pom.xml:24', risk:'Log4j 1.x has been end-of-life since 2015.'},
+
+  // ---------- ops ----------
+  {id:'git', n:'Git / GitHub', cat:'ops', st:'Active', used:'Repository', how:'Source control with PR-based merges (hotfix/* and feature branches).', ev:'git log'},
+  {id:'jenkins', n:'Jenkins', cat:'ops', st:'Active', used:'Jenkinsfile · 24 service keys',
+   how:'A manually parameterized pipeline: Validate Deployment Request → Setup → Release Input → Validate Tag → Build (mvn) → Deploy → Git Tag. You pick the service and environment (test_env1, stage_env1, live).',
+   ev:'Jenkinsfile:131-543', risk:'The Git Tag stage is reported as unreachable, so there is no in-repo record of what is live.'},
+  {id:'docker', n:'Docker', cat:'ops', st:'Active', used:'2 Dockerfiles in repo',
+   how:'Images are built on a remote Docker host by build_run.sh, which the Jenkins Deploy stage triggers. Most Dockerfiles live outside the repo.', ev:'Jenkinsfile:489'},
+  {id:'k8s', n:'Kubernetes', cat:'ops', st:'Active', used:'~22 Jenkins-deployed services',
+   how:'Jenkins SSHes to a jump host and runs kubectl against static manifests (not in this repo; no Helm). Services run as pods and pull config from config-server on boot.',
+   ev:'Jenkinsfile:171-175', risk:'In-JVM locks and static maps are unsafe with more than one replica.'}
+];
+
+const $=s=>document.querySelector(s);
+function el(t,c,x){const e=document.createElement(t); if(c) e.className=c; if(x!=null) e.textContent=x; return e;}
+const stColor={Active:'var(--ok)',Partial:'var(--part)',Dormant:'var(--off)'};
+
+// stats
+const cats=Object.keys(CATS);
+[[T.length,'tools and technologies'],[cats.length,'categories'],[T.filter(t=>t.st==='Active').length,'active on live paths'],
+ [T.filter(t=>t.st!=='Active').length,'partial or dormant']].forEach(([n,l])=>{const s=el('div','stat'); s.append(el('b',null,String(n)), el('span',null,l)); $('#stats').append(s);});
+
+// layers
+const order=['ops','lang','fw','sec','integ','msg','data','ext','doc','obs'];
+const arrows={ops:'builds & deploys ↓',lang:'compiles ↓',fw:'requests pass through ↓',sec:'then call ↓',integ:'publish / consume ↓',msg:'persist ↓',data:'reach out ↓',ext:'produce ↓',doc:'all watched by ↓'};
+order.forEach(k=>{
+  const c=CATS[k]; const row=el('div','layer'); const nm=el('div','name',c.n); nm.append(el('small',null,c.sub)); row.append(nm);
+  const pills=el('div','pills');
+  T.filter(t=>t.cat===k).forEach(t=>{const p=el('button','pill'); p.style.setProperty('--cc',c.c); p.style.setProperty('--st',stColor[t.st]);
+    p.append(el('i'), document.createTextNode(t.n)); p.title=t.st+' · click for details'; p.onclick=()=>focusTool(t.id); pills.append(p);});
+  row.append(pills); $('#layers').append(row);
+  if(arrows[k]){const a=el('div','flowline',arrows[k]); $('#layers').append(a);}
+});
+
+// filters
+let fcat='all';
+const fAll=el('button','fchip on','All'); fAll.dataset.k='all'; $('#filters').append(fAll);
+cats.forEach(k=>{const b=el('button','fchip',CATS[k].n); b.dataset.k=k; $('#filters').append(b);});
+$('#filters').addEventListener('click',e=>{const b=e.target.closest('.fchip'); if(!b) return; fcat=b.dataset.k;
+  document.querySelectorAll('.fchip').forEach(x=>x.classList.toggle('on',x===b)); render();});
+$('#q').addEventListener('input',render);
+
+function render(){
+  const q=$('#q').value.trim().toLowerCase(); const g=$('#grid'); g.innerHTML='';
+  const list=T.filter(t=>(fcat==='all'||t.cat===fcat) && (!q || [t.n,t.used,t.how,t.ev,CATS[t.cat].n,t.risk||''].join(' ').toLowerCase().includes(q)));
+  if(!list.length){g.append(el('div','empty','No tools match.')); return;}
+  list.forEach(t=>{
+    const c=CATS[t.cat]; const card=el('article','tool'); card.id='tool-'+t.id; card.style.setProperty('--cc',c.c);
+    const h=el('div','h'); const left=el('div'); left.append(el('h3',null,t.n), el('div','cat',c.n)); h.append(left, el('span','status '+t.st,t.st)); card.append(h);
+    card.append(el('p',null,t.how));
+    const kv=el('dl','kv'); [['Used in',t.used],['Version',t.ver],['Evidence',t.ev]].forEach(([k,v])=>{ if(v){kv.append(el('dt',null,k)); kv.append(el('dd',k==='Evidence'?'mono':null,v));}});
+    card.append(kv);
+    if(t.risk) card.append(el('div','risk',t.risk));
+    g.append(card);
+  });
+}
+function focusTool(id){
+  fcat='all'; $('#q').value=''; document.querySelectorAll('.fchip').forEach(x=>x.classList.toggle('on',x.dataset.k==='all')); render();
+  const c=document.getElementById('tool-'+id); if(!c) return; c.scrollIntoView({behavior:'smooth',block:'center'});
+  c.classList.add('flash'); setTimeout(()=>c.classList.remove('flash'),1600);
+}
+render();
+
+try{const t=localStorage.getItem('pf-theme'); if(t) document.documentElement.dataset.theme=t;}catch(e){}
+$('#b-theme').onclick=()=>{const r=document.documentElement; const dark=r.dataset.theme?r.dataset.theme==='dark':matchMedia('(prefers-color-scheme: dark)').matches;
+  r.dataset.theme=dark?'light':'dark'; try{localStorage.setItem('pf-theme',r.dataset.theme);}catch(e){}};
+</script>
+</body>
+</html>

@@ -1,0 +1,811 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Arya CMS — React / Next.js Interview Guide</title>
+<style>
+:root{--bg:#f6f7f9;--fg:#1f2933;--muted:#5b6770;--card:#fff;--line:#e3e6ea;--accent:#3730a3;--accent-bg:#eef2ff;--head:#0f172a;--code:#f1f3f6}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1115;--fg:#e6e8eb;--muted:#9aa4ad;--card:#171a20;--line:#2a2f37;--accent:#a5b4fc;--accent-bg:#1e2240;--head:#05070b;--code:#1f232b}}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.6 system-ui,-apple-system,Segoe UI,sans-serif;background:var(--bg);color:var(--fg)}
+header{background:var(--head);color:#fff;padding:18px 16px}
+header .in{max-width:1200px;margin:0 auto}
+header h1{margin:0;font-size:22px;line-height:1.3} header p{margin:4px 0 0;opacity:.75;font-size:13px}
+header a{color:#c7d2fe}
+.wrap{max-width:1200px;margin:0 auto;padding:0 16px 60px;display:flex;gap:24px;align-items:flex-start}
+nav.toc{position:sticky;top:12px;flex:0 0 250px;max-height:calc(100vh - 24px);overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:16px;font-size:13px}
+nav.toc ul{list-style:none;margin:0;padding-left:10px} nav.toc>ul{padding-left:0}
+nav.toc a{color:var(--accent);text-decoration:none;display:block;padding:2px 0}
+main{flex:1;min-width:0}
+main h1{display:none}
+h2{font-size:20px;margin:32px 0 10px;padding-top:8px;border-top:1px solid var(--line)}
+h3{font-size:16px;margin:20px 0 8px}
+a{color:var(--accent)}
+blockquote{margin:12px 0;padding:10px 14px;background:var(--accent-bg);border-left:4px solid var(--accent);border-radius:6px}
+blockquote p{margin:4px 0}
+table{border-collapse:collapse;width:100%;background:var(--card);font-size:14px;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:6px 10px;text-align:left;vertical-align:top}
+th{background:var(--accent-bg)}
+code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:13px}
+pre{background:var(--code);padding:12px;border-radius:8px;overflow-x:auto;font-size:13px;line-height:1.45}
+pre code{background:none;padding:0}
+pre.mermaid{background:var(--card);border:1px solid var(--line);text-align:center}
+hr{border:0;border-top:1px solid var(--line);margin:24px 0}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin:12px 0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px}
+.card h3{margin:0 0 6px;font-size:16px}.card p{margin:0;color:var(--muted);font-size:13px}
+.card .meta{margin-top:8px;font-size:12px;color:var(--muted)}
+@media (max-width:900px){.wrap{display:block}nav.toc{position:static;max-height:none;margin-top:16px}}
+</style></head><body>
+<header><div class="in"><h1>Arya CMS — React / Next.js Interview Guide</h1><p>Source: ~/june-24/arya-cms/jc-cms · generated from <code style="color:#fff;background:none">00-interview-guide.md</code></p></div></header>
+<div class="wrap"><nav class="toc"><b>Contents</b><div class="toc">
+<ul>
+<li><a href="#1-your-60-second-pitch">1. Your 60-second pitch</a></li>
+<li><a href="#2-what-the-project-is">2. What the project is</a></li>
+<li><a href="#3-tech-stack">3. Tech stack</a></li>
+<li><a href="#4-folder-structure">4. Folder structure</a></li>
+<li><a href="#5-architecture-at-a-glance">5. Architecture at a glance</a></li>
+<li><a href="#6-flowcharts-every-important-flow">6. Flowcharts — every important flow</a></li>
+<li><a href="#7-react-nextjs-concepts-where-they-are-in-this-code">7. React &amp; Next.js concepts → where they are in this code</a></li>
+<li><a href="#8-real-problems-i-solved-star-stories">8. Real problems I solved (STAR stories)</a></li>
+<li><a href="#9-interview-questions-with-answers-from-this-project">9. Interview questions with answers from this project</a></li>
+<li><a href="#10-how-to-run">10. How to run</a></li>
+<li><a href="#11-glossary">11. Glossary</a></li>
+</ul>
+</div>
+</nav><main><p style="font-size:13px"><a href="index.html">Interview guide</a> · <a href="five-years-experience-playbook.html">5-yr playbook</a> · <a href="projects/index.html">All projects</a></p><h1 id="arya-cms-jc-cms-react-nextjs-ui-interview-guide">Arya CMS (jc-cms) — React / Next.js UI Interview Guide</h1>
+<p>Everything a UI developer needs to explain this project in an interview: what it is, how it
+is built, how every flow works end to end (with flowcharts), which React / Next.js concepts
+it uses and where, real bugs fixed (ready-made STAR stories), and practice questions with
+answers taken from the real code.</p>
+<blockquote>
+<p>Source repo: <code>~/june-24/arya-cms</code> (the app lives in <code>jc-cms/</code>).
+One codebase, <strong>5 Next.js apps + 1 Express server + 1 shared React engine</strong>, rendering
+<strong>4 live sites</strong> (InfiMobile website, InfiMobile Reseller Portal, Xmobee website, Xmobee
+Reseller Portal) purely from JSON.
+Per-project pages: <a href="projects/index.html">projects/README.md</a>.
+Interviewing with ~5 years of experience? Read
+<a href="five-years-experience-playbook.html">01-five-years-experience-playbook.md</a> after this — it covers
+positioning, depth of answers, senior STAR stories, system design and a 7-day plan.</p>
+</blockquote>
+<hr />
+<h2 id="1-your-60-second-pitch">1. Your 60-second pitch</h2>
+<blockquote>
+<p>"I work on <strong>Arya CMS</strong>, a <strong>JSON-configuration-driven CMS built with React 18 and Next.js 14</strong>.
+Instead of hand-coding every page, we built a rendering engine of about 35 reusable React
+components — rows, cards, text, forms, dropdowns, tables, charts, tabs, steppers, carousels,
+Stripe and NMI payment widgets — and every page, modal and drawer of a site is described in
+<strong>JSON</strong>: its sections, its components, and its <em>events</em>, which are chains of actions like
+<code>apiCall</code>, <code>openModal</code>, <code>navigateLink</code> or a custom script.</p>
+<p>The <strong>same engine renders four production sites</strong> for two telecom brands — the InfiMobile
+and Xmobee consumer websites (plans, SIM activation, recharge, checkout) and their <strong>reseller
+portals</strong> (dashboard, stock requests, bulk activations, staff/retailer management, reports).
+Which site a server renders is picked by one env var, <code>ACTIVE_SITE</code>.</p>
+<p>There is no database: content is JSON files on disk, and business data comes from REST
+microservices declared per site in an <code>api.json</code> contract, called from the browser through
+one generic API executor that handles headers, sessions, debouncing, coalescing and
+session expiry.</p>
+<p>On top of the site app we have a <strong>visual drag-and-drop editor</strong> (another Next.js app) that
+edits those JSON files and publishes them through a small <strong>Express</strong> API, a static-export
+<strong>landing</strong> app, and a <strong>blog</strong> pair. I worked on the engine and the reseller portal: the
+config-driven auth gate, the global data / localStorage layer, the event interceptor, the
+theme system with light/dark mode, shared components like Tables, and the deploy packaging."</p>
+</blockquote>
+<hr />
+<h2 id="2-what-the-project-is">2. What the project is</h2>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Repo</td>
+<td><code>arya-cms</code> (≈2,400 commits since Aug 2025), app folder <code>jc-cms/</code> (package <code>json-config-cms</code>)</td>
+</tr>
+<tr>
+<td>Framework</td>
+<td><strong>Next.js 14 (pages router)</strong> + <strong>React 18.3</strong></td>
+</tr>
+<tr>
+<td>Apps</td>
+<td><code>app/site</code>, <code>app/editor</code>, <code>app/landing</code>, <code>app/blog-site</code>, <code>app/blog-admin</code> + <code>server/</code> (Express 5)</td>
+</tr>
+<tr>
+<td>Shared engine</td>
+<td><code>packages/</code> — 174 component files, 24 hooks, utils, theme (≈39.5k lines JS/JSX across apps + engine)</td>
+</tr>
+<tr>
+<td>Sites rendered</td>
+<td>4 (<code>config/Development</code>, <code>config/reseller</code>, <code>config/xmobee</code>, <code>config/xmobee-reseller</code>) under 2 brands</td>
+</tr>
+<tr>
+<td>Content storage</td>
+<td>JSON files on disk — no DB, no ORM</td>
+</tr>
+<tr>
+<td>Business data</td>
+<td>External REST microservices (wallet, inventory, user, KYC, MNO, payment, reports…)</td>
+</tr>
+<tr>
+<td>Styling</td>
+<td>Bootstrap 5 + plain per-site CSS, CSS custom properties (<code>--rp-*</code> tokens), critical-CSS inlining</td>
+</tr>
+<tr>
+<td>Domain</td>
+<td>Telecom MVNO: plans, SIM/eSIM activation, port-in, recharge, wallet, orders, reseller stock &amp; commissions</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The core idea (say this clearly):</strong> pages are <strong>data, not code</strong>. A page is a JSON tree of
+<code>sections → columns → component {type, props, actions}</code>. <code>ComponentRegistry</code> maps each <code>type</code>
+string to a React component, and a JSON <code>events</code> map turns user actions into chains of
+declarative steps. Adding a page = adding a JSON file + one line in <code>cms-config.json</code>.</p>
+<hr />
+<h2 id="3-tech-stack">3. Tech stack</h2>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>What is used</th>
+<th>Where</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>UI</td>
+<td>React 18.3 function components + hooks, Context API</td>
+<td><code>packages/components</code>, <code>packages/hooks</code></td>
+</tr>
+<tr>
+<td>Framework</td>
+<td>Next.js 14 pages router, <code>getServerSideProps</code>, <code>next/dynamic</code>, <code>next/script</code>, <code>_document.js</code></td>
+<td><code>app/site/pages</code></td>
+</tr>
+<tr>
+<td>Code splitting</td>
+<td><code>next/dynamic(..., { ssr:false })</code> for heavy widgets (Tables, Charts, Carousel, Accordion)</td>
+<td><code>ComponentRegistry.js</code></td>
+</tr>
+<tr>
+<td>State</td>
+<td><code>useState</code> + Context: <code>GlobalDataProvider</code> (app-wide), <code>LocalDataProvider</code> (per section)</td>
+<td><code>packages/components/data</code></td>
+</tr>
+<tr>
+<td>Persistence</td>
+<td><code>localStorage</code> (opt-in per data source), <code>sessionStorage</code> (auth), <code>BroadcastChannel</code> (cross-tab sync)</td>
+<td><code>GlobalDataProvider.jsx</code>, <code>AuthContext.js</code></td>
+</tr>
+<tr>
+<td>HTTP</td>
+<td>native <code>fetch</code> wrapped by <code>executeApi()</code> — debounce, coalescing, queue, rate-limit, session handling</td>
+<td><code>hooks/useApiExecutor.js</code></td>
+</tr>
+<tr>
+<td>UI libs</td>
+<td>Bootstrap 5, <code>sonner</code> (toasts), <code>react-tooltip</code>, <code>chart.js</code> + <code>react-chartjs-2</code>, <code>jspdf</code>, <code>exceljs</code></td>
+<td></td>
+</tr>
+<tr>
+<td>Payments</td>
+<td><code>@stripe/stripe-js</code> (Stripe embedded checkout), <code>@nmipayments/nmi-pay-react</code> (NMI/Stax: card, ACH, Apple/Google Pay)</td>
+<td><code>dynamic/StripeCheckout.jsx</code>, <code>dynamic/StaxCollectPayment.jsx</code></td>
+</tr>
+<tr>
+<td>Editor</td>
+<td><code>@dnd-kit/core</code> (drag-drop), <code>reactflow</code> + <code>dagre</code> (page-flow graph), <code>re-resizable</code>, <code>react-json-tree</code>, Editor.js (blog)</td>
+<td><code>components/editor</code></td>
+</tr>
+<tr>
+<td>Backend for editor</td>
+<td>Express 5 + body-parser + cors, <code>puppeteer</code> (thumbnails), AWS Bedrock (AI spellcheck)</td>
+<td><code>server/</code></td>
+</tr>
+<tr>
+<td>Security</td>
+<td>AES-encrypted <code>api.enc.json</code> in prod, SHA-256 client password hashing (<code>sha.js</code>)</td>
+<td><code>hooks/configDecrypt.js</code>, <code>scripts/encryptconf.js</code></td>
+</tr>
+<tr>
+<td>Build/deploy</td>
+<td>custom Node scripts, CleanCSS, critical CSS, archiver zip, Jenkins</td>
+<td><code>scripts/deploy.js</code>, <code>Jenkinsfile</code></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="4-folder-structure">4. Folder structure</h2>
+<pre><code>arya-cms/
+├── Jenkinsfile                  # CI: validate commits → npm run deploy → ssh to stage host
+├── AI/architecture.md           # long-form architecture notes
+└── jc-cms/
+    ├── package.json             # all scripts: dev, dev:reseller, build, deploy …
+    ├── jsconfig.json            # path aliases @/components @/hooks @/utils @/shared …
+    ├── app/
+    │   ├── site/                # ★ customer site + reseller portal (port 4010)
+    │   │   ├── next.config.js   # ACTIVE_SITE → webpack alias @/config = config/&lt;site&gt;
+    │   │   └── pages/ _app.js  _document.js  [...slug].js  index.js  sitemap.xml.js  api/config.js
+    │   ├── editor/              # visual page builder (port 3010)
+    │   ├── landing/             # static-exported marketing pages (port 5012 → S3)
+    │   ├── blog-site/ blog-admin/   # static-export blog reader + authoring dashboard
+    │   └── _shared/             # getprops.js (server-side page resolver), generateSeo.js …
+    ├── packages/                # ★ the shared React engine
+    │   ├── components/core/     # PageRenderer, SectionRenderer, ColumnRenderer, ComponentRegistry,
+    │   │                        # ModalRenderer, DrawerRenderer, GlobalLayout (Navbar/Topbar/SideNav/Footer)
+    │   ├── components/dynamic/  # 38 leaf components (TextBox, Button, Tables, Charts, Stepper…)
+    │   ├── components/data/     # GlobalDataProvider, LocalDataProvider, EventsContext, CompositesContext
+    │   ├── components/editor/   # drag-drop builder, inspectors, CSS/script editors, SEO panel
+    │   ├── components/inspector/# property panels, one per component type
+    │   ├── hooks/               # eventRouter, userEventInterceptor, useApiExecutor, AuthContext,
+    │   │                        # authRouteConfig, useTheme, useCssFiles, ModalContext …
+    │   └── utils/ constants/ theme/ services/
+    ├── config/                  # ★ &quot;the database&quot;: one folder per site
+    │   ├── Development/         # InfiMobile website  (96 pages, 55 modals, 100 APIs)
+    │   ├── reseller/            # InfiMobile reseller (39 pages, 39 modals, 112 APIs)
+    │   ├── xmobee/              # Xmobee website      (97 pages, 58 modals, 105 APIs)
+    │   ├── xmobee-reseller/     # Xmobee reseller     (53 pages, 39 modals, 116 APIs)
+    │   ├── themes/              # brand → sites grouping for the editor
+    │   └── active/              # symlinks to the currently active site (dev only)
+    ├── server/                  # Express /cmsapi (port 5010) used only by the editor
+    └── scripts/                 # devinit, update-proxy, deploy, csscompress, encryptconf …
+</code></pre>
+<p>Inside each <code>config/&lt;site&gt;/</code>:</p>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>cms-config.json</code></td>
+<td>Site manifest: <code>pages</code> (route → JSON file), <code>modals</code>, <code>drawers</code>, <code>global.layout</code> (nav type, auth), header/menu/footer, <code>cssFiles</code>, <code>externalScripts</code></td>
+</tr>
+<tr>
+<td><code>&lt;page&gt;.json</code></td>
+<td>One page/modal/drawer: <code>sections</code>, <code>events</code>, <code>layers</code>, <code>repeaters</code>, <code>modals</code>, <code>namedEvents</code></td>
+</tr>
+<tr>
+<td><code>api.json</code> / <code>api.enc.json</code></td>
+<td>Backend contract: <code>backends</code> (base path + headers) and <code>apis</code> (method, path, body/query mapping, result target)</td>
+</tr>
+<tr>
+<td><code>proxy-conf.json</code> / <code>proxy-env.json</code></td>
+<td>Real backend hosts per environment (dev/test/stage/live)</td>
+</tr>
+<tr>
+<td><code>data.json</code> + <code>data/</code></td>
+<td>Global data sources (<code>scope</code>, <code>localstorage: enabled</code>, static JSON files)</td>
+</tr>
+<tr>
+<td><code>scripts/*.js</code></td>
+<td>~220 small ES modules run by <code>scriptUrl</code> actions (validation, response handling, formatting)</td>
+</tr>
+<tr>
+<td><code>css/</code>, <code>fonts/</code>, <code>images/</code></td>
+<td>Per-site assets</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="5-architecture-at-a-glance">5. Architecture at a glance</h2>
+<pre class="mermaid">flowchart TB
+  subgraph Authoring
+    ED[&quot;Editor app (Next.js, :3010)&lt;br/&gt;drag-drop builder, inspectors,&lt;br/&gt;CSS / script / SEO editors&quot;]
+    EX[&quot;Express /cmsapi (:5010)&lt;br/&gt;publish, newpage, savecss,&lt;br/&gt;sites/activate, thumbnails&quot;]
+    ED -- &quot;POST JSON&quot; --&gt; EX
+  end
+  EX -- &quot;writes files&quot; --&gt; CFG[(&quot;config/&amp;lt;site&amp;gt;/*.json&lt;br/&gt;cms-config · pages · api.json · data.json · scripts · css&quot;)]
+  subgraph Runtime
+    SITE[&quot;Site app (Next.js, :4010)&lt;br/&gt;_app.js · [...slug].js · api/config.js&quot;]
+    ENG[&quot;packages/ engine&lt;br/&gt;PageRenderer → SectionRenderer → ColumnRenderer&lt;br/&gt;→ ComponentRegistry → 35 components&quot;]
+    SITE --&gt; ENG
+  end
+  CFG -- &quot;fs.readFileSync in getServerSideProps&lt;br/&gt;(ACTIVE_SITE picks the folder)&quot; --&gt; SITE
+  ENG -- &quot;executeApi(api.json)&quot; --&gt; BE[&quot;REST microservices&lt;br/&gt;wallet · inventory · user · KYC · MNO&lt;br/&gt;payment · billing reports&quot;]
+  ENG --&gt; PAY[&quot;Stripe / NMI (Stax)&quot;]
+  LAND[&quot;Landing app (next export)&quot;] --&gt; S3[(&quot;S3 bucket&quot;)]
+  CFG --&gt; LAND
+  BROWSER((&quot;Browser&quot;)) --&gt; SITE
+</pre>
+<hr />
+<h2 id="6-flowcharts-every-important-flow">6. Flowcharts — every important flow</h2>
+<h3 id="61-dev-start-up-site-selection">6.1 Dev start-up &amp; site selection</h3>
+<p>Why it matters: <strong>one Next server can only render one site</strong>, because <code>next.config.js</code>
+resolves the <code>@/config</code> webpack alias to <code>config/${ACTIVE_SITE}</code> once at start-up.</p>
+<pre class="mermaid">flowchart TD
+  A[&quot;npm run dev&quot;] --&gt; B[&quot;predev hook:&lt;br/&gt;scripts/update-proxy.js&quot;]
+  B --&gt; C[&quot;reads config/active/.site-pref&lt;br/&gt;writes app/site/.env.local&lt;br/&gt;NEXT_PUBLIC_APP_ENV + ACTIVE_SITE&quot;]
+  C --&gt; D[&quot;concurrently: server (5010) · site (4010) · editor (3010) · landing (5012)&quot;]
+  D --&gt; E[&quot;app/site/next.config.js&quot;]
+  E --&gt; F[&quot;ACTIVE_SITE ?? 'Development'&quot;]
+  F --&gt; G[&quot;load config/&amp;lt;site&amp;gt;/.config-secrets into env&lt;br/&gt;expose CONF_KEY_* to runtime&quot;]
+  F --&gt; H[&quot;webpack alias @/config → config/&amp;lt;site&amp;gt;&lt;br/&gt;cache namespaced per site&quot;]
+  H --&gt; I[&quot;Server serves only that site's pages, CSS, scripts&quot;]
+  J[&quot;npm run dev:reseller / dev:xmobee …&quot;] --&gt;|&quot;ACTIVE_SITE set inline,&lt;br/&gt;own port 4011-4013&quot;| E
+</pre>
+<h3 id="62-page-request-lifecycle-ssr">6.2 Page request lifecycle (SSR)</h3>
+<pre class="mermaid">sequenceDiagram
+  participant B as Browser
+  participant N as Next.js [...slug].js
+  participant R as _shared/getprops.js
+  participant FS as config/&lt;site&gt;/
+  participant A as _app.js (client)
+  B-&gt;&gt;N: GET /recharge
+  N-&gt;&gt;N: skip /api, /fonts, *.css, *.png … (notFound)
+  N-&gt;&gt;R: resolvePageData(['recharge'])
+  R-&gt;&gt;FS: read cms-config.json → pages['recharge'].config
+  R-&gt;&gt;FS: read recharge.json, api.json (or api.enc.json), data.json
+  R-&gt;&gt;R: build SEO (meta, OG, Twitter, JSON-LD schema, canonical)
+  R--&gt;&gt;N: props {pageConfig, cmsConfig, apiConfig, sourcesConfig, seoData}
+  N--&gt;&gt;B: HTML with &lt;Head&gt; SEO + first section rendered
+  B-&gt;&gt;A: hydrate: providers, auth gate, load CSS files, fetch modals via /api/config
+  A-&gt;&gt;B: remaining sections mount lazily as they scroll into view
+</pre>
+<h3 id="63-provider-tree-what-wraps-every-page">6.3 Provider tree (what wraps every page)</h3>
+<pre class="mermaid">flowchart TD
+  S[&quot;SiteApp (_app.js)&quot;] --&gt; AP[&quot;AuthProvider&lt;br/&gt;(sessionStorage rpAuthenticated)&quot;]
+  AP --&gt; CC[&quot;CmsContext.Provider&lt;br/&gt;(apiConfig)&quot;]
+  CC --&gt; GD[&quot;GlobalDataProvider&lt;br/&gt;(globalData + localStorage + BroadcastChannel)&quot;]
+  GD --&gt; MP[&quot;ModalProvider / DrawerProvider&quot;]
+  MP --&gt; SH[&quot;AppShell — auth gate&quot;]
+  SH --&gt; GL[&quot;GlobalLayout&lt;br/&gt;top-nav or side-nav + Topbar + Footer&quot;]
+  GL --&gt; EP[&quot;EventsProvider / CompositesProvider&lt;br/&gt;(page events, repeaters, layers)&quot;]
+  EP --&gt; PR[&quot;PageRenderer&quot;]
+  GL --&gt; MR[&quot;ModalRenderer · DrawerRenderer · ApiLoader · Toaster&quot;]
+</pre>
+<h3 id="64-json-react-rendering-pipeline">6.4 JSON → React rendering pipeline</h3>
+<pre class="mermaid">flowchart TD
+  P[&quot;page.json&lt;br/&gt;{ sections:[ {type:'row', columns:[ {component:{type,props,actions}} ]} ] }&quot;] --&gt; PR[&quot;PageRenderer&lt;br/&gt;ValidationProvider key=page id&quot;]
+  PR --&gt; S0[&quot;section[0] → rendered immediately (above the fold)&quot;]
+  PR --&gt; SN[&quot;section[1..n] → LazyViewport&lt;br/&gt;IntersectionObserver, rootMargin 50%&quot;]
+  S0 --&gt; SR[&quot;SectionRenderer (memo)&quot;]
+  SN --&gt; SR
+  SR --&gt; LD[&quot;LocalDataProvider&lt;br/&gt;section-scoped state (render-prop)&quot;]
+  LD --&gt; SI[&quot;SectionWithInterceptor&lt;br/&gt;attaches DOM event listeners (capture phase)&quot;]
+  SI --&gt; CR[&quot;ColumnRenderer&lt;br/&gt;data-event-id = page:section.column&quot;]
+  CR --&gt; REG{&quot;ComponentRegistry[type]&quot;}
+  REG --&gt;|text| T[&quot;wrapModelAttribute(withEditable(TextBlock))&quot;]
+  REG --&gt;|table| TB[&quot;next/dynamic Tables (ssr:false)&quot;]
+  REG --&gt;|divblock| DB[&quot;DivBlock → recursively renders props.items&quot;]
+  REG --&gt;|&quot;layers / tabs / stepper&quot;| LY[&quot;pick active child by local state&quot;]
+  T --&gt; MA[&quot;ModelAttributeWrapper&lt;br/&gt;modelAttrs: display / disabled / active / any prop&lt;br/&gt;read from localData or globalData&quot;]
+</pre>
+<h3 id="65-event-action-chain-the-heart-of-the-engine">6.5 Event → action chain (the heart of the engine)</h3>
+<p>A component never has an <code>onClick</code> written in JS. It has <code>"actions": { "click": "doLogin" }</code>,
+and the page's <code>events.doLogin</code> is an array of steps.</p>
+<pre class="mermaid">flowchart TD
+  U[&quot;User clicks a button&quot;] --&gt; CAP[&quot;Capture-phase listener on the section root&lt;br/&gt;(userEventInterceptor.js)&quot;]
+  CAP --&gt; F[&quot;event.target.closest('[data-event-id]')&quot;]
+  F --&gt; G[&quot;getConfigByEventId() walks JSON:&lt;br/&gt;section → column → items → repeater@i → layers → tabs&quot;]
+  G --&gt; H{&quot;config.actions[event.type]?&quot;}
+  H -- no --&gt; X[&quot;ignore&quot;]
+  H -- yes --&gt; V{&quot;props.validation?&quot;}
+  V -- invalid --&gt; X
+  V -- ok --&gt; CTX[&quot;build context: event, localData, globalData,&lt;br/&gt;apiConfig, tmpltag, repindices&quot;]
+  CTX --&gt; W[&quot;if chain has an apiCall → beginApiCall() once&lt;br/&gt;(one loader for the whole chain)&quot;]
+  W --&gt; R[&quot;eventRouter.route() — run steps in order&quot;]
+  R --&gt; A1[&quot;inlineScript (base64 → new Function)&quot;]
+  R --&gt; A2[&quot;apiCall → executeApi → write result to local/global tgtdata&quot;]
+  R --&gt; A3[&quot;scriptUrl → import('@/config/scripts/x.js').default(context)&quot;]
+  R --&gt; A4[&quot;navigateLink · openModal · closeModal · openDrawer&quot;]
+  R --&gt; A5[&quot;propagateData Local2Global / Global2Local / Event2Local&quot;]
+  R --&gt; A6[&quot;login / logout (AuthContext)&quot;]
+  A1 &amp; A2 &amp; A3 &amp; A5 --&gt; M[&quot;merge back ONLY keys the chain changed&lt;br/&gt;setLocalData / setGlobalData&quot;]
+  M --&gt; RR[&quot;React re-render → modelAttrs, dataPath text update&quot;]
+  R --&gt; E[&quot;endApiCall() → loader hides once&quot;]
+</pre>
+<h3 id="66-executeapi-one-generic-http-layer">6.6 <code>executeApi</code> — one generic HTTP layer</h3>
+<pre class="mermaid">flowchart TD
+  C[&quot;executeApi(apiName, context)&quot;] --&gt; D{&quot;PROD_MODE?&quot;}
+  D -- yes --&gt; E[&quot;apiConfig.apis[name] → AES decrypt with CONF_KEY_api&quot;]
+  D -- no --&gt; F[&quot;apiConfig.apis.find(name)&quot;]
+  E &amp; F --&gt; RL{&quot;rateLimit e.g. 5/10?&quot;}
+  RL -- exceeded --&gt; ERR[&quot;throw&quot;]
+  RL -- ok --&gt; B[&quot;buildUrlAndBody: backend.url + path,&lt;br/&gt;body/query fields mapped from local/global data,&lt;br/&gt;headers e.g. SESSIONID from storage&quot;]
+  B --&gt; DB[&quot;debounce (default 300 ms)&quot;]
+  DB --&gt; CO{&quot;same key in flight?&quot;}
+  CO -- yes --&gt; SH[&quot;share the same promise (coalescing)&quot;]
+  CO -- no --&gt; Q[&quot;writes (POST/PUT/PATCH) serialized per key&quot;]
+  Q --&gt; FE[&quot;fetch()&quot;]
+  FE --&gt; S{&quot;403 or status 'Invalid session'?&quot;}
+  S -- yes --&gt; EXP[&quot;toast · clearAuthSession() · capturePostAuthRedirect()&lt;br/&gt;→ window.location = login route&quot;]
+  S -- no --&gt; RES[&quot;return {result} or {error:true,status,message}&quot;]
+</pre>
+<h3 id="67-reseller-login-flow">6.7 Reseller login flow</h3>
+<pre class="mermaid">sequenceDiagram
+  participant U as User
+  participant L as login.json (doLogin event)
+  participant S1 as sha256-password.js
+  participant API as user_mgmt reseller_signin
+  participant S2 as signInValidation.js
+  participant G as GlobalData / sessionStorage
+  U-&gt;&gt;L: enter username + password, click Sign in
+  L-&gt;&gt;S1: scriptUrl — sha256(password) → localData.encryptedPassword
+  L-&gt;&gt;API: apiCall resellerLogin {servedMSISDN, password(hash), netType}
+  API--&gt;&gt;L: response → localData.loginCommando
+  L-&gt;&gt;S2: scriptUrl — inspect response
+  alt success
+    S2-&gt;&gt;G: sessionStorage rpAuthenticated=true, sessionId&lt;br/&gt;globalData.userInfo (persisted to localStorage)
+    S2-&gt;&gt;U: redirect to saved return URL or landingPage &quot;dashboard&quot;
+  else failure
+    S2-&gt;&gt;U: toast error, no session set
+  end
+</pre>
+<h3 id="68-config-driven-auth-gate-appshell-in-_appjs">6.8 Config-driven auth gate (<code>AppShell</code> in <code>_app.js</code>)</h3>
+<pre class="mermaid">flowchart TD
+  A[&quot;Route change&quot;] --&gt; B{&quot;cms-config global.layout.authentication.required?&quot;}
+  B -- &quot;false (public websites)&quot; --&gt; OK[&quot;render GlobalLayout + page&quot;]
+  B -- &quot;true (reseller portals)&quot; --&gt; C{&quot;on login page?&quot;}
+  C -- &quot;yes &amp; not authenticated&quot; --&gt; LP[&quot;render login page only (no chrome) + modals&quot;]
+  C -- &quot;yes &amp; authenticated&quot; --&gt; LAND[&quot;router.replace(landingPage)&quot;]
+  C -- no --&gt; D{&quot;authReady?&quot;}
+  D -- no --&gt; NULL[&quot;render nothing (avoid flash)&quot;]
+  D -- yes --&gt; E{&quot;isAuthenticated?&quot;}
+  E -- no --&gt; LOGIN[&quot;router.replace(loginPath)&quot;]
+  E -- yes --&gt; OK
+</pre>
+<h3 id="69-global-data-localstorage-persistence">6.9 Global data &amp; localStorage persistence</h3>
+<pre class="mermaid">flowchart LR
+  DJ[&quot;data.json dataSources&lt;br/&gt;{name:'userInfo', scope:'global', localstorage:'enabled'}&quot;] --&gt; GDP[&quot;GlobalDataProvider&quot;]
+  GDP --&gt;|&quot;on load&quot;| LS1{&quot;cached in localStorage?&quot;}
+  LS1 -- yes --&gt; ST[&quot;setGlobalData(parsed)&quot;]
+  LS1 -- no --&gt; FD[&quot;fetchData(file / api)&quot;] --&gt; ST
+  ACT[&quot;action chain writes context.globalData.userInfo&quot;] --&gt; UGD[&quot;updateGlobalData()&quot;]
+  UGD --&gt; EQ{&quot;deep-equal to last persisted snapshot?&quot;}
+  EQ -- no --&gt; SET[&quot;localStorage.setItem + update snapshot&quot;]
+  SET --&gt; BC[&quot;BroadcastChannel 'cms-global-data' → other tabs update&quot;]
+  ST --&gt; DR[&quot;dataReady = true → sections fire their 'load' events&quot;]
+</pre>
+<h3 id="610-modals-drawers-lazy-loaded-config">6.10 Modals &amp; drawers (lazy-loaded config)</h3>
+<pre class="mermaid">flowchart TD
+  A[&quot;page.json modals:{ 'forgot-password': {config:'forgot-password.json'} }&lt;br/&gt;+ cms-config globalModals&quot;] --&gt; B[&quot;_app.js effect on pageConfig change&quot;]
+  B --&gt; C[&quot;POST /api/config {configsInfo}&quot;]
+  C --&gt; D[&quot;Next API route reads each JSON from config/&amp;lt;site&amp;gt;&quot;]
+  D --&gt; E[&quot;setModalData → ModalRenderer&quot;]
+  F[&quot;action openModal {target, size, title}&quot;] --&gt; G[&quot;ModalContext.openModal&quot;]
+  G --&gt; H[&quot;ModalRenderer renders sections of that JSON&lt;br/&gt;with passThruData from the parent page&quot;]
+  H --&gt; I[&quot;closeModal(passThruData) returns data to parent&quot;]
+</pre>
+<h3 id="611-light-dark-theme">6.11 Light / dark theme</h3>
+<pre class="mermaid">flowchart TD
+  A[&quot;_document.js inline script (before hydration)&quot;] --&gt; B[&quot;read localStorage rpTheme → html[data-rp-theme]&quot;]
+  C[&quot;Topbar toggle (only if cms-config declares header.topbar.theme)&quot;] --&gt; D[&quot;useTheme() hook&quot;]
+  D --&gt; E[&quot;set html[data-rp-theme='light'|'dark'] + persist&quot;]
+  E --&gt; F[&quot;CSS: :root tokens --rp-ink, --rp-white, --rp-gold …&lt;br/&gt;:root[data-rp-theme='light'] overrides&quot;]
+  F --&gt; G[&quot;every component uses var(--rp-*) → whole portal flips&quot;]
+</pre>
+<h3 id="612-editor-publish">6.12 Editor → publish</h3>
+<pre class="mermaid">flowchart LR
+  A[&quot;Themes page&quot;] --&gt; B[&quot;Sites of a theme&quot;] --&gt; C[&quot;Pages of a site&quot;] --&gt; D[&quot;Editor/[site]/[page]&quot;]
+  D --&gt; E[&quot;drag components (dnd-kit) into sections / columns&quot;]
+  D --&gt; F[&quot;Inspector panels edit props, modelAttrs, actions, events&quot;]
+  D --&gt; G[&quot;CSS editor · Script editor · API inspector · SEO panel&quot;]
+  E &amp; F --&gt; H[&quot;patchPage / patchSite utils&quot;]
+  H --&gt; I[&quot;POST /cmsapi/publish/:site&quot;]
+  I --&gt; J[&quot;Express writes config/&amp;lt;site&amp;gt;/&amp;lt;page&amp;gt;.json&lt;br/&gt;(timestamped backups for CSS/scripts)&quot;]
+  J --&gt; K[&quot;Site app picks it up on next request&quot;]
+</pre>
+<h3 id="613-build-deploy">6.13 Build &amp; deploy</h3>
+<pre class="mermaid">flowchart TD
+  J[&quot;Jenkinsfile: BRANCH_BASE / TARGET / CR_ID&quot;] --&gt; V[&quot;validate commits of the change request&quot;]
+  V --&gt; N[&quot;npm install&quot;]
+  N --&gt; D[&quot;npm run deploy &amp;lt;site&amp;gt; [env]&quot;]
+  D --&gt; E[&quot;write app/site/.env.production (ACTIVE_SITE, APP_ENV)&quot;]
+  E --&gt; P[&quot;pre-build: fix modals, encrypt api.json → api.enc.json&quot;]
+  P --&gt; B[&quot;next build app/site&quot;]
+  B --&gt; CSS[&quot;CleanCSS bundle → site.min-&amp;lt;hash&amp;gt;.css + critical.css&lt;br/&gt;cssVersion baked into cms-config&quot;]
+  CSS --&gt; Z[&quot;copy .next + public + config/&amp;lt;site&amp;gt; → deploy/ → site.zip&quot;]
+  Z --&gt; SSH[&quot;scp + ssh: stage script swaps app/ and restarts&quot;]
+  L[&quot;npm run deploy:landing&quot;] --&gt; LX[&quot;next export → S3 (landing.infimobile.com)&quot;]
+</pre>
+<hr />
+<h2 id="7-react-nextjs-concepts-where-they-are-in-this-code">7. React &amp; Next.js concepts → where they are in this code</h2>
+<table>
+<thead>
+<tr>
+<th>Concept</th>
+<th>Where / how it is used</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Component composition / recursion</strong></td>
+<td><code>DivBlock</code> renders <code>props.items</code>, each item goes back through the registry — the whole page is a recursive tree</td>
+</tr>
+<tr>
+<td><strong>Registry / factory pattern</strong></td>
+<td><code>ComponentRegistry.js</code>: <code>type</code> string → component. <code>ComponentGuardRegistry</code> for the editor</td>
+</tr>
+<tr>
+<td><strong>Higher-Order Components</strong></td>
+<td><code>wrapModelAttribute(C)</code> (data-bound props), <code>withEditable('text', C)</code> (inline editing in the editor)</td>
+</tr>
+<tr>
+<td><strong>Render props</strong></td>
+<td><code>LocalDataProvider</code> takes <code>children(localData)</code></td>
+</tr>
+<tr>
+<td><strong>Context API</strong></td>
+<td><code>CmsContext</code>, <code>GlobalDataContext</code>, <code>LocalDataContext</code> + separate <code>LocalDataActionContext</code> (split state/setter to reduce re-renders), <code>AuthContext</code>, <code>ModalContext</code>, <code>DrawerContext</code>, <code>EventsContext</code>, <code>CompositesContext</code>, <code>ValidationContext</code></td>
+</tr>
+<tr>
+<td><strong>Custom hooks</strong></td>
+<td><code>useEventRouter</code>, <code>useEventInterceptor</code>, <code>useApiLoading</code>, <code>useCssFiles</code>, <code>useTheme</code>, <code>useBreakpoint</code>, <code>useTableFilters</code>, <code>useRepeaterItems</code>, <code>useTextValidator</code></td>
+</tr>
+<tr>
+<td><strong><code>React.memo</code></strong></td>
+<td><code>SectionRenderer</code> is memoised</td>
+</tr>
+<tr>
+<td><strong><code>useRef</code> for latest state</strong></td>
+<td>interceptor keeps <code>localDataRef/globalDataRef</code> so async chains read fresh values without re-attaching listeners</td>
+</tr>
+<tr>
+<td><strong><code>key</code> to reset state</strong></td>
+<td><code>&lt;ValidationProvider key={id}&gt;</code> remounts on page change so stale validators don't leak</td>
+</tr>
+<tr>
+<td><strong><code>React.cloneElement</code></strong></td>
+<td><code>ModelAttributeWrapper</code> injects <code>style</code>, <code>disabled</code>, <code>className</code> into the child</td>
+</tr>
+<tr>
+<td><strong><code>flushSync</code></strong></td>
+<td>used in the API executor/interceptor where a state write must be committed before the next step</td>
+</tr>
+<tr>
+<td><strong>Code splitting</strong></td>
+<td><code>next/dynamic</code> with <code>ssr:false</code> for Tables, Charts, Carousel, Accordion, TestimonialMarquee; scripts are lazy <code>import()</code> chunks, prefetched in parallel at chain start</td>
+</tr>
+<tr>
+<td><strong>Lazy rendering</strong></td>
+<td><code>LazyViewport</code> (IntersectionObserver) mounts below-the-fold sections on scroll</td>
+</tr>
+<tr>
+<td><strong>SSR</strong></td>
+<td><code>getServerSideProps</code> in <code>[...slug].js</code> reads JSON with <code>fs</code> and builds SEO props</td>
+</tr>
+<tr>
+<td><strong>Next API route</strong></td>
+<td><code>pages/api/config.js</code> returns modal/drawer JSON on demand</td>
+</tr>
+<tr>
+<td><strong><code>_document.js</code></strong></td>
+<td>blocking inline theme script (no flash of wrong theme), critical CSS inlined in <code>&lt;head&gt;</code></td>
+</tr>
+<tr>
+<td><strong><code>next/script</code></strong></td>
+<td>analytics, Meta pixel, Front chat, Stripe loaded by <code>externalScripts</code> flags</td>
+</tr>
+<tr>
+<td><strong>Static export</strong></td>
+<td><code>landing</code>, <code>blog-site</code>, <code>blog-admin</code> use <code>next export</code> / <code>output:'export'</code></td>
+</tr>
+<tr>
+<td><strong>Controlled inputs + two-way binding</strong></td>
+<td><code>model</code> prop on TextBox/Select/OptionGroup writes to local/global data (<code>ModelBinding.jsx</code>)</td>
+</tr>
+<tr>
+<td><strong>Event delegation</strong></td>
+<td>one capture-phase listener per section instead of one handler per component</td>
+</tr>
+<tr>
+<td><strong>Error handling</strong></td>
+<td>API errors returned as values <code>{error:true}</code>, surfaced as <code>context.error</code>; toasts via <code>sonner</code></td>
+</tr>
+<tr>
+<td><strong>Accessibility / responsive</strong></td>
+<td>Bootstrap grid, <code>useBreakpoint</code>, mobile nav vs side nav, <code>responsive-base.css</code></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="8-real-problems-i-solved-star-stories">8. Real problems I solved (STAR stories)</h2>
+<p>Use these as "tell me about a hard bug" answers. All are real, from this repo.</p>
+<ol>
+<li>
+<p><strong>Dashboard KPIs shimmering forever after reload — localStorage race.</strong>
+   <em>S:</em> After login the dashboard worked, but a hard reload made every KPI show an infinite skeleton.
+   <em>T:</em> Find why <code>userInfo.resellerId</code> disappeared on reload.
+   <em>A:</em> Traced <code>GlobalDataProvider</code>: an effect re-ran on every navigation and overwrote the
+   "already persisted" snapshot with current state, so <code>updateGlobalData()</code>'s deep-equal check
+   thought the value was saved and skipped <code>localStorage.setItem</code> permanently. Removed that
+   overwrite so only a real successful write updates the snapshot; also registered
+   <code>walletBalanceText</code> as a persisted source.
+   <em>R:</em> Reloads keep the session data; every localStorage-backed source on all sites fixed.</p>
+</li>
+<li>
+<p><strong>Checkbox that could never be un-ticked — stale snapshot merge.</strong>
+   The interceptor runs in the <strong>capture</strong> phase and awaits the action chain; the checkbox's own
+   <code>onChange</code> model write happens later (bubble phase). The chain then merged its whole stale
+   <code>localData</code> snapshot back, reverting the value. Fix: snapshot keys at chain start and merge
+   back <strong>only keys the chain actually changed</strong>. Engine-wide fix.</p>
+</li>
+<li>
+<p><strong>Loader flickering on every API call.</strong> Each <code>apiCall</code> has a 300 ms debounce but the loader
+   had a 250 ms hide-grace, so sequential calls hid/showed it between each. Fix: bracket the whole
+   event chain with one <code>beginApiCall/endApiCall</code> when it contains an <code>apiCall</code>. Verified: one
+   show, one hide across 6 chained calls.</p>
+</li>
+<li>
+<p><strong>In-table action buttons did nothing.</strong> <code>Tables.jsx</code> looked up <code>btn.actionName</code> directly in
+   <code>events</code> instead of first resolving through the component's <code>actions</code> mapping. Fixed with a
+   fallback so old configs still work.</p>
+</li>
+<li>
+<p><strong>Light theme for a dark-only portal.</strong> Added <code>useTheme</code> hook, a pre-hydration script in
+   <code>_document.js</code>, and light values for all <code>--rp-*</code> tokens; swept ~130 hard-coded hex colours to
+   tokens, but deliberately <em>not</em> white text on fixed brand-red buttons. Found <code>color-scheme: dark</code>
+   forcing dark native inputs, and a stale rule inlined via <code>critical.css</code> beating normal CSS.</p>
+</li>
+<li>
+<p><strong>Empty 600px gap at the bottom of every page.</strong> <code>LazyViewport</code> kept its placeholder
+   <code>minHeight</code> after content mounted, and an empty footer still rendered. Fixed both generically.</p>
+</li>
+<li>
+<p><strong>Deploy silently failing.</strong> A stray <code>};</code> made CleanCSS warn; the compressor treats warnings
+   as fatal, so no zip was produced and a stale <code>site.zip</code> stayed around. Fixed CSS in two sites,
+   also made <code>robots.txt</code> and <code>.env.production</code> actually ship.</p>
+</li>
+</ol>
+<hr />
+<h2 id="9-interview-questions-with-answers-from-this-project">9. Interview questions with answers from this project</h2>
+<p><strong>Q1. Why is the whole site configuration-driven?</strong> Four sites for two brands share 90% of
+behaviour. JSON pages let us add or change pages without redeploying engine code, let a
+non-developer use the visual editor, and keep one engine to test and fix.</p>
+<p><strong>Q2. How does a JSON <code>type</code> become a component?</strong> <code>ColumnRenderer</code> looks up
+<code>ComponentRegistry[component.type]</code> and renders it with <code>config</code>, <code>data</code> (localData) and
+<code>actions</code>. Container components like <code>divblock</code> recurse into <code>props.items</code>.</p>
+<p><strong>Q3. How do you handle events without writing handlers?</strong> One capture-phase listener per
+section (<code>useEventInterceptor</code>). It finds the nearest <code>data-event-id</code>, resolves the JSON node with
+<code>getConfigByEventId</code>, reads <code>actions[event.type]</code> and runs the named event's steps via
+<code>useEventRouter</code>.</p>
+<p><strong>Q4. Why capture phase?</strong> So validation and chain orchestration can run before component-level
+bubble handlers; it is also why same-dispatch writes needed the "merge only changed keys" fix.</p>
+<p><strong>Q5. Local vs global data?</strong> <code>localData</code> lives per section (<code>LocalDataProvider</code>), reset on page
+change — form fields, API results for that section. <code>globalData</code> is app-wide
+(<code>GlobalDataProvider</code>) — user info, plans, cart, wallet — optionally persisted to
+<code>localStorage</code> and synced between tabs with <code>BroadcastChannel</code>.</p>
+<p><strong>Q6. How do conditional show/hide work?</strong> <code>modelAttrs</code> in JSON, e.g.
+<code>"display": {"scope":"global","model":"transactionToken","defval":""}</code>.
+<code>ModelAttributeWrapper</code> reads the value and injects <code>style.display</code> etc. with <code>cloneElement</code>.</p>
+<p><strong>Q7. How are API calls made?</strong> Never raw URLs. <code>api.json</code> declares backends and APIs with body
+field mappings. <code>executeApi</code> builds URL/body/headers, then applies rate-limit, debounce,
+in-flight coalescing and write serialization, and handles session expiry centrally.</p>
+<p><strong>Q8. How is <code>api.json</code> protected in production?</strong> It is AES-encrypted to <code>api.enc.json</code> at build
+time; at runtime each API definition is decrypted with <code>CONF_KEY_api</code> only when used.</p>
+<p><strong>Q9. How does auth work?</strong> Two modes. Public sites: modal login, gate only on actions.
+Portals: <code>authentication.required: true</code> → <code>AppShell</code> blocks every route except login until
+<code>sessionStorage.rpAuthenticated</code> is true. <code>SESSIONID</code> header is forwarded from storage. On 403 /
+"Invalid session", <code>executeApi</code> clears the session, remembers the current URL, redirects to login,
+and after login the user returns there.</p>
+<p><strong>Q10. How do you avoid layout flash / hydration mismatch with auth?</strong> <code>authReady</code> flag: render
+<code>null</code> for protected pages until client auth state is known; the login page itself renders on SSR.</p>
+<p><strong>Q11. How do you improve performance?</strong> Only section 0 renders eagerly; the rest use
+IntersectionObserver. Heavy widgets are <code>next/dynamic</code> with <code>ssr:false</code>. Scripts are lazy chunks
+prefetched in parallel. Critical CSS inlined, main CSS bundled + gzipped with a content hash for
+cache busting. API debounce and coalescing avoid duplicate requests.</p>
+<p><strong>Q12. How is SEO handled?</strong> <code>getServerSideProps</code> builds title, description, canonical, Open
+Graph, Twitter tags and JSON-LD (<code>WebPage</code>, <code>FAQPage</code>, <code>Article</code>) from page JSON or auto-generated
+from content; <code>sitemap.xml.js</code> generates a sitemap.</p>
+<p><strong>Q13. How do modals get their content?</strong> Page JSON lists modal configs; <code>_app.js</code> POSTs to
+<code>/api/config</code> to fetch them after navigation; <code>openModal</code> actions show them via <code>ModalContext</code>,
+passing <code>passThruData</code> both ways.</p>
+<p><strong>Q14. How do you theme four sites?</strong> Per-site CSS files listed in <code>cms-config.cssFiles</code> and
+loaded by <code>useCssFiles</code>; colours are CSS custom properties so a palette change is one place;
+light/dark via <code>data-rp-theme</code> attribute on <code>&lt;html&gt;</code>.</p>
+<p><strong>Q15. What's the hardest part of a config-driven UI?</strong> Debuggability — a typo in a JSON
+<code>dataPath</code> just silently shows nothing. My checklist: does the field exist in the live response,
+did the API fire, is the data actually in state when read.</p>
+<p><strong>Q16. How do you run multiple sites locally?</strong> <code>npm run dev:reseller</code>, <code>dev:xmobee</code>,
+<code>dev:xmobee-reseller</code> each start their own server on their own port with <code>ACTIVE_SITE</code> set,
+because the webpack alias is fixed at start-up.</p>
+<p><strong>Q17. How do forms validate?</strong> Components register validators in <code>ValidationProvider</code>; a button
+with <code>props.validation</code> triggers <code>runValidations()</code> before its chain runs; <code>useTextValidator</code>
+checks required, min length, a custom regex <code>pattern</code>, and password rules (upper/lower-case,
+number, special character).</p>
+<p><strong>Q18. How are payments integrated?</strong> Stripe embedded checkout (<code>StripeCheckout</code>,
+<code>StripePayment</code>) and NMI/Stax (<code>StaxCollectPayment</code>: card, ACH, Apple Pay, Google Pay, 3-D Secure,
+Kount fraud session id). Tokens come back as DOM events and are handed to the backend charge API.</p>
+<p><strong>Q19. What React anti-patterns did you have to fix?</strong> Hooks called conditionally in <code>AppShell</code>
+(fixed by always computing values); spreading a stale snapshot over newer state; effects that
+re-ran on every navigation because a prop was a fresh object each page.</p>
+<p><strong>Q20. What would you improve?</strong> TypeScript + a JSON Schema for page configs (catch typos at
+build time), unit tests for the engine hooks, React Query-style caching instead of hand-rolled
+maps, moving secrets out of source, a per-site CI pipeline, and the App Router with server
+components for the marketing pages.</p>
+<p><strong>Q21. How is state shared between browser tabs?</strong> <code>BroadcastChannel('cms-global-data')</code> —
+persisted sources broadcast updates so a second tab updates wallet/user info immediately.</p>
+<p><strong>Q22. What is <code>propagateData</code>?</strong> A step that copies a value Local→Global, Global→Local or from a
+custom DOM event's <code>detail</code> into local data — how sections and modals share results.</p>
+<p><strong>Q23. How do repeated lists work?</strong> <code>repeater</code> templates + <code>useRepeaterItems</code>; event ids carry
+the index (<code>plan@2</code>) so a click resolves to the right item and <code>repindices</code> go into context.</p>
+<p><strong>Q24. Multi-step flows?</strong> <code>layers</code>, <code>tabs</code> and <code>stepper</code> components show one child at a time
+based on local state; <code>getConfigByEventId</code> knows how to walk into the active layer/tab.</p>
+<p><strong>Q25. How do you make sure a shared-engine fix doesn't break another site?</strong> Audit every site's
+JSON for the pattern (e.g. counted all 693 <code>modelAttrs</code> before making global scope work), keep old
+behaviour as a fallback, and verify on each site's dev server.</p>
+<hr />
+<h2 id="10-how-to-run">10. How to run</h2>
+<pre><code class="language-bash">cd ~/june-24/arya-cms/jc-cms
+npm install
+npm run dev                  # server 5010 + site 4010 + editor 3010 + landing 5012
+npm run dev:reseller         # reseller portal on 4011
+npm run dev:xmobee           # 4012
+npm run dev:xmobee-reseller  # 4013
+npm run build                # production build of app/site for ACTIVE_SITE
+npm run deploy reseller      # build + package → site.zip
+</code></pre>
+<p>If you see <code>Cannot find module './x.json'</code> for a file that exists, the server is compiled for a
+different site — check <code>config/active/.site-pref</code> and <code>app/site/.env.local</code> agree, restart, and
+delete <code>app/site/.next</code> if needed.</p>
+<hr />
+<h2 id="11-glossary">11. Glossary</h2>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Site</td>
+<td>A folder under <code>config/</code> — one website or portal</td>
+</tr>
+<tr>
+<td>Theme (editor)</td>
+<td>A brand grouping of sites (<code>config/themes/infimobile.json</code>)</td>
+</tr>
+<tr>
+<td>Section / column / component</td>
+<td>The three levels of a page JSON</td>
+</tr>
+<tr>
+<td>Event</td>
+<td>Named array of actions in a page's <code>events</code></td>
+</tr>
+<tr>
+<td>Action</td>
+<td>One step: <code>apiCall</code>, <code>scriptUrl</code>, <code>inlineScript</code>, <code>navigateLink</code>, <code>openModal</code>, <code>propagateData</code>, <code>login</code>, <code>logout</code> …</td>
+</tr>
+<tr>
+<td><code>modelAttrs</code></td>
+<td>JSON-declared bindings that set display/disabled/active/props from data</td>
+</tr>
+<tr>
+<td><code>dataPath</code> / <code>model</code></td>
+<td>Where a component reads / writes its value</td>
+</tr>
+<tr>
+<td>Layers</td>
+<td>A set of alternative panels, one visible at a time (multi-step pages)</td>
+</tr>
+<tr>
+<td><code>ACTIVE_SITE</code></td>
+<td>Env var choosing which <code>config/&lt;site&gt;</code> a server renders</td>
+</tr>
+</tbody>
+</table></main></div>
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+mermaid.initialize({ startOnLoad: false, theme: dark ? 'dark' : 'default', securityLevel: 'loose', flowchart: { htmlLabels: true } });
+const blocks = [...document.querySelectorAll('pre.mermaid')];
+for (let i = 0; i < blocks.length; i++) {
+  const el = blocks[i];
+  const src = el.textContent;
+  try {
+    const { svg } = await mermaid.render('mmd' + i, src);
+    el.innerHTML = svg;
+    el.setAttribute('data-processed', 'true');
+  } catch (e) {
+    el.setAttribute('data-error', 'true');
+    el.textContent = 'Diagram error: ' + e.message + ' --- ' + src;
+  }
+}
+</script>
+</body></html>

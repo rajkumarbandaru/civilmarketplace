@@ -1,0 +1,427 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Civil Engineering Marketplace — Interview Guide</title>
+<style>
+:root{--bg:#f6f7f9;--fg:#1f2933;--muted:#5b6770;--card:#fff;--line:#e3e6ea;--accent:#3730a3;--accent-bg:#eef2ff;--head:#0f172a;--code:#f1f3f6}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1115;--fg:#e6e8eb;--muted:#9aa4ad;--card:#171a20;--line:#2a2f37;--accent:#a5b4fc;--accent-bg:#1e2240;--head:#05070b;--code:#1f232b}}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.6 system-ui,-apple-system,Segoe UI,sans-serif;background:var(--bg);color:var(--fg)}
+header{background:var(--head);color:#fff;padding:18px 16px}
+header .in{max-width:1200px;margin:0 auto}
+header h1{margin:0;font-size:22px;line-height:1.3} header p{margin:4px 0 0;opacity:.75;font-size:13px}
+header a{color:#c7d2fe}
+.nav{max-width:1200px;margin:0 auto;padding:10px 16px 0;font-size:13px}
+.nav a{color:var(--accent);text-decoration:none;margin-right:6px;padding:3px 9px;border-radius:999px;background:var(--accent-bg);display:inline-block;margin-bottom:6px}
+.wrap{max-width:1200px;margin:0 auto;padding:0 16px 60px;display:flex;gap:24px;align-items:flex-start}
+nav.toc{position:sticky;top:12px;flex:0 0 250px;max-height:calc(100vh - 24px);overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:16px;font-size:13px}
+nav.toc ul{list-style:none;margin:0;padding-left:10px} nav.toc>ul{padding-left:0}
+nav.toc a{color:var(--accent);text-decoration:none;display:block;padding:2px 0}
+main{flex:1;min-width:0}
+main h1{display:none}
+h2{font-size:20px;margin:32px 0 10px;padding-top:8px;border-top:1px solid var(--line)}
+h3{font-size:16px;margin:20px 0 8px}
+a{color:var(--accent)}
+blockquote{margin:12px 0;padding:10px 14px;background:var(--accent-bg);border-left:4px solid var(--accent);border-radius:6px}
+blockquote p{margin:4px 0}
+table{border-collapse:collapse;width:100%;background:var(--card);font-size:14px;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:6px 10px;text-align:left;vertical-align:top}
+th{background:var(--accent-bg)}
+code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:13px}
+pre{background:var(--code);padding:12px;border-radius:8px;overflow-x:auto;font-size:13px;line-height:1.45}
+pre code{background:none;padding:0}
+pre.mermaid{background:var(--card);border:1px solid var(--line);text-align:center}
+hr{border:0;border-top:1px solid var(--line);margin:24px 0}
+@media (max-width:900px){.wrap{display:block}nav.toc{position:static;max-height:none;margin-top:16px}}
+</style></head><body>
+<header><div class="in"><h1>Civil Engineering Marketplace — Interview Guide</h1><p>Civil Engineering Marketplace · source ~/RAJKUMAR · generated from <code style="color:#fff;background:none">00-interview-guide.md</code></p></div></header>
+<div class="nav"><a href="index.html">Home</a><a href="interview-guide.html">Interview guide</a><a href="overview/architecture.html">Architecture</a><a href="backend/backend-guide.html">Backend</a><a href="ui/ui-guide.html">UI</a><a href="docker/docker-guide.html">Docker</a><a href="overview/action-flows.html">Action flows</a><a href="interview/rapid-fire.html">Rapid fire</a></div>
+<div class="wrap"><nav class="toc"><b>Contents</b><div class="toc">
+<ul>
+<li><a href="#1-your-60-second-pitch">1. Your 60-second pitch</a></li>
+<li><a href="#2-what-the-project-is-in-numbers">2. What the project is, in numbers</a></li>
+<li><a href="#3-the-architecture-in-one-breath">3. The architecture in one breath</a></li>
+<li><a href="#4-concept-where-it-lives-in-this-project">4. Concept → where it lives in this project</a></li>
+<li><a href="#5-the-3-minute-walkthrough-rehearse-out-loud">5. The 3-minute walkthrough (rehearse out loud)</a></li>
+<li><a href="#6-four-questions-you-will-definitely-get">6. Four questions you will definitely get</a></li>
+<li><a href="#7-star-stories-in-one-line-each">7. STAR stories in one line each</a></li>
+<li><a href="#8-rapid-fire-answers-to-have-ready">8. Rapid-fire answers to have ready</a></li>
+<li><a href="#9-how-to-demo-it-in-5-minutes">9. How to demo it in 5 minutes</a></li>
+<li><a href="#10-seven-day-prep-plan">10. Seven-day prep plan</a></li>
+<li><a href="#11-questions-to-ask-them">11. Questions to ask them</a></li>
+<li><a href="#12-things-not-to-claim">12. Things not to claim</a></li>
+</ul>
+</div>
+</nav><main><h1 id="civil-engineering-marketplace-interview-guide">Civil Engineering Marketplace — Interview Guide</h1>
+<p>Everything needed to explain this project in an interview: what it is, how it is built, how the
+flows work end to end, which concepts it demonstrates and where, real bugs fixed (ready-made STAR
+stories), and practice questions answered from the real code.</p>
+<blockquote>
+<p>Source repo: <code>~/RAJKUMAR</code>. Java 21 · Spring Boot 3.2 · Spring Cloud 2023.0.1 · React 18 + Vite ·
+MySQL · Redis · Kafka · Elasticsearch · Docker Compose.
+Tool-wise deep dives: <a href="ui/ui-guide.html">UI</a> · <a href="backend/backend-guide.html">Backend</a> ·
+<a href="docker/docker-guide.html">Docker</a> · <a href="overview/architecture.html">Architecture</a>.
+Tool-wise question banks: <a href="ui/ui-interview.html">UI</a> · <a href="backend/backend-interview.html">Backend</a> ·
+<a href="docker/docker-interview.html">Docker</a> · <a href="interview/system-design.html">System design</a> ·
+<a href="interview/star-stories.html">STAR stories</a> · <a href="interview/rapid-fire.html">Rapid fire</a>.</p>
+</blockquote>
+<hr />
+<h2 id="1-your-60-second-pitch">1. Your 60-second pitch</h2>
+<blockquote>
+<p>"I built a <strong>multi-tenant civil engineering services marketplace</strong> — think Urban Company for
+construction professionals. It is <strong>16 Spring Boot microservices on Java 21</strong> behind a <strong>Spring
+Cloud Gateway</strong>, with a <strong>React 18 + TypeScript</strong> front end, all orchestrated with <strong>Docker
+Compose</strong>.</p>
+<p>Customers browse a service catalogue, book an engineer, architect or contractor, pay through
+<strong>Razorpay with an escrow hold</strong>, track the worker live, chat on the booking, and review them
+afterwards. Admins get a console for users, KYC, categories, revenue, content, announcements,
+support tickets and a tamper-evident audit log.</p>
+<p>Three things I'd call out architecturally. First, <strong>the gateway owns authentication</strong> — it
+validates the JWT and injects <code>X-User-Id</code> / <code>X-User-Role</code> headers, so the 15 downstream services
+never parse a token. Second, it is <strong>multi-tenant by schema</strong>: the tenant comes from the request
+subdomain, is cross-checked against a claim in the JWT, and every service routes its JPA
+connection to <code>&lt;database&gt;_&lt;tenantKey&gt;</code>; onboarding a tenant publishes a Kafka event and every
+service creates and Flyway-migrates that schema live, with no restart. Third, <strong>money is
+event-driven but idempotent</strong> — payment confirmation is a Kafka event, and the consumer guards
+against Kafka's at-least-once redelivery so a customer is never charged or notified twice.</p>
+<p>Along the way I found and fixed some real production-class bugs: a column too narrow for the
+booking code that broke <em>every</em> booking, a Spring Security misconfiguration that stopped
+auth-service from starting at all, and a <code>Map.of</code> NPE that turned every failed payment into a 500."</p>
+</blockquote>
+<hr />
+<h2 id="2-what-the-project-is-in-numbers">2. What the project is, in numbers</h2>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Backend</td>
+<td><strong>16 deployable Spring Boot services</strong> + 3 shared libraries (<code>audit-common</code>, <code>tenant-common</code>, <code>web-common</code>)</td>
+</tr>
+<tr>
+<td>Platform services</td>
+<td>Config Server (8888), Eureka (8761), API Gateway (8080)</td>
+</tr>
+<tr>
+<td>Business services</td>
+<td>auth, user, booking, payment, notification, admin, project, review, search, messaging, support, audit, tenant</td>
+</tr>
+<tr>
+<td>Frontend</td>
+<td>1 React 18 + TypeScript SPA (Vite, MUI, Tailwind, Redux Toolkit, React Query), installable as a PWA</td>
+</tr>
+<tr>
+<td>Databases</td>
+<td><strong>One MySQL database per service</strong>, and <strong>one schema per tenant</strong> inside each</td>
+</tr>
+<tr>
+<td>Messaging</td>
+<td>Kafka topics: <code>user.registered</code>, <code>otp.sent</code>, <code>payment.created/completed/refunded</code>, <code>booking.paid/arriving/completed</code>, <code>message.sent</code>, <code>escrow.held/released/disputed</code>, <code>audit.events</code>, <code>tenant.events</code></td>
+</tr>
+<tr>
+<td>Other infra</td>
+<td>Redis (OTP, sessions, rate limit), Elasticsearch (search), RabbitMQ, Zipkin, Prometheus, Grafana</td>
+</tr>
+<tr>
+<td>Orchestration</td>
+<td>Docker Compose, 25 containers, one bridge network, health-gated startup</td>
+</tr>
+<tr>
+<td>Roles</td>
+<td>SUPER_ADMIN, ADMIN, SUB_ADMIN, REGIONAL_ADMIN, customer, worker, contractor, supplier, surveyor, architect, labour</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="3-the-architecture-in-one-breath">3. The architecture in one breath</h2>
+<pre><code>Browser → frontend nginx (:3000, serves the bundle, proxies /api)
+        → API Gateway (:8080)
+            1. resolve tenant from Host subdomain → X-Tenant-Id (client's own header is stripped)
+            2. block internal-only paths
+            3. validate JWT, check its tenant claim, inject X-User-Id / Email / Role / Name
+            4. route by path to lb://&lt;service&gt;, resolved through Eureka
+        → microservice (config from Config Server, registered in Eureka)
+            → its own MySQL database, schema &lt;db&gt;_&lt;tenant&gt;
+            → Kafka for anything asynchronous, Feign for anything synchronous
+</code></pre>
+<p>Say this sentence if you say nothing else: <strong>"Authentication and tenancy are solved once, at the
+edge; every service downstream is simple because it only reads headers."</strong></p>
+<hr />
+<h2 id="4-concept-where-it-lives-in-this-project">4. Concept → where it lives in this project</h2>
+<p>Interviewers ask "have you used X?". Here is X, with a file to point at.</p>
+<table>
+<thead>
+<tr>
+<th>Concept</th>
+<th>Where in this project</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>API Gateway routing</td>
+<td><code>api-gateway/.../GatewayConfig.java</code> — ~20 routes, ordered so specific paths beat catch-alls</td>
+</tr>
+<tr>
+<td>Custom gateway filter</td>
+<td><code>JwtAuthGatewayFilterFactory</code> (per-route), <code>TenantResolutionGlobalFilter</code> + <code>InternalOnlyPathFilter</code> (global)</td>
+</tr>
+<tr>
+<td>Service discovery</td>
+<td>Eureka; every route is <code>lb://service-name</code>, Feign clients resolve the same way</td>
+</tr>
+<tr>
+<td>Centralised config</td>
+<td>Config Server in native mode, serving <code>config-repo/&lt;service&gt;.yml</code> from its classpath</td>
+</tr>
+<tr>
+<td>Circuit breaker / fallback</td>
+<td>Resilience4J + <code>FallbackController</code> on the gateway</td>
+</tr>
+<tr>
+<td>Rate limiting</td>
+<td><code>RedisRateLimiter(100, 200, 1)</code> — replenish 100/s, burst 200</td>
+</tr>
+<tr>
+<td>Stateless auth</td>
+<td>JWT (JJWT 0.12) signed with a shared <code>JWT_SECRET</code>; refresh tokens; BCrypt; account lockout</td>
+</tr>
+<tr>
+<td>RBAC</td>
+<td>Role in the JWT → <code>X-User-Role</code> header → checked in each service</td>
+</tr>
+<tr>
+<td>Multi-tenancy</td>
+<td><code>tenant-common</code>: schema-per-tenant routing + Flyway per schema; tenant from subdomain</td>
+</tr>
+<tr>
+<td>Event-driven</td>
+<td>Kafka producers/consumers listed above; <code>@KafkaListener</code> groups per service</td>
+</tr>
+<tr>
+<td>Idempotency</td>
+<td><code>PaymentEventConsumer</code> ignores a second <code>payment.completed</code> for an already-PAID booking</td>
+</tr>
+<tr>
+<td>Sync service-to-service</td>
+<td>OpenFeign: review→booking, project→booking+payment, admin→auth/user/booking/payment</td>
+</tr>
+<tr>
+<td>Database migrations</td>
+<td>Flyway per service, <code>V1__*.sql</code>, <code>V2__*.sql</code>; never edit an applied migration</td>
+</tr>
+<tr>
+<td>Caching</td>
+<td>Redis for OTP and sessions</td>
+</tr>
+<tr>
+<td>Full-text search</td>
+<td>Elasticsearch indices <code>profiles</code> and <code>services</code>, fuzzy + filters + sorts</td>
+</tr>
+<tr>
+<td>Payments</td>
+<td>Razorpay order → signature verification → escrow hold → commission → wallet ledger</td>
+</tr>
+<tr>
+<td>Audit / compliance</td>
+<td><code>audit-common</code> → Kafka → <code>audit-service</code>, append-only, SHA hash-chained, integrity endpoint</td>
+</tr>
+<tr>
+<td>Observability</td>
+<td>Actuator + Prometheus + Grafana + Zipkin tracing</td>
+</tr>
+<tr>
+<td>Frontend state</td>
+<td>Redux Toolkit for session/client state, React Query for server state</td>
+</tr>
+<tr>
+<td>Runtime theming</td>
+<td><code>admin-service</code> UI-config → <code>GET /ui-config/me</code> → MUI theme rebuilt at runtime</td>
+</tr>
+<tr>
+<td>Containerisation</td>
+<td>Per-service Dockerfile (JRE 21 + jar), multi-stage build for the React app, Compose overlay for memory caps</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="5-the-3-minute-walkthrough-rehearse-out-loud">5. The 3-minute walkthrough (rehearse out loud)</h2>
+<ol>
+<li><strong>"A customer opens <code>acme.localhost:3000</code>."</strong> nginx serves the React bundle; the page calls
+   <code>/api/v1/tenant-resolution/...</code>, <code>/content/site</code> and <code>/catalogue</code> — all public routes — so the
+   landing page shows that tenant's branding, editable copy and services before any login.</li>
+<li><strong>"They register and log in."</strong> <code>POST /api/v1/auth/login</code> → the gateway resolves the tenant and
+   forwards; auth-service checks BCrypt + lockout in <code>civil_engineer_auth_acme</code>, signs a JWT
+   carrying user id, role and tenant. The UI stores it in <strong>sessionStorage</strong> (per tab, so two
+   accounts can be open side by side) and immediately calls <code>/ui-config/me</code> to theme itself.</li>
+<li><strong>"They book a service."</strong> <code>POST /api/v1/bookings</code> with the Bearer token. The gateway validates
+   it, injects <code>X-User-Id</code>, and routes to booking-service, which writes to its own schema.</li>
+<li><strong>"They pay."</strong> payment-service creates a Razorpay order, the browser opens Checkout, and the
+   callback is verified <strong>server-side by HMAC signature</strong> — never trusting the client. The payment
+   row goes COMPLETED and publishes <code>payment.completed</code>.</li>
+<li><strong>"Two services react to that one event."</strong> booking-service marks the booking PAID (ignoring
+   duplicate deliveries), then publishes <code>booking.paid</code>; notification-service sends the receipt.
+   Nobody blocked on anybody.</li>
+<li><strong>"The worker travels."</strong> Location updates compute an ETA; crossing the threshold publishes
+   <code>booking.arriving</code> and the customer gets a notification.</li>
+<li><strong>"Afterwards they review."</strong> review-service makes a Feign call to booking-service to prove the
+   booking is COMPLETED and the reviewer was a party to it, then recomputes the rolling rating.</li>
+<li><strong>"Everything sensitive is audited."</strong> Admin and money actions publish <code>audit.events</code>;
+   audit-service appends a hash-chained row, and an integrity endpoint can prove nothing was edited.</li>
+</ol>
+<hr />
+<h2 id="6-four-questions-you-will-definitely-get">6. Four questions you will definitely get</h2>
+<p><strong>"Why microservices and not a monolith?"</strong>
+Be honest: for this traffic a modular monolith would be cheaper to run. The split was chosen for
+independent deploys, per-domain data ownership and to model a real marketplace org. The cost is
+real and I can name it: cross-service consistency needs events and compensations, local dev needs
+~12 containers, and a single user-facing screen can fan out to three services.</p>
+<p><strong>"How do you keep one tenant from seeing another's data?"</strong>
+Four layers. The subdomain resolves the tenant at the gateway; any client-supplied <code>X-Tenant-Id</code> is
+stripped; the JWT carries a tenant claim that must match the resolved tenant, so a token stolen from
+one tenant is rejected at another; and the data itself is in a separate MySQL schema per tenant, so
+a missing <code>WHERE tenant_id = ?</code> cannot leak rows — the wrong rows are not in the connection's schema
+at all.</p>
+<p><strong>"What happens if Kafka redelivers a payment event?"</strong>
+Kafka is at-least-once, so consumers must be idempotent. <code>PaymentEventConsumer</code> checks whether the
+booking is already PAID and returns early, so no second receipt goes out. Escrow does the same with
+state transitions: a hold already RELEASED cannot be released again.</p>
+<p><strong>"Where is the weakest part of this design?"</strong>
+I'd name the <strong>dual write</strong>: a service commits to MySQL and then publishes to Kafka in the same
+method. If the process dies between those two, the database moved and the event never went out. The
+fix is the <strong>transactional outbox</strong> pattern — write the event to an outbox table in the same
+transaction and have a relay publish it. That is the first thing I'd change.</p>
+<hr />
+<h2 id="7-star-stories-in-one-line-each">7. STAR stories in one line each</h2>
+<p>Full versions with situation/task/action/result: <a href="interview/star-stories.html">interview/star-stories.md</a>.</p>
+<ol>
+<li><strong>Every booking failed with a 500</strong> — <code>booking_code</code> was <code>VARCHAR(20)</code>, the generator emitted 22
+   characters. Widened the column via a new Flyway migration instead of changing the code format,
+   because a lookup API depended on it.</li>
+<li><strong>auth-service would not start</strong> — <code>.oauth2Login()</code> was called unconditionally, but Spring only
+   creates a <code>ClientRegistrationRepository</code> when a provider is configured. Made it conditional with
+   <code>ObjectProvider</code>, so social login switches itself on when credentials appear.</li>
+<li><strong>Every failed payment returned a 500</strong> — the failure path built a <code>payment.created</code> event with
+   <code>Map.of(...)</code>, which throws NPE on a null value, and the Razorpay order id is null exactly when
+   the call failed. Switched to a <code>HashMap</code> that tolerates the null and carries the status.</li>
+<li><strong>A latent time bomb in a repository</strong> — <code>findByBookingId</code> returned <code>Optional</code>, but escrow made
+   one booking carry several payments, so it would throw <code>IncorrectResultSizeDataAccessException</code>.
+   Replaced with an ordered <code>findFirst...</code> query plus a status-scoped variant.</li>
+<li><strong>A bare 403 on the login screen</strong> — CORS used <code>setAllowedOrigins</code> with a wildcard, which Spring
+   rejects when credentials are allowed, so every tenant subdomain failed at login with an empty
+   body. Switched to <code>setAllowedOriginPatterns</code>.</li>
+</ol>
+<hr />
+<h2 id="8-rapid-fire-answers-to-have-ready">8. Rapid-fire answers to have ready</h2>
+<ul>
+<li><strong>JWT vs session?</strong> Stateless, so any service instance can serve any request; the trade-off is
+  revocation, which we soften with short-lived access tokens plus refresh tokens.</li>
+<li><strong>Where do you validate the token?</strong> Only at the gateway. Services read <code>X-User-*</code> headers, and
+  those paths are unreachable from outside the Docker network.</li>
+<li><strong>Why Feign <em>and</em> Kafka?</strong> Feign when the caller needs an answer now (is this booking completed?);
+  Kafka when it does not (send a receipt, index a profile, write an audit row).</li>
+<li><strong>How does a new service get discovered?</strong> It registers with Eureka by
+  <code>spring.application.name</code>, and the gateway routes <code>lb://that-name</code> without redeploying.</li>
+<li><strong>Why is the gateway's route order important?</strong> <code>/api/v1/admin/**</code> would swallow
+  <code>/api/v1/admin/reviews/**</code>; specific routes are registered first.</li>
+<li><strong>How are schema changes shipped?</strong> Flyway, one file per version per service, run at boot for
+  every tenant schema.</li>
+<li><strong>How do you run it?</strong> <code>mvn clean package</code> then <code>docker compose up -d --build</code>; the lean overlay
+  caps JVM heap so 16 services fit on a laptop.</li>
+</ul>
+<hr />
+<h2 id="9-how-to-demo-it-in-5-minutes">9. How to demo it in 5 minutes</h2>
+<ol>
+<li><code>docker compose ps</code> — show the container list; mention health-gated startup order.</li>
+<li>http://localhost:8761 — Eureka, every service registered.</li>
+<li>Log in as <code>superadmin@civileng.test</code> — show the admin console.</li>
+<li>Change the platform theme, reload as a member — runtime theming from the API.</li>
+<li><code>docker compose logs -f notification-service</code> while triggering an OTP — show the Kafka consumer.</li>
+<li>Open <a href="overview/action-flows.html"><code>overview/action-flows.html</code></a> — the end-to-end trace of the
+   action you just performed.</li>
+</ol>
+<hr />
+<h2 id="10-seven-day-prep-plan">10. Seven-day prep plan</h2>
+<table>
+<thead>
+<tr>
+<th>Day</th>
+<th>Focus</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>This guide + <a href="overview/architecture.html">architecture</a>; draw the layer diagram from memory</td>
+</tr>
+<tr>
+<td>2</td>
+<td><a href="backend/backend-guide.html">Backend guide</a> + <a href="backend/backend-interview.html">backend questions</a></td>
+</tr>
+<tr>
+<td>3</td>
+<td><a href="overview/request-flows.html">Request flows</a> + <a href="overview/action-flows.html">action flows</a>; narrate login and payment out loud</td>
+</tr>
+<tr>
+<td>4</td>
+<td><a href="ui/ui-guide.html">UI guide</a> + <a href="ui/ui-interview.html">UI questions</a></td>
+</tr>
+<tr>
+<td>5</td>
+<td><a href="docker/docker-guide.html">Docker guide</a> + <a href="docker/how-to-run.html">how to run</a>; run the stack from scratch</td>
+</tr>
+<tr>
+<td>6</td>
+<td><a href="interview/system-design.html">System design</a> — practise the "how would you scale it" whiteboard</td>
+</tr>
+<tr>
+<td>7</td>
+<td><a href="interview/star-stories.html">STAR stories</a> + <a href="interview/rapid-fire.html">rapid fire</a>; mock interview</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="11-questions-to-ask-them">11. Questions to ask them</h2>
+<ul>
+<li>How are services split across teams — who owns a service end to end?</li>
+<li>What is the deploy path: Compose, Kubernetes, something managed? How long from merge to production?</li>
+<li>How do you handle cross-service data consistency today — outbox, sagas, or database transactions?</li>
+<li>What does on-call look like, and what is the most common class of incident?</li>
+<li>Where is the biggest piece of technical debt you would want the next hire to attack?</li>
+</ul>
+<hr />
+<h2 id="12-things-not-to-claim">12. Things not to claim</h2>
+<p>Be straight about scope — it reads as senior, and the follow-up questions get easier:</p>
+<ul>
+<li><strong>Payouts do not exist.</strong> Money enters wallets; there is no withdrawal, because that needs PSP
+  payout APIs plus a KYC-approved gate.</li>
+<li><strong>Razorpay was never exercised with live keys</strong> on this machine; the funding leg was simulated by
+  marking the payment COMPLETED in the database, so everything downstream of the PSP is real code
+  but the PSP hop itself is unverified.</li>
+<li><strong>Several backends have no UI yet</strong>: KYC, escrow, projects, messaging and search are API-only.</li>
+<li><strong>No Kubernetes, no CI/CD to a real environment, no load testing.</strong> It is a Compose stack.</li>
+<li><strong><code>booking.created</code> has a consumer but no producer</strong> — a dead listener I found while documenting.</li>
+</ul></main></div>
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+mermaid.initialize({ startOnLoad: false, theme: dark ? 'dark' : 'default', securityLevel: 'loose',
+                      flowchart: { htmlLabels: true }, sequence: { useMaxWidth: false } });
+const blocks = [...document.querySelectorAll('pre.mermaid')];
+for (let i = 0; i < blocks.length; i++) {
+  const el = blocks[i];
+  const src = el.textContent;
+  try {
+    const { svg } = await mermaid.render('mmd' + i, src);
+    el.innerHTML = svg;
+    el.setAttribute('data-processed', 'true');
+  } catch (e) {
+    el.setAttribute('data-error', 'true');
+    el.textContent = 'Diagram error: ' + e.message + ' --- ' + src;
+  }
+}
+</script>
+</body></html>

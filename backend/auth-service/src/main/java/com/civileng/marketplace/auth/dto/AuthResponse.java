@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @Builder
@@ -23,6 +24,18 @@ public class AuthResponse {
     private long expiresIn;
     private UserDto user;
     private LocalDateTime timestamp;
+
+    /**
+     * Set instead of tokens when the account needs a second factor: the client posts the code with
+     * {@link #mfaToken} to /auth/mfa/verify, or first enrols at /auth/mfa/setup when
+     * {@link #mfaSetupRequired}.
+     */
+    private Boolean mfaRequired;
+    private Boolean mfaSetupRequired;
+    private String mfaToken;
+
+    /** Shown once, when MFA is switched on: each code signs in once if the phone is lost. */
+    private List<String> recoveryCodes;
 
     @Data
     @Builder

@@ -76,6 +76,11 @@ export const persistSession = (user: unknown, accessToken: string, refreshToken:
   persistTokens(accessToken, refreshToken);
 };
 
+/** Replaces the stored user after a profile change, keeping this tab's tokens. */
+export const persistUser = (user: unknown): void => {
+  sessionStorage.setItem(USER, JSON.stringify(user));
+};
+
 export const clearSession = (): void => {
   KEYS.forEach((key) => sessionStorage.removeItem(key));
 };

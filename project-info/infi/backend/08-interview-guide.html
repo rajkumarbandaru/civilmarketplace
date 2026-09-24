@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Interview Guide</title>
+<style>
+:root{
+  --bg:#f6f7fb; --surface:#ffffff; --surface-2:#f0f2f7; --text:#1b1f2a; --muted:#5b6475; --border:#dde1ea;
+  --accent:#3b5bdb; --ok:#2b8a3e; --warn:#c92a2a; --amber:#b7791f; --info:#1c7ed6;
+  --shadow:0 1px 2px rgba(20,30,60,.06),0 4px 14px rgba(20,30,60,.06);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f1218; --surface:#171b24; --surface-2:#1e2330; --text:#e6e9f0; --muted:#98a1b3; --border:#2a3040;
+    --accent:#7b94ff; --ok:#51cf66; --warn:#ff6b6b; --amber:#fcc419; --info:#74c0fc;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 14px rgba(0,0,0,.3);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f1218; --surface:#171b24; --surface-2:#1e2330; --text:#e6e9f0; --muted:#98a1b3; --border:#2a3040;
+  --accent:#7b94ff; --ok:#51cf66; --warn:#ff6b6b; --amber:#fcc419; --info:#74c0fc;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 14px rgba(0,0,0,.3);
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font:15px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;background:var(--surface-2);padding:1px 5px;border-radius:4px}
+a{color:var(--accent)}
+.wrap{max-width:1180px;margin:0 auto;padding:22px 16px 64px}
+.home{display:inline-block;margin-bottom:6px;color:var(--accent);text-decoration:none;font-size:13px}
+.top{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:flex-start}
+h1{font-size:25px;margin:0 0 6px}
+.lead{margin:0;color:var(--muted);max-width:820px}
+.btn{flex:none;border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:8px;padding:7px 12px;cursor:pointer;font:inherit;font-size:14px}
+.btn:hover{border-color:var(--accent)}
+.layout{display:grid;grid-template-columns:216px minmax(0,1fr);gap:26px;margin-top:22px;align-items:start}
+.layout>*{min-width:0}
+@media (max-width:900px){.layout{grid-template-columns:minmax(0,1fr)}}
+nav.toc{position:sticky;top:14px;font-size:14px}
+@media (max-width:900px){nav.toc{position:static;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px}}
+nav.toc ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+nav.toc a{display:block;padding:6px 10px;border-radius:7px;text-decoration:none;color:var(--muted);border-left:3px solid transparent}
+nav.toc a:hover{background:var(--surface-2);color:var(--text)}
+nav.toc a.on{color:var(--text);font-weight:600;background:var(--surface-2);border-left-color:var(--accent)}
+section{background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow);padding:20px 22px;margin-bottom:18px;scroll-margin-top:14px}
+section>h2{font-size:20px;margin:0 0 4px;display:flex;gap:10px;align-items:baseline}
+section>h2 .num{font:700 13px/1 ui-monospace,Menlo,monospace;color:var(--accent);padding-top:4px}
+.sub{color:var(--muted);margin:0 0 14px}
+h3{font-size:16px;margin:18px 0 8px}
+p{margin:0 0 12px}
+ul,ol{margin:0 0 12px;padding-left:22px}
+li{margin:5px 0}
+table{border-collapse:collapse;width:100%;font-size:14px;margin:6px 0 14px;display:block;overflow-x:auto}
+th,td{text-align:left;padding:9px 11px;border-bottom:1px solid var(--border);vertical-align:top}
+th{font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);background:var(--surface-2);white-space:nowrap}
+.callout{border-left:4px solid var(--info);background:color-mix(in srgb,var(--info) 8%,transparent);padding:10px 14px;border-radius:0 8px 8px 0;margin:0 0 14px}
+.callout.warn{border-color:var(--warn);background:color-mix(in srgb,var(--warn) 8%,transparent)}
+.callout.ok{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 8%,transparent)}
+.callout.amber{border-color:var(--amber);background:color-mix(in srgb,var(--amber) 10%,transparent)}
+.callout b{display:block;margin-bottom:3px}
+.say{border-left:3px solid var(--accent);padding:10px 0 10px 14px;margin:0 0 14px;background:linear-gradient(90deg,color-mix(in srgb,var(--accent) 6%,transparent),transparent)}
+.say p{margin:0 0 8px}
+.say p:last-child{margin:0}
+.say .tag{display:inline-block;font:700 10.5px/1 ui-monospace,Menlo,monospace;letter-spacing:.04em;text-transform:uppercase;color:var(--accent);margin-bottom:6px}
+.why{color:var(--muted);font-size:13.5px;margin-top:6px}
+.facts{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin:8px 0 14px}
+.fact{background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:11px 13px}
+.fact b{display:block;font:700 20px/1.2 ui-monospace,Menlo,monospace;color:var(--accent)}
+.fact span{display:block;color:var(--muted);font-size:12.5px;margin-top:4px}
+details{border:1px solid var(--border);border-radius:10px;margin:0 0 10px;background:var(--surface-2);overflow:hidden}
+details>summary{cursor:pointer;padding:11px 14px;font-weight:600;list-style:none;display:flex;justify-content:space-between;gap:10px;align-items:center}
+details>summary::-webkit-details-marker{display:none}
+details>summary::after{content:'+';color:var(--muted);font-weight:700}
+details[open]>summary::after{content:'−'}
+details .body{padding:12px 14px 14px;background:var(--surface)}
+details .body>*:last-child{margin-bottom:0}
+.diagram{background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:14px;overflow-x:auto;margin:0 0 14px}
+.diagram pre{margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;line-height:1.5;white-space:pre}
+.checks{display:flex;flex-direction:column;gap:8px;margin:10px 0 6px}
+.chk{display:flex;gap:10px;align-items:flex-start;background:var(--surface-2);border:1px solid var(--border);border-radius:9px;padding:9px 12px;cursor:pointer}
+.chk input{margin:4px 0 0;flex:none;width:16px;height:16px;accent-color:var(--accent)}
+.chk.done{opacity:.6}
+.chk.done .ct{text-decoration:line-through}
+.chk .ct{display:block;font-weight:600;font-size:14px}
+.chk .cd{display:block;color:var(--muted);font-size:13.5px}
+.bar{display:flex;align-items:center;gap:10px;margin:4px 0 10px}
+.bar .track{flex:1;height:6px;background:var(--surface-2);border-radius:99px;overflow:hidden}
+.bar .track i{display:block;height:100%;width:0;background:var(--ok);transition:width .3s}
+.bar span{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:0 0 14px}
+@media (max-width:760px){.two{grid-template-columns:1fr}}
+.box{border:1px solid var(--border);border-radius:10px;padding:12px 14px;background:var(--surface)}
+.box.good{border-left:4px solid var(--ok)}
+.box.bad{border-left:4px solid var(--warn)}
+.box h4{margin:0 0 8px;font-size:14px;letter-spacing:.03em;text-transform:uppercase;color:var(--muted)}
+.box ul{margin:0;padding-left:20px}
+.pill{display:inline-block;font:700 10.5px/1 ui-monospace,Menlo,monospace;padding:4px 7px;border-radius:5px;border:1px solid var(--border);color:var(--muted);margin:0 6px 6px 0}
+.pill.t{color:var(--accent);border-color:var(--accent)}
+.foot{color:var(--muted);font-size:13px;margin-top:20px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="home" href="index.html">← All flows</a>
+  <div class="top">
+    <div>
+      <h1>Interview guide: describing this project</h1>
+      <p class="lead">How to talk about <code>billing_micro_services</code> — a production telecom BSS — in an interview or design review.
+        Scripts you can say out loud, the numbers to have ready, a whiteboard sequence, STAR stories built from real system behaviour,
+        and answers to the questions this architecture invites. Every fact here was checked against the source; see
+        <a href="07-project-handbook.md">07-project-handbook.md</a> for the full map.</p>
+    </div>
+    <button class="btn" id="b-theme">Theme</button>
+  </div>
+
+  <div class="layout">
+    <nav class="toc" id="toc" aria-label="Contents"></nav>
+    <main id="main">
+
+      <section id="s1">
+        <h2><span class="num">01</span>The pitch, in three lengths</h2>
+        <p class="sub">Interviewers ask "tell me about your project" and then interrupt. Have a 30-second, a 2-minute, and a deep version — and stop at the end of each.</p>
+
+        <div class="say">
+          <span class="tag">30 seconds</span>
+          <p>"I work on the BSS for a mobile virtual network operator — the system that sells the plan, activates the SIM, rates the usage,
+            charges the customer, and talks to the carriers whose network we resell. It's a Java 8 / Spring Boot codebase, 117 Maven modules,
+            around 49 Spring Boot applications with roughly 23 deployed on Kubernetes, MySQL per business domain, MongoDB for call records.
+            I own subscriber-facing flows end to end: purchase, activation, recharge, billing."</p>
+        </div>
+
+        <div class="say">
+          <span class="tag">2 minutes</span>
+          <p>"An MVNO doesn't own a network — it buys wholesale capacity and sells retail service, so the BSS is the business.
+            Ours does five things: catalogue and ordering, subscriber lifecycle, money, usage rating, and carrier integration."</p>
+          <p>"A purchase creates an order and takes payment through Stripe or wallet, inventory allocates a SIM, shipment books a label.
+            Activation writes a subscription, publishes an event, and one of three carrier gateways — Verizon, T-Mobile via a wholesale
+            partner, or Tata — provisions the line and returns a number. Usage comes back as CDRs, which we collect, rate against the
+            plan's buckets and post to the ledger. Recharges and monthly invoices move money through the wallet and the general ledger."</p>
+          <p>"The interesting part is the constraints. The event bus is a polled MySQL table, not a broker. There's no migration tool —
+            Hibernate updates the schema on deploy. There's no rollback stage, and almost no automated tests. So the engineering discipline
+            is front-loaded: trace every consumer before you change a shared module, keep schema changes additive, and verify manually
+            against a named list of affected services."</p>
+        </div>
+
+        <details>
+          <summary>Deep version — the 10-minute walkthrough</summary>
+          <div class="body">
+            <p>Structure it as: <b>domain → architecture → one flow in detail → a hard problem → what you'd change</b>.</p>
+            <ol>
+              <li><b>Domain (1 min).</b> MVNO economics: we carry the customer relationship, the carrier carries the packets. That's why
+                carrier integration and rating accuracy are the two places bugs cost real money.</li>
+              <li><b>Architecture (2 min).</b> Use the whiteboard sequence in section 3. Be honest that it's a distributed monolith:
+                deployment boundaries are real, data boundaries aren't.</li>
+              <li><b>One flow (3 min).</b> Pick recharge or activation and narrate it step by step with the actual service names.</li>
+              <li><b>A hard problem (3 min).</b> Idempotency across replicas, or carrier fan-out, or a schema change under <code>ddl-auto</code>.
+                Show the reasoning, not the outcome only.</li>
+              <li><b>What you'd change (1 min).</b> Three specific improvements with blast radius attached (section 7).</li>
+            </ol>
+          </div>
+        </details>
+
+        <div class="callout"><b>Rule of thumb</b>Lead with the business, not the framework list. "It bills real subscribers for real usage"
+          earns more attention than "Spring Boot microservices with Spring Cloud Config".</div>
+      </section>
+
+      <section id="s2">
+        <h2><span class="num">02</span>Numbers to have ready</h2>
+        <p class="sub">Verified against the repository. Precise numbers signal you actually worked in it; vague ones signal you read a slide.</p>
+
+        <div class="facts">
+          <div class="fact"><b>117</b><span>active Maven modules in the root reactor pom</span></div>
+          <div class="fact"><b>49</b><span>classes annotated <code>@SpringBootApplication</code></span></div>
+          <div class="fact"><b>23</b><span>services with a real Jenkins deploy path</span></div>
+          <div class="fact"><b>7,623</b><span>Java source files (excluding build output)</span></div>
+          <div class="fact"><b>Java 8</b><span>Spring Cloud 2020.0.0 parent</span></div>
+          <div class="fact"><b>~10</b><span>MySQL hosts, one per business domain</span></div>
+          <div class="fact"><b>3</b><span>live carrier integrations (Verizon, PWG/T-Mobile, Tata)</span></div>
+          <div class="fact"><b>~118</b><span>Python validation scripts running as production checks</span></div>
+        </div>
+
+        <table>
+          <thead><tr><th>Layer</th><th>What we actually use</th><th>Worth saying out loud</th></tr></thead>
+          <tbody>
+            <tr><td>Language / build</td><td>Java 8, Maven multi-module reactor</td><td>Java 8 is a hard constraint, not a preference — it shapes what libraries are available</td></tr>
+            <tr><td>Framework</td><td>Spring Boot + Spring Cloud Config (native filesystem backend)</td><td>No Eureka, no gateway, no Feign — services call each other over configured host:port</td></tr>
+            <tr><td>Persistence</td><td>MySQL per domain + JPA/Hibernate, heavy native SQL; MongoDB for CDRs</td><td>A service embeds other domains' repo modules and opens a pool per schema</td></tr>
+            <tr><td>Async</td><td>A polled <code>rmq_events</code> table; MQTT/RabbitMQ present but dormant</td><td>Durable and inspectable; no retry, no DLQ</td></tr>
+            <tr><td>Runtime</td><td>Kubernetes, Jenkins → Docker host → <code>kubectl apply</code></td><td>Manifests live outside the repo; no image versioning or rollback stage</td></tr>
+            <tr><td>Observability</td><td>JavaMelody, Actuator, Python verifier scripts</td><td>No tracing and no correlation IDs — you correlate by MDN and timestamp</td></tr>
+            <tr><td>External</td><td>Stripe, PayPal, Twilio, USPS/UPS, Amazon/Temu, tax and GL</td><td>Payments and carriers are the two integration classes that must be idempotent</td></tr>
+          </tbody>
+        </table>
+
+        <div class="callout amber"><b>If you're asked a number you don't know</b>Say the shape, not a guess: "roughly twenty deployable services —
+          I'd have to check the exact count in the Jenkins service map." Inventing a number is the only wrong answer.</div>
+      </section>
+
+      <section id="s3">
+        <h2><span class="num">03</span>The whiteboard sequence</h2>
+        <p class="sub">Draw it in this order, talking as you go. Five boxes, then the data layer, then the carriers. Never start with the module list.</p>
+
+        <div class="diagram"><pre>
+  customer app / retailer portal
+            │
+            ▼
+  ┌───────────────────┐   order + payment    ┌──────────────────────┐
+  │ self-service-     │ ───────────────────▶ │ wallet-management    │
+  │ payment           │                      │ (balance ledger)     │
+  └─────────┬─────────┘                      └──────────────────────┘
+            │ SUBMIT_ORDER / payment confirmed
+            ▼
+  ┌───────────────────┐   allocate SIM   ┌──────────────────────┐   label   ┌───────────────────┐
+  │ user-management   │ ───────────────▶ │ inventory-management │ ────────▶ │ shipment-mgmt     │
+  │ (subscriber core) │                  │ (SIM / device stock) │           │ (USPS / UPS)      │
+  └─────────┬─────────┘                  └──────────────────────┘           └───────────────────┘
+            │ writes event row
+            ▼
+     ┌──────────────────────────┐        polled by every consumer
+     │  rmq_events  (MySQL)     │ ◀───────────────────────────────────┐
+     │  "the event bus"         │                                     │
+     └──────────┬───────────────┘                                     │
+                │ ACTIVATED / BUNDLE_ACTIVATION                       │
+   ┌────────────┼─────────────┬──────────────────┐                    │
+   ▼            ▼             ▼                  ▼                    │
+ mno_mgmt   pwg-mno-mgmt   gupi_mgmt      billing-integ ──────────────┘
+ (Verizon)  (T-Mobile/PWG) (Tata)         (email / SMS / invoices)
+   │            │             │
+   └────────────┴─────────────┴──▶ carrier provisioning APIs (SOAP / REST / OAuth2)
+                │
+                ▼  usage flows back
+        CDR collection (prr-cdr, pwg-cdr, international-cdrs)
+                │  parse + rate against plan buckets
+                ▼
+        MongoDB (raw usage) + MySQL (rated, wallet, GL)
+        </pre></div>
+
+        <p><b>Narration script.</b> "Money enters on the left through self-service payment. The subscriber record lives in user-management.
+          Anything that needs to happen elsewhere is written as a row in an events table that every other service polls — that's our bus.
+          Activation fans out to three carrier gateways; each one filters on the subscriber's carrier, which was decided earlier by which
+          SIM stock was allocated. Usage comes back as CDRs, gets rated against the plan's buckets, and lands in MySQL for billing while the
+          raw volume stays in Mongo."</p>
+
+        <div class="callout ok"><b>Why this drawing works</b>It shows a data flow, a fan-out, a feedback loop, and a deliberate trade-off
+          (table-as-bus) in about ninety seconds. That's four things to be asked about — all of which you can answer.</div>
+      </section>
+
+      <section id="s4">
+        <h2><span class="num">04</span>Flows you can narrate end to end</h2>
+        <p class="sub">Pick one and know it cold. Each has a "what makes it interesting" line — that's the hook that turns a description into a discussion.</p>
+
+        <details open>
+          <summary>Purchase → fulfilment</summary>
+          <div class="body">
+            <p>Browse catalogue → price and tax → pay by card (Stripe) or wallet → order rows written → SIM allocated from inventory →
+              shipping label booked with USPS/UPS → confirmation email.</p>
+            <p class="why"><b>Interesting because:</b> the payment webhook and the order creation are separate, asynchronous events, so the
+              order must be created idempotently — the same webhook can arrive twice, and a retry must not create a second order or allocate
+              a second SIM.</p>
+          </div>
+        </details>
+
+        <details>
+          <summary>Activation</summary>
+          <div class="body">
+            <p>SIM/eSIM submitted → subscription and SIM records written in a pre-active state → <code>ACTIVATED</code> event →
+              the right carrier gateway provisions the line and returns a mobile number → subscription flips to active → welcome SMS/email.</p>
+            <p class="why"><b>Interesting because:</b> it's a distributed state machine over an external system you don't control.
+              The carrier call can time out after succeeding on their side, so "retry" and "duplicate provisioning" are the same action
+              unless the state check is authoritative.</p>
+          </div>
+        </details>
+
+        <details>
+          <summary>Recharge / top-up</summary>
+          <div class="body">
+            <p>Payment validated and routed → gateway dispatch → webhook confirms → prepaid record written → bundle-activation event →
+              carrier applies the bucket → balance and expiry visible to the customer.</p>
+            <p class="why"><b>Interesting because:</b> money moves before the network changes. If the carrier step fails after the charge
+              succeeds, you owe the customer either a bucket or a refund — which is exactly the compensation problem interviewers like.</p>
+          </div>
+        </details>
+
+        <details>
+          <summary>Usage / CDR rating</summary>
+          <div class="body">
+            <p>Carrier drops or exposes usage records → scheduled collection → parse and bulk insert → rate each record against the
+              subscriber's active buckets → decrement balance, post revenue.</p>
+            <p class="why"><b>Interesting because:</b> it's the only high-volume path in the system, it's batch rather than request/response,
+              and duplicates are silent — a double-inserted CDR bills the customer twice and nothing throws.</p>
+          </div>
+        </details>
+
+        <details>
+          <summary>Postpaid billing and dunning</summary>
+          <div class="body">
+            <p>Monthly cron raises invoices → invoice event → notification service emails the invoice and sends a per-carrier SMS →
+              unpaid invoices are chased on a recurring dunning cycle → GL postings for revenue and tax.</p>
+            <p class="why"><b>Interesting because:</b> crons here have no distributed lock, so with more than one replica the same invoice
+              run can fire twice — a concrete example of why "just scale it out" isn't free.</p>
+          </div>
+        </details>
+      </section>
+
+      <section id="s5">
+        <h2><span class="num">05</span>STAR stories</h2>
+        <p class="sub">Behavioural rounds want Situation / Task / Action / Result. These four are built from how the system actually behaves — fill in your own specifics where marked.</p>
+
+        <details open>
+          <summary>Story 1 — "Tell me about a bug that was hard to find"</summary>
+          <div class="body">
+            <p><b>S.</b> A customer was charged but the bundle never appeared on the line. No exception in any log, no alert.</p>
+            <p><b>T.</b> Find out where the chain broke, in a system with no distributed tracing and no correlation IDs.</p>
+            <p><b>A.</b> I worked backwards from the money: confirmed the payment row, then the prepaid record, then looked for the event row
+              in the events table. It was there and marked processed — but the carrier call inside the handler had thrown, and the handler
+              marks the row processed after a single attempt regardless of outcome, so the failure was swallowed. I correlated by MDN and
+              timestamp across services to prove it.</p>
+            <p><b>R.</b> Reprocessed the affected subscribers, and raised the general problem: at-least-once delivery with no retry and no
+              dead-letter means a transient carrier timeout silently loses a paid-for entitlement. <i>[Add what you actually shipped —
+              a replay path, a reconciliation check, an alert.]</i></p>
+            <p class="why">Shows: methodical debugging without tooling, reading the mechanism rather than guessing, separating the incident
+              from the systemic cause.</p>
+          </div>
+        </details>
+
+        <details>
+          <summary>Story 2 — "Tell me about a change you made carefully"</summary>
+          <div class="body">
+            <p><b>S.</b> A one-field change to an entity in a shared repository module — the kind of thing that looks like a five-minute task.</p>
+            <p><b>T.</b> Ship it without breaking other services.</p>
+            <p><b>A.</b> That module is compiled into a dozen other applications, and the schema is evolved by Hibernate on deploy, so the
+              change would apply itself to production with no migration script and no way to drop the column afterwards. I grepped every
+              module that declares the dependency, checked which of them read or write that table, confirmed the change was purely additive,
+              and checked whether the field crossed an API response or an event payload — there's no API versioning, so a shape change hits
+              every client at once.</p>
+            <p><b>R.</b> Shipped additively, with the affected services named in the PR and verified manually after deploy, because a green
+              build here only proves compilation.</p>
+            <p class="why">Shows: you understand blast radius, irreversibility, and that "small diff" is not "small change".</p>
+          </div>
+        </details>
+
+        <details>
+          <summary>Story 3 — "Tell me about a design decision you disagreed with"</summary>
+          <div class="body">
+            <p><b>S.</b> The async bus is a MySQL table that every service polls, while a full RabbitMQ implementation sits unused in the codebase.</p>
+            <p><b>T.</b> Decide whether to push for switching.</p>
+            <p><b>A.</b> I read both paths instead of assuming the broker was better. The Rabbit path as written acknowledges before
+              processing, on a non-durable queue with no dead-letter exchange — so switching would have given us <i>weaker</i> delivery
+              guarantees than the table, not stronger. The table is durable, inspectable with SQL, and survives restarts; what it lacks is
+              retry, a DLQ, and safe concurrent consumption.</p>
+            <p><b>R.</b> I argued for fixing the gaps we actually have — retry with backoff, a dead-letter state, and a locked or
+              conditional claim so two replicas can't grab the same row — rather than a migration that would have looked modern and
+              regressed reliability.</p>
+            <p class="why">Shows: you evaluate rather than pattern-match, and you can disagree with a framework fashion for stated reasons.</p>
+          </div>
+        </details>
+
+        <details>
+          <summary>Story 4 — "Tell me about working with an external partner"</summary>
+          <div class="body">
+            <p><b>S.</b> Three carrier integrations — Verizon, a wholesale T-Mobile partner, and Tata — each with a different protocol style
+              (SOAP, REST, OAuth2 client credentials) and very different maturity.</p>
+            <p><b>T.</b> Make a change to provisioning behaviour without breaking a live carrier contract.</p>
+            <p><b>A.</b> I treated them as three separate systems rather than one abstraction. The newest integration had no circuit breaker,
+              no effective timeout and no retry coverage, so behaviour verified against one carrier told me nothing about the others. I
+              checked each carrier's code path independently and kept the fix inside the carrier-specific module rather than in shared code.</p>
+            <p><b>R.</b> The change shipped for the carrier that needed it, with the other two provably untouched. <i>[Add your specifics.]</i></p>
+            <p class="why">Shows: you resist premature abstraction, and you understand that an external contract breaks differently from an
+              internal one.</p>
+          </div>
+        </details>
+      </section>
+
+      <section id="s6">
+        <h2><span class="num">06</span>Hard questions, strong answers</h2>
+        <p class="sub">This architecture invites specific questions. Prepare these six and you'll rarely be surprised.</p>
+
+        <details>
+          <summary>"How do you stop a customer being charged twice?"</summary>
+          <div class="body">
+            <p>"Three layers, and only one of them actually holds across replicas. The gateway gives us a durable dedup key on the webhook.
+              The database state check — has this payment already moved to confirmed — is the real guard, because it's a single source of
+              truth every pod sees. There are also in-process locks in the code, but they're JVM-local, so with more than one replica they
+              protect nothing; I'd never rely on them. If I were adding a new money-moving path today I'd give it a unique constraint at the
+              database level, because that's the only mechanism that can't be raced."</p>
+          </div>
+        </details>
+
+        <details>
+          <summary>"You have almost no tests. How do you ship safely?"</summary>
+          <div class="body">
+            <p>"By moving the verification earlier, and being explicit about what isn't verified. Before a change I identify every consumer
+              of what I'm touching — module dependencies, shared tables, event payloads, config keys — and say so in the PR. After deploy we
+              have Python verifier scripts that check real database and API state for the payment and fulfilment flows, plus around a hundred
+              scheduled validation scripts that alert on duplicate charges, stuck CDRs and failed activations. It's post-hoc detection, not
+              prevention, and I'd say that plainly: a green build means it compiled. Where I've added code, I've kept it small and reversible
+              rather than clever."</p>
+          </div>
+        </details>
+
+        <details>
+          <summary>"How do you handle schema changes without migrations?"</summary>
+          <div class="body">
+            <p>"Carefully and additively. Hibernate is set to <code>update</code> everywhere, so an entity change becomes a DDL statement on
+              the next deploy — no review step, no rollback, and columns are never dropped. Practically that means: add nullable columns,
+              never rename, never repurpose an existing column, and check every other service that embeds the same repository module, because
+              several applications share one schema. It's the constraint I'd most want to fix, with a real migration tool and a review gate."</p>
+          </div>
+        </details>
+
+        <details>
+          <summary>"Why a database table instead of Kafka?"</summary>
+          <div class="body">
+            <p>"History rather than design, but it has real properties: events are durable, transactional with the business write, and you can
+              inspect and replay them with SQL, which matters a lot during a billing incident. What it costs you is throughput, a retry
+              policy, dead-lettering, and safe concurrent consumption — the claim is an unlocked select, so two replicas can double-process.
+              If I moved it to a broker I'd do it consumer by consumer behind the same interface, starting with the lowest-risk topic, rather
+              than as a big-bang switch."</p>
+          </div>
+        </details>
+
+        <details>
+          <summary>"What would you fix first, and why?"</summary>
+          <div class="body">
+            <ol>
+              <li><b>Retry and dead-lettering on the event bus</b> — today a handler that throws loses a paid-for entitlement silently.
+                Highest customer impact per unit of work.</li>
+              <li><b>A distributed lock for crons and stock allocation</b> — the correctness bugs that appear the moment you scale past one
+                replica, which is exactly when you least want them.</li>
+              <li><b>Correlation IDs</b> — cheap, unlocks every future investigation, and there's nothing to break.</li>
+            </ol>
+            <p>"Each of those is scoped, has a blast radius I can describe, and doesn't require rewriting anything."</p>
+          </div>
+        </details>
+
+        <details>
+          <summary>"Is this really microservices?"</summary>
+          <div class="body">
+            <p>"Honestly, no — it's a distributed monolith, and I'd rather say that than defend a label. The deployment boundaries are real:
+              services are built, released and scaled independently. The data boundaries aren't: one application opens connection pools into
+              a dozen other domains' schemas. So we get the operational cost of distribution and only some of the benefit. Knowing that
+              changes how I work — I check the shared table, not just the shared class."</p>
+          </div>
+        </details>
+      </section>
+
+      <section id="s7">
+        <h2><span class="num">07</span>Design-round ammunition</h2>
+        <p class="sub">If the interview turns into "design a payment system" or "design a billing pipeline", this project gives you lived examples for every classic topic.</p>
+        <table>
+          <thead><tr><th>Classic topic</th><th>What you can say from this system</th></tr></thead>
+          <tbody>
+            <tr><td>Idempotency</td><td>Webhook dedup key + authoritative DB state check; why in-process locks fail across pods</td></tr>
+            <tr><td>Delivery semantics</td><td>At-least-once in theory, at-most-once in practice, because a failed handler is still marked processed</td></tr>
+            <tr><td>Compensation / sagas</td><td>Money moves before the carrier provisions — what you owe the customer when step two fails</td></tr>
+            <tr><td>Shared DB vs DB-per-service</td><td>A concrete cost story: cross-schema reads make a "service" boundary cosmetic</td></tr>
+            <tr><td>Schema evolution</td><td>Additive-only under auto-DDL; expand/contract as the pattern you'd want instead</td></tr>
+            <tr><td>Scaling stateful code</td><td>JVM-local session and idempotency state that breaks on the second replica</td></tr>
+            <tr><td>Batch vs streaming</td><td>CDR rating as scheduled bulk work; where streaming would and wouldn't help</td></tr>
+            <tr><td>Third-party resilience</td><td>Circuit breakers and timeouts present for two carriers, absent for a third — and what that asymmetry causes</td></tr>
+            <tr><td>Migration strategy</td><td>Strangler-fig: route one consumer at a time behind a stable interface, never big-bang</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="s8">
+        <h2><span class="num">08</span>How to talk about the weaknesses</h2>
+        <p class="sub">This codebase has real problems. Naming them well is a strength; either hiding them or trashing the team is a weakness.</p>
+        <div class="two">
+          <div class="box good">
+            <h4>Say</h4>
+            <ul>
+              <li>"The constraint is X, so the discipline we apply is Y."</li>
+              <li>"I'd fix it in this order, for these reasons."</li>
+              <li>"That's a known trade-off; here's what it costs us."</li>
+              <li>"I verified that against the source before relying on it."</li>
+              <li>"I don't know — I'd check the Jenkins service map."</li>
+            </ul>
+          </div>
+          <div class="box bad">
+            <h4>Don't say</h4>
+            <ul>
+              <li>"The codebase is a mess." (No judgement shown, and it's your work too.)</li>
+              <li>"We'd just move it to Kafka/microservices/the cloud." (Unscoped.)</li>
+              <li>Anything with a credential, customer record, or internal hostname in it.</li>
+              <li>Invented metrics — traffic, revenue, uptime you never measured.</li>
+              <li>"There are no tests, so nobody knows if it works." (True-ish, useless.)</li>
+            </ul>
+          </div>
+        </div>
+        <div class="callout warn"><b>Confidentiality</b>Describe architecture, patterns and your reasoning — never paste proprietary code,
+          real subscriber data, carrier contract terms, internal hostnames or credentials into an interview, a take-home, or a portfolio.
+          Everything in this guide is safe to say out loud; that's deliberate.</div>
+      </section>
+
+      <section id="s9">
+        <h2><span class="num">09</span>Domain vocabulary</h2>
+        <p class="sub">Using the domain's own words correctly is the fastest credibility signal in a telecom interview — and a trap if you bluff one.</p>
+        <table>
+          <thead><tr><th>Term</th><th>Say it like this</th></tr></thead>
+          <tbody>
+            <tr><td>MVNO / MNO</td><td>"We're the virtual operator — we own the customer, the MNO owns the radio network we buy from."</td></tr>
+            <tr><td>BSS / OSS</td><td>"BSS is the commercial side: ordering, billing, customer care. OSS is the network side."</td></tr>
+            <tr><td>CDR</td><td>"Call Detail Record — one row per call, session or message; the raw material for rating."</td></tr>
+            <tr><td>Rating</td><td>"Turning a CDR into money using the plan's tariff and remaining buckets."</td></tr>
+            <tr><td>Bucket</td><td>"A metered allowance — data, minutes, SMS — with its own expiry."</td></tr>
+            <tr><td>MDN / ICCID / IMSI</td><td>"The phone number / the SIM's serial / the subscriber identity on the network."</td></tr>
+            <tr><td>Provisioning</td><td>"Telling the carrier to turn the line on and apply the plan."</td></tr>
+            <tr><td>Port-in</td><td>"Bringing an existing number from another operator — coordinated, and it can fail asynchronously."</td></tr>
+            <tr><td>Dunning</td><td>"The recurring chase for an unpaid postpaid invoice."</td></tr>
+            <tr><td>KYC</td><td>"Identity verification required before activation in some markets."</td></tr>
+            <tr><td>USSD</td><td>"The <code>*123#</code> menus — session-based, stateful, and unforgiving about latency."</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="s10">
+        <h2><span class="num">10</span>Preparation checklist</h2>
+        <p class="sub">Tick these off before the interview. Your progress is remembered in this browser.</p>
+        <div class="bar"><div class="track"><i id="pbar"></i></div><span id="pnum">0 / 10</span></div>
+        <div class="checks" id="checks">
+          <label class="chk"><input type="checkbox" data-k="c1"><span><span class="ct">Say the 30-second pitch out loud, twice</span><span class="cd">Timed. If it runs past 45 seconds, cut the framework names first.</span></span></label>
+          <label class="chk"><input type="checkbox" data-k="c2"><span><span class="ct">Draw the whiteboard sequence from memory</span><span class="cd">Five boxes, the events table, the carrier fan-out, the CDR loop back.</span></span></label>
+          <label class="chk"><input type="checkbox" data-k="c3"><span><span class="ct">Pick one flow and narrate it end to end</span><span class="cd">Real service names, real state transitions, no hand-waving in the middle.</span></span></label>
+          <label class="chk"><input type="checkbox" data-k="c4"><span><span class="ct">Memorise five numbers</span><span class="cd">117 modules · 49 apps · 23 deployed · 3 carriers · Java 8.</span></span></label>
+          <label class="chk"><input type="checkbox" data-k="c5"><span><span class="ct">Fill your own specifics into two STAR stories</span><span class="cd">The bracketed gaps — what you personally shipped and what changed after.</span></span></label>
+          <label class="chk"><input type="checkbox" data-k="c6"><span><span class="ct">Rehearse the idempotency answer</span><span class="cd">The most likely deep-dive, and the one where vagueness shows fastest.</span></span></label>
+          <label class="chk"><input type="checkbox" data-k="c7"><span><span class="ct">Prepare "what would you fix first" with three ranked items</span><span class="cd">Each with a reason and a blast radius.</span></span></label>
+          <label class="chk"><input type="checkbox" data-k="c8"><span><span class="ct">Practise saying "I don't know" once</span><span class="cd">Followed by where you'd look. It's a scoring answer, not a losing one.</span></span></label>
+          <label class="chk"><input type="checkbox" data-k="c9"><span><span class="ct">Re-read the flow walkthroughs 01–05</span><span class="cd">They hold the file-level detail this page deliberately summarises.</span></span></label>
+          <label class="chk"><input type="checkbox" data-k="c10"><span><span class="ct">Prepare two questions to ask them</span><span class="cd">Ask about their deploy/rollback story and how they verify changes — you have real comparisons.</span></span></label>
+        </div>
+      </section>
+
+      <p class="foot">Companion documents: <a href="07-project-handbook.md">07-project-handbook.md</a> (full project and tools map) ·
+        <a href="engineer-guide.html">engineer-guide.html</a> (working in the system day to day) ·
+        <a href="architecture.html">architecture.html</a> · <a href="index.html">index.html</a>.
+        Figures verified against the repository on 2026-09-21; re-check before quoting them later.</p>
+
+    </main>
+  </div>
+</div>
+
+<script>
+(function(){
+  var K='intv-guide';
+  function get(){ try{ return JSON.parse(localStorage.getItem(K)||'{}'); }catch(e){ return {}; } }
+  function set(o){ try{ localStorage.setItem(K,JSON.stringify(o)); }catch(e){} }
+
+  // Theme toggle
+  var tb=document.getElementById('b-theme');
+  try{ var t=localStorage.getItem(K+'-theme'); if(t) document.documentElement.setAttribute('data-theme',t); }catch(e){}
+  tb.addEventListener('click',function(){
+    var cur=document.documentElement.getAttribute('data-theme');
+    var next = cur==='dark' ? 'light' : cur==='light' ? 'dark'
+      : (window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches ? 'light':'dark');
+    document.documentElement.setAttribute('data-theme',next);
+    try{ localStorage.setItem(K+'-theme',next); }catch(e){}
+  });
+
+  // Build TOC from sections
+  var toc=document.getElementById('toc'), ol=document.createElement('ol');
+  var secs=[].slice.call(document.querySelectorAll('main section'));
+  secs.forEach(function(s){
+    var h=s.querySelector('h2'), num=h.querySelector('.num');
+    var label=h.textContent.replace(num?num.textContent:'','').trim();
+    var li=document.createElement('li'), a=document.createElement('a');
+    a.href='#'+s.id; a.textContent=label; li.appendChild(a); ol.appendChild(li);
+  });
+  toc.appendChild(ol);
+  var links=[].slice.call(toc.querySelectorAll('a'));
+  if('IntersectionObserver' in window){
+    var io=new IntersectionObserver(function(es){
+      es.forEach(function(e){
+        if(e.isIntersecting){
+          links.forEach(function(l){ l.classList.toggle('on', l.getAttribute('href')==='#'+e.target.id); });
+        }
+      });
+    },{rootMargin:'-10% 0px -75% 0px'});
+    secs.forEach(function(s){ io.observe(s); });
+  }
+
+  // Checklist with progress
+  var boxes=[].slice.call(document.querySelectorAll('#checks input')), saved=get();
+  var bar=document.getElementById('pbar'), num=document.getElementById('pnum');
+  function paint(){
+    var done=0;
+    boxes.forEach(function(b){
+      b.parentElement.classList.toggle('done', b.checked);
+      if(b.checked) done++;
+    });
+    bar.style.width=(done/boxes.length*100)+'%';
+    num.textContent=done+' / '+boxes.length;
+  }
+  boxes.forEach(function(b){
+    if(saved[b.dataset.k]) b.checked=true;
+    b.addEventListener('change',function(){
+      var o=get(); o[b.dataset.k]=b.checked; set(o); paint();
+    });
+  });
+  paint();
+})();
+</script>
+</body>
+</html>

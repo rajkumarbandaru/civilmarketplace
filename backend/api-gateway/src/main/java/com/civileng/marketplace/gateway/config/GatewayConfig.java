@@ -126,6 +126,20 @@ public class GatewayConfig {
                         .filters(f -> f.stripPrefix(0)
                                 .filter(jwtAuthFilter.apply(new JwtAuthGatewayFilterFactory.Config())))
                         .uri("lb://project-service"))
+                // Upload slots and signed file URLs. The file bytes themselves never come through
+                // here: browsers upload to, and download from, object storage directly.
+                .route("media-service", r -> r
+                        .path("/api/v1/media/**")
+                        .filters(f -> f.stripPrefix(0)
+                                .filter(jwtAuthFilter.apply(new JwtAuthGatewayFilterFactory.Config())))
+                        .uri("lb://media-service"))
+                // B2B trade. Who may act for which organization is procurement-service's own rule,
+                // from membership; the module check above keeps it out of tenants without it.
+                .route("procurement-service", r -> r
+                        .path("/api/v1/procurement/**")
+                        .filters(f -> f.stripPrefix(0)
+                                .filter(jwtAuthFilter.apply(new JwtAuthGatewayFilterFactory.Config())))
+                        .uri("lb://procurement-service"))
                 .route("review-service", r -> r
                         .path("/api/v1/reviews/**", "/api/v1/profiles/**", "/api/v1/admin/reviews/**")
                         .filters(f -> f.stripPrefix(0)
@@ -156,6 +170,13 @@ public class GatewayConfig {
                 // /api/v1/admin/** would otherwise swallow /api/v1/admin/reviews/**,
                 // /api/v1/admin/announcements/**, /api/v1/admin/notifications/** and
                 // /api/v1/admin/support/**
+                // A workspace's published brand name and logo, for the sign-in screen — no token
+                // exists yet. Public by the config schema's sensitivity; must precede
+                // admin-service's route, which would otherwise demand a JWT for it.
+                .route("ui-config-public", r -> r
+                        .path("/api/v1/ui-config/public/**")
+                        .filters(f -> f.stripPrefix(0))
+                        .uri("lb://admin-service"))
                 .route("admin-service", r -> r
                         .path("/api/v1/admin/**", "/api/v1/ui-config/**")
                         .filters(f -> f.stripPrefix(0)

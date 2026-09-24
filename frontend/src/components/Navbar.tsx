@@ -36,7 +36,7 @@ import {
 } from '@mui/icons-material';
 import { styled, alpha, useTheme } from '@mui/material/styles';
 import { useAppSelector, useAppDispatch } from '../hooks';
-import { logout } from '../store/slices/authSlice';
+import { signOut } from '../store/slices/authSlice';
 import { toggleSidebar } from '../store/slices/uiSlice';
 import { motion } from 'framer-motion';
 import { useMenuSection, useUiConfig } from '../providers/UiConfigProvider';
@@ -92,7 +92,7 @@ const Navbar: React.FC<{ navInDrawer?: boolean }> = ({ navInDrawer = false }) =>
   const handleClose = () => setAnchorEl(null);
 
   const handleLogout = () => {
-    dispatch(logout());
+    dispatch(signOut());
     handleClose();
     navigate('/');
   };

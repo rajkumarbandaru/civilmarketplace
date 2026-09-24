@@ -22,7 +22,18 @@ import java.util.concurrent.ConcurrentHashMap;
 @Component
 public class TenantDirectory {
 
-    private static final Duration TTL = Duration.ofSeconds(60);
+    /**
+     * A live tenant's modules follow its plan: an upgrade must show up quickly (architecture 08 §7
+     * caps local staleness at 30 s).
+     */
+    private static final Duration TTL = Duration.ofSeconds(30);
+
+    /**
+     * A tenant that is not live is usually on its way to being live (DRAFT, PROVISIONING): its
+     * owner opens the invitation link seconds after it goes ACTIVE, and a minute-old "draft"
+     * answer would turn them away. Not-live answers are therefore only trusted briefly.
+     */
+    static final Duration NOT_LIVE_TTL = Duration.ofSeconds(3);
 
     private final WebClient webClient;
     private final Map<String, CacheEntry> cache = new ConcurrentHashMap<>();
@@ -44,7 +55,7 @@ public class TenantDirectory {
                 .retrieve()
                 .bodyToMono(TenantDescriptor.class)
                 .doOnNext(descriptor ->
-                        cache.put(host, new CacheEntry(descriptor, Instant.now().plus(TTL))))
+                        cache.put(host, new CacheEntry(descriptor, Instant.now().plus(ttlFor(descriptor)))))
                 .onErrorResume(e -> {
                     // A stale entry beats a platform-wide outage: if tenant-service is down,
                     // hosts we already know keep serving rather than every request failing.
@@ -56,6 +67,10 @@ public class TenantDirectory {
                     log.warn("Tenant lookup for '{}' failed: {}", host, e.getMessage());
                     return Mono.empty();
                 });
+    }
+
+    static Duration ttlFor(TenantDescriptor descriptor) {
+        return descriptor.isActive() ? TTL : NOT_LIVE_TTL;
     }
 
     public void evict(String host) {

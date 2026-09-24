@@ -12,6 +12,13 @@
     <name>Review Service</name>
     <description>Ratings and Reviews (Reputation) Service</description>
     <dependencies>
+        <!-- Kafka only to hear about tenants created while this service runs (tenant-common's
+             provisioning listener, and its acknowledgement to the Platform Factory saga). Without
+             it a new tenant got no review schema until this service restarted. -->
+        <dependency>
+            <groupId>org.springframework.kafka</groupId>
+            <artifactId>spring-kafka</artifactId>
+        </dependency>
         <dependency>
             <groupId>com.civileng.marketplace</groupId>
             <artifactId>web-common</artifactId>

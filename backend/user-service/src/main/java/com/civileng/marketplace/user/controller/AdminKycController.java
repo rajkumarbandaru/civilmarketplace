@@ -1,5 +1,6 @@
 package com.civileng.marketplace.user.controller;
 
+import com.civileng.marketplace.user.dto.MediaDtos;
 import com.civileng.marketplace.user.model.KycDocument;
 import com.civileng.marketplace.user.service.KycService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -66,6 +67,16 @@ public class AdminKycController {
         requireAdmin(role);
         String reason = body.getOrDefault("reason", "Not specified");
         return ResponseEntity.ok(kycService.reject(documentId, reviewerId, role, reason));
+    }
+
+    @GetMapping("/{documentId}/file")
+    @Operation(summary = "A short-lived link to open a KYC document for review")
+    public ResponseEntity<MediaDtos.FileLink> getFile(
+            @RequestHeader(value = "X-User-Role", required = false) String role,
+            @RequestHeader("X-User-Id") Long reviewerId,
+            @PathVariable Long documentId) {
+        requireAdmin(role);
+        return ResponseEntity.ok(kycService.reviewerFileLink(documentId, reviewerId, role));
     }
 
     private void requireAdmin(String role) {

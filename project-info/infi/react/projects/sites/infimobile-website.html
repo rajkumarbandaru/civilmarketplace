@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Site 1 · InfiMobile website — `config/Development`</title>
+<style>
+:root{--bg:#f6f7f9;--fg:#1f2933;--muted:#5b6770;--card:#fff;--line:#e3e6ea;--accent:#3730a3;--accent-bg:#eef2ff;--head:#0f172a;--code:#f1f3f6}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1115;--fg:#e6e8eb;--muted:#9aa4ad;--card:#171a20;--line:#2a2f37;--accent:#a5b4fc;--accent-bg:#1e2240;--head:#05070b;--code:#1f232b}}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.6 system-ui,-apple-system,Segoe UI,sans-serif;background:var(--bg);color:var(--fg)}
+header{background:var(--head);color:#fff;padding:18px 16px}
+header .in{max-width:1200px;margin:0 auto}
+header h1{margin:0;font-size:22px;line-height:1.3} header p{margin:4px 0 0;opacity:.75;font-size:13px}
+header a{color:#c7d2fe}
+.wrap{max-width:1200px;margin:0 auto;padding:0 16px 60px;display:flex;gap:24px;align-items:flex-start}
+nav.toc{position:sticky;top:12px;flex:0 0 250px;max-height:calc(100vh - 24px);overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:16px;font-size:13px}
+nav.toc ul{list-style:none;margin:0;padding-left:10px} nav.toc>ul{padding-left:0}
+nav.toc a{color:var(--accent);text-decoration:none;display:block;padding:2px 0}
+main{flex:1;min-width:0}
+main h1{display:none}
+h2{font-size:20px;margin:32px 0 10px;padding-top:8px;border-top:1px solid var(--line)}
+h3{font-size:16px;margin:20px 0 8px}
+a{color:var(--accent)}
+blockquote{margin:12px 0;padding:10px 14px;background:var(--accent-bg);border-left:4px solid var(--accent);border-radius:6px}
+blockquote p{margin:4px 0}
+table{border-collapse:collapse;width:100%;background:var(--card);font-size:14px;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:6px 10px;text-align:left;vertical-align:top}
+th{background:var(--accent-bg)}
+code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:13px}
+pre{background:var(--code);padding:12px;border-radius:8px;overflow-x:auto;font-size:13px;line-height:1.45}
+pre code{background:none;padding:0}
+pre.mermaid{background:var(--card);border:1px solid var(--line);text-align:center}
+hr{border:0;border-top:1px solid var(--line);margin:24px 0}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin:12px 0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px}
+.card h3{margin:0 0 6px;font-size:16px}.card p{margin:0;color:var(--muted);font-size:13px}
+.card .meta{margin-top:8px;font-size:12px;color:var(--muted)}
+@media (max-width:900px){.wrap{display:block}nav.toc{position:static;max-height:none;margin-top:16px}}
+</style></head><body>
+<header><div class="in"><h1>Site 1 · InfiMobile website — `config/Development`</h1><p>Source: ~/june-24/arya-cms/jc-cms · generated from <code style="color:#fff;background:none">projects/sites/infimobile-website.md</code></p></div></header>
+<div class="wrap"><nav class="toc"><b>Contents</b><div class="toc">
+<ul>
+<li><a href="#facts">Facts</a></li>
+<li><a href="#page-groups">Page groups</a></li>
+<li><a href="#main-customer-journey">Main customer journey</a></li>
+<li><a href="#things-i-can-talk-about-here">Things I can talk about here</a></li>
+</ul>
+</div>
+</nav><main><p style="font-size:13px"><a href="../../index.html">Interview guide</a> · <a href="../../five-years-experience-playbook.html">5-yr playbook</a> · <a href="../../projects/index.html">All projects</a></p><h1 id="site-1-infimobile-website-configdevelopment">Site 1 · InfiMobile website — <code>config/Development</code></h1>
+<p>The public consumer website of the InfiMobile MVNO: browse plans, buy a SIM/eSIM, activate
+(new number or port-in), recharge, manage the account. Default site when <code>ACTIVE_SITE</code> is unset.</p>
+<h2 id="facts">Facts</h2>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Brand / theme</td>
+<td>InfiMobile (<code>config/themes/infimobile.json</code>)</td>
+</tr>
+<tr>
+<td>Layout</td>
+<td><strong>top nav</strong> (<code>navigationType: top</code>), announcement marquee, footer columns</td>
+</tr>
+<tr>
+<td>Auth</td>
+<td><code>required: false</code> — login is a page/modal (<code>auth/self</code>), gating only actions; dashboard page <code>user-dashboard</code></td>
+</tr>
+<tr>
+<td>Size</td>
+<td>96 pages · 55 modals · 3 drawers · 4 landing pages · 215 scripts · 40 CSS files</td>
+</tr>
+<tr>
+<td>API contract</td>
+<td>25 backends · 100 APIs</td>
+</tr>
+<tr>
+<td>Payments</td>
+<td>Stripe (embedded checkout / payment element)</td>
+</tr>
+<tr>
+<td>External scripts</td>
+<td>Google Analytics, Meta pixel, Stripe, Mouseflow, Front chat</td>
+</tr>
+<tr>
+<td>Run</td>
+<td><code>npm run dev:site</code> (port 4010)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="page-groups">Page groups</h2>
+<table>
+<thead>
+<tr>
+<th>Group</th>
+<th>Pages</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Marketing</td>
+<td><code>home</code>, <code>plans</code>, <code>plan-details</code>, <code>why-us</code>, family/student/streaming/heavy-data plan pages, <code>become-a-partner</code>, <code>become-a-reseller</code>, <code>refer-a-friend</code>, <code>media</code>, <code>news</code>, <code>faqs</code>, <code>landing-page-1..7</code></td>
+</tr>
+<tr>
+<td>Buy</td>
+<td><code>cart-page</code>, <code>cart-drawer</code>, <code>go-with-addon</code>, <code>check-out</code>, <code>payment</code>, <code>order</code>, <code>order-summary</code></td>
+</tr>
+<tr>
+<td>Activate</td>
+<td><code>activate</code>, <code>check_coverage</code>, <code>compatible</code>, <code>network-selection</code>, <code>choose-how-you-like-to-connect</code>, <code>activation-third</code>, <code>trial-number-portin</code>, <code>change-carrier</code></td>
+</tr>
+<tr>
+<td>Account</td>
+<td><code>auth/self</code>, <code>two-factor-auth</code>, <code>2fa-opt-validation</code>, <code>forgot-password</code>, <code>reset-password</code>, <code>user-dashboard</code>, <code>account-profile</code>, <code>wallet</code>, <code>load-wallet</code>, <code>recharge</code>, <code>usage-history</code>, <code>order-history</code>, <code>transaction-history</code>, <code>track-orders</code></td>
+</tr>
+<tr>
+<td>Self-service</td>
+<td><code>sim-replacement</code>, <code>change-mobile-number</code>, <code>caller-id-change</code>, <code>update-address</code>, <code>disable-auto-renewal</code>, <code>refund</code>, <code>raise-ticket</code>, <code>track-tickets</code>, <code>support</code></td>
+</tr>
+<tr>
+<td>Legal</td>
+<td><code>terms-and-conditions</code>, <code>privacy-policy</code>, <code>911-disclosure</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="main-customer-journey">Main customer journey</h2>
+<pre class="mermaid">flowchart TD
+  H[&quot;home / plans&quot;] --&gt; PD[&quot;plan-details&quot;]
+  PD --&gt; C[&quot;add to cart (FamilyPlanPricing / SinglePlanPricing)&quot;]
+  C --&gt; AD[&quot;go-with-addon&quot;] --&gt; CO[&quot;check-out&quot;]
+  CO --&gt; L{&quot;logged in?&quot;}
+  L -- no --&gt; AU[&quot;auth/self modal: login / signup / 2FA&quot;] --&gt; CO
+  L -- yes --&gt; PAY[&quot;payment: Stripe&quot;]
+  PAY --&gt; ST{&quot;payment status script&quot;}
+  ST -- success --&gt; OS[&quot;order-summary + payment-success modal&quot;]
+  ST -- fail --&gt; PF[&quot;payment failed / retry&quot;]
+  OS --&gt; ACT[&quot;activate&quot;]
+  ACT --&gt; COV[&quot;coverage + device (IMEI) compatibility&quot;]
+  COV --&gt; NS[&quot;network-selection modal&quot;]
+  NS --&gt; PT{&quot;new number or port-in?&quot;}
+  PT --&gt; DONE[&quot;activation request → SIM/eSIM QR&quot;]
+</pre>
+<h2 id="things-i-can-talk-about-here">Things I can talk about here</h2>
+<ul>
+<li>Transaction number row hidden via <code>modelAttrs.display</code> on <code>global.transactionToken</code> for auto-renewals.</li>
+<li>IMEI-2 checkbox bug (stale merge in the interceptor) — engine-level fix.</li>
+<li>Front chat init race: call <code>show</code> only in <code>onInitCompleted</code>.</li>
+<li>Network-selection cards equalised with <code>flex: 1 1 0; min-width: 0</code>.</li>
+</ul></main></div>
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+mermaid.initialize({ startOnLoad: false, theme: dark ? 'dark' : 'default', securityLevel: 'loose', flowchart: { htmlLabels: true } });
+const blocks = [...document.querySelectorAll('pre.mermaid')];
+for (let i = 0; i < blocks.length; i++) {
+  const el = blocks[i];
+  const src = el.textContent;
+  try {
+    const { svg } = await mermaid.render('mmd' + i, src);
+    el.innerHTML = svg;
+    el.setAttribute('data-processed', 'true');
+  } catch (e) {
+    el.setAttribute('data-error', 'true');
+    el.textContent = 'Diagram error: ' + e.message + ' --- ' + src;
+  }
+}
+</script>
+</body></html>

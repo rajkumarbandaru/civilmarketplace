@@ -27,6 +27,8 @@ public class BookingService {
 
     private final BookingRepository bookingRepository;
     private final BookingEventPublisher events;
+    /** Plan limits; absent where tenant-service's entitlements are not wired (tests, single-tenant). */
+    private final org.springframework.beans.factory.ObjectProvider<com.civileng.marketplace.web.common.client.Quotas> quotas;
 
     private static final BigDecimal PLATFORM_FEE_PERCENTAGE = new BigDecimal("5.00");
     private static final BigDecimal GST_PERCENTAGE = new BigDecimal("18.00");
@@ -34,6 +36,15 @@ public class BookingService {
 
     @Transactional
     public Booking createBooking(Booking booking) {
+        // bookings.monthly is a hard plan limit: the next booking is refused once this calendar
+        // month's count (UTC) has reached it. Counted from the tenant's own table, so it is exact.
+        var quota = quotas.getIfAvailable();
+        if (quota != null) {
+            java.time.LocalDateTime monthStart = java.time.LocalDate.now(java.time.ZoneOffset.UTC)
+                    .withDayOfMonth(1).atStartOfDay();
+            quota.require("bookings.monthly", bookingRepository.countByCreatedAtGreaterThanEqual(monthStart),
+                    "bookings a month");
+        }
         booking.setBookingCode(generateBookingCode());
 
         if (booking.getEstimatedCost() != null) {

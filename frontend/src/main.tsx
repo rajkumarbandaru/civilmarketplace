@@ -6,6 +6,8 @@ import { BrowserRouter } from 'react-router-dom';
 import { store } from './store';
 import { restoreRememberedSession, shouldRestoreRemembered } from './store/slices/authSlice';
 import UiConfigProvider from './providers/UiConfigProvider';
+import WorkspaceProvider from './providers/WorkspaceProvider';
+import { MotionConfig } from 'framer-motion';
 import App from './App';
 import './styles/index.css';
 
@@ -35,7 +37,13 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           {/* Supplies the MUI theme, so it must sit inside the query client and the store —
               it reads the auth state and fetches the signed-in user's config. */}
           <UiConfigProvider>
-            <App />
+            {/* Which workspace this address is, before sign-in; see WorkspaceProvider. */}
+            <WorkspaceProvider>
+              {/* Entrance animations follow the visitor's reduce-motion setting. */}
+              <MotionConfig reducedMotion="user">
+                <App />
+              </MotionConfig>
+            </WorkspaceProvider>
           </UiConfigProvider>
         </BrowserRouter>
       </QueryClientProvider>

@@ -76,15 +76,6 @@ public class PaymentController {
         return ResponseEntity.ok(paymentService.getPaymentByBooking(bookingId));
     }
 
-    @PostMapping("/webhook")
-    @Operation(summary = "Razorpay webhook handler")
-    public ResponseEntity<Map<String, Object>> handleWebhook(
-            @RequestBody String payload,
-            @RequestHeader("X-Razorpay-Signature") String signature) {
-        paymentService.handleWebhookEvent(payload, signature);
-        return ResponseEntity.ok(Map.of("status", "ok"));
-    }
-
     @GetMapping("/health")
     @Operation(summary = "Health check")
     public ResponseEntity<Map<String, Object>> health() {

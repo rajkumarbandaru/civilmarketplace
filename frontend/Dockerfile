@@ -25,11 +25,9 @@ COPY frontend/src ./src
 # Overrides frontend/.env when supplied, for a deployment whose gateway is not on localhost.
 # Empty by default so the committed .env stays the single source of truth for local runs.
 ARG VITE_API_BASE_URL=""
-ARG VITE_RAZORPAY_KEY_ID=""
 ARG VITE_GOOGLE_MAPS_API_KEY=""
 RUN : > .env.production.local && \
     for pair in "VITE_API_BASE_URL=$VITE_API_BASE_URL" \
-                "VITE_RAZORPAY_KEY_ID=$VITE_RAZORPAY_KEY_ID" \
                 "VITE_GOOGLE_MAPS_API_KEY=$VITE_GOOGLE_MAPS_API_KEY"; do \
       # Only non-empty args are written, so an unset one falls through to .env instead of
       # overriding it with a blank.

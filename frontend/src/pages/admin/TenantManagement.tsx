@@ -49,6 +49,8 @@ import {
   VisibilityOff,
 } from '@mui/icons-material';
 import DynamicIcon from '../../components/DynamicIcon';
+import TenantIntegrationsCard from './TenantIntegrationsCard';
+import FileUploadButton from '../../components/FileUploadButton';
 import { alpha } from '@mui/material/styles';
 import { apiErrorMessage } from '../../services/apiError';
 import { SortableTableCell, useTableSort } from '../../components/admin/SortableTable';
@@ -85,12 +87,23 @@ import {
   TenantBranding,
   TENANT_STATUS_HELP,
   TENANT_STATUSES,
+  OPERATOR_SETTABLE_STATUSES,
   TenantStatus,
   UI_STYLES,
   Vertical,
   VERTICAL_MODULES,
   VERTICALS,
+  TenantDraft,
+  createDraft,
+  saveDraft,
+  createTenantFromDraft,
+  publishTenant,
+  fetchPlanCatalog,
+  fetchTenantEntitlements,
+  entitledModules,
 } from '../../services/tenantApi';
+import { DraftList, PublishCard } from './TenantFactory';
+import PlanCard from './TenantEntitlements';
 
 /**
  * Operator's view over every tenant on the platform. Creating one provisions a schema per service
@@ -101,13 +114,6 @@ import {
  * tenant-service, not here; this screen just explains the 403 rather than showing an empty table.
  */
 
-/**
- * PENDING is deliberately missing: it means "created but not yet provisioned", which the platform
- * sets and clears itself. Offering it as a button let an operator move a live, serving tenant into
- * a state that describes something untrue and changes nothing.
- */
-const OPERATOR_SETTABLE_STATUSES: TenantStatus[] =
-  TENANT_STATUSES.filter((status) => status !== 'PENDING');
 
 /**
  * The colour that identifies a tenant's row, or null when it has chosen none.
@@ -120,9 +126,11 @@ const rowAccent = (tenant: Tenant): string | null => {
   return candidate && HEX_COLOR.test(candidate) ? candidate.slice(0, 7) : null;
 };
 
-const STATUS_COLOR: Record<TenantStatus, 'success' | 'warning' | 'error' | 'default'> = {
+const STATUS_COLOR: Record<TenantStatus, 'success' | 'warning' | 'error' | 'default' | 'info'> = {
+  DRAFT: 'info',
+  PROVISIONING: 'warning',
+  PROVISIONING_FAILED: 'error',
   ACTIVE: 'success',
-  PENDING: 'warning',
   SUSPENDED: 'error',
   ARCHIVED: 'default',
 };
@@ -361,7 +369,9 @@ const ModulesStep: React.FC<{
   onModules: (modules: Set<string>) => void;
   /** Modules already on that this vertical does not list; kept visible so they can be turned off. */
   extraModules?: string[];
-}> = ({ vertical, modules, onModules, extraModules = [] }) => {
+  /** What the plan allows. A module outside it cannot be switched on; one already on is kept, dormant. */
+  entitled?: Set<string>;
+}> = ({ vertical, modules, onModules, extraModules = [], entitled }) => {
   const { data: catalogue } = useQuery({
     queryKey: ['menu-catalogue'],
     queryFn: fetchMenuCatalogue,
@@ -411,6 +421,7 @@ const ModulesStep: React.FC<{
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 1 }}>
         {choosable.map((key) => {
           const items = itemsByModule.get(key) || [];
+          const inPlan = !entitled || entitled.has(key);
           return (
             <Box
               key={key}
@@ -422,9 +433,21 @@ const ModulesStep: React.FC<{
               }}
             >
               <FormControlLabel
-                control={<Checkbox checked={modules.has(key)} onChange={() => toggleModule(key)} />}
+                control={
+                  <Checkbox
+                    checked={modules.has(key)}
+                    disabled={!inPlan && !modules.has(key)}
+                    onChange={() => toggleModule(key)}
+                    inputProps={{ 'aria-label': moduleLabel(key) }}
+                  />
+                }
                 label={moduleLabel(key)}
               />
+              {!inPlan && (
+                <Chip size="small" color={modules.has(key) ? 'warning' : 'default'} variant="outlined"
+                  data-testid={`not-in-plan-${key}`}
+                  label={modules.has(key) ? 'Not in plan — chosen, not running' : 'Not in plan'} />
+              )}
               {items.length > 0 && (
                 <Typography
                   variant="caption"
@@ -994,6 +1017,9 @@ const BrandingFields: React.FC<{
             : 'Shown beside the wordmark in the shell. Absolute or app-relative.'
         }
       />
+      <Box sx={{ mt: -1, mb: 2 }}>
+        <FileUploadButton purpose="TENANT_LOGO" label="Upload logo" onUploaded={(media) => set({ logoUrl: media.url ?? '' })} />
+      </Box>
       <Typography variant="subtitle2" sx={{ mb: 1 }}>Colours</Typography>
       <Stack spacing={1.5} sx={{ mb: 2 }}>
         <ColorField
@@ -1113,7 +1139,9 @@ const NewTenantDialog: React.FC<{
   open: boolean;
   onClose: () => void;
   onCreated: (tenant: Tenant) => void;
-}> = ({ open, onClose, onCreated }) => {
+  /** Resume an unfinished draft instead of starting blank. */
+  draft?: TenantDraft | null;
+}> = ({ open, onClose, onCreated, draft }) => {
   const [name, setName] = useState('');
   const [keyOverride, setKeyOverride] = useState<string | null>(null);
   const [contactEmail, setContactEmail] = useState('');
@@ -1125,7 +1153,18 @@ const NewTenantDialog: React.FC<{
   );
   const [overrides, setOverrides] = useState<Map<string, TenantMenuOverride>>(new Map());
   const [landingPath, setLandingPath] = useState<string | null>(null);
+  const [plan, setPlan] = useState('professional');
+  const planCatalog = useQuery({ queryKey: ['plan-catalog'], queryFn: fetchPlanCatalog, staleTime: 5 * 60_000, retry: false });
+  const planEntitled = entitledModules(planCatalog.data, plan);
+  const [ownerName, setOwnerName] = useState('');
+  const [ownerEmail, setOwnerEmail] = useState('');
   const [tab, setTab] = useState(0);
+  // The server-side draft this dialog autosaves into (Platform Factory). Null until there is
+  // something worth saving.
+  const [draftId, setDraftId] = useState<number | null>(null);
+  const [draftVersion, setDraftVersion] = useState(0);
+  const [issues, setIssues] = useState<TenantDraft['issues']>([]);
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'conflict' | 'error'>('idle');
 
   const reset = () => {
     setName('');
@@ -1137,14 +1176,44 @@ const NewTenantDialog: React.FC<{
     setModules(new Set(VERTICAL_MODULES.CIVIL_MARKETPLACE));
     setOverrides(new Map());
     setLandingPath(null);
+    setOwnerName('');
+    setOwnerEmail('');
+    setPlan('professional');
     setTab(0);
+    setDraftId(null);
+    setDraftVersion(0);
+    setIssues([]);
+    setSaveState('idle');
   };
+
+  // Resuming: the form is restored exactly as it was left, from the snapshot the draft carries.
+  useEffect(() => {
+    if (!open || !draft) return;
+    const f = draft.data.form ?? {};
+    setName(f.name ?? '');
+    setKeyOverride(f.keyOverride ?? null);
+    setContactEmail(f.contactEmail ?? '');
+    setCustomDomain(f.customDomain ?? '');
+    setVertical(f.vertical ?? 'CIVIL_MARKETPLACE');
+    setBranding({ ...EMPTY_BRANDING, ...(f.branding ?? {}) });
+    setModules(new Set(f.modules ?? VERTICAL_MODULES.CIVIL_MARKETPLACE));
+    setOverrides(new Map((f.overrides ?? []).map((o: TenantMenuOverride) => [o.itemKey, o])));
+    setLandingPath(f.landingPath ?? null);
+    setOwnerName(f.ownerName ?? '');
+    setOwnerEmail(f.ownerEmail ?? '');
+    setPlan(f.plan ?? 'professional');
+    setDraftId(draft.id);
+    setDraftVersion(draft.version);
+    setIssues(draft.issues);
+    setSaveState('saved');
+  }, [open, draft]);
 
   // Follows the name until the operator types a key of their own, then stops — re-deriving it
   // after that would silently overwrite a deliberate choice on the next keystroke of the name.
   const tenantKey = keyOverride ?? previewTenantKey(name);
   const keyError = tenantKey === '' ? null : tenantKeyError(tenantKey);
   const emailValid = /^\S+@\S+\.\S+$/.test(contactEmail.trim());
+  const ownerEmailValid = /^\S+@\S+\.\S+$/.test(ownerEmail.trim());
   const domainValid = customDomain.trim() === '' || HOSTNAME.test(customDomain.trim());
 
   // Named rather than a bare boolean: a greyed-out Create button with no explanation is the most
@@ -1158,14 +1227,70 @@ const NewTenantDialog: React.FC<{
     : !emailValid ? { tab: 0, message: 'That contact email is not valid.' }
     : !domainValid
       ? { tab: 0, message: 'A custom domain is a hostname, with no scheme or path.' }
+    : ownerEmail.trim() === '' ? { tab: 1, message: "Enter the owner's email." }
+    : !ownerEmailValid ? { tab: 1, message: "That owner email is not valid." }
     : !modules.has('auth') && VERTICAL_MODULES[vertical].includes('auth')
-      ? { tab: 1, message: 'A tenant needs the auth module.' }
-    : !brandingValid(branding) ? { tab: 3, message: 'Check the branding values.' }
+      ? { tab: 2, message: 'A tenant needs the auth module.' }
+    : !brandingValid(branding) ? { tab: 4, message: 'Check the branding values.' }
     : null;
   const valid = blocker === null;
 
+  // What "Create" will send, and the draft document that carries it plus the form as typed.
+  const command: CreateTenantCommand = {
+    tenantKey,
+    name: name.trim(),
+    contactEmail: contactEmail.trim(),
+    customDomain: customDomain.trim() || undefined,
+    vertical,
+    modules: [...HORIZONTAL_MODULES, ...modules],
+    menuOverrides: [...overrides.values()].filter((o) => !isNoopOverride(o)),
+    landingPath,
+    branding: toBrandingPayload(branding),
+    plan,
+  };
+  const draftData = {
+    ...command,
+    ownerName: ownerName.trim(),
+    ownerEmail: ownerEmail.trim(),
+    form: { name, keyOverride, contactEmail, customDomain, vertical, branding, modules: [...modules],
+      overrides: [...overrides.values()], landingPath, ownerName, ownerEmail, plan },
+  };
+  const draftJson = JSON.stringify(draftData);
+
+  /** Saves the draft now (creating it on first save). Returns its id, or null if it could not. */
+  const saveNow = async (): Promise<number | null> => {
+    setSaveState('saving');
+    try {
+      const saved = draftId === null
+        ? await createDraft(draftData)
+        : await saveDraft(draftId, draftVersion, draftData);
+      setDraftId(saved.id);
+      setDraftVersion(saved.version);
+      setIssues(saved.issues);
+      setSaveState('saved');
+      return saved.id;
+    } catch (e: any) {
+      setSaveState(e?.response?.status === 409 ? 'conflict' : 'error');
+      return null;
+    }
+  };
+
+  // Autosave: a second after the operator stops typing. Nothing is saved for an untouched form.
+  useEffect(() => {
+    if (!open || name.trim() === '' || saveState === 'conflict') return undefined;
+    const timer = setTimeout(() => { saveNow(); }, 1000);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, draftJson]);
+
   const create = useMutation({
-    mutationFn: (command: CreateTenantCommand) => createTenant(command),
+    mutationFn: async (andPublish: boolean) => {
+      const id = await saveNow();
+      if (id === null) throw new Error('The draft could not be saved, so nothing was created.');
+      const tenant = await createTenantFromDraft(id);
+      if (andPublish) await publishTenant(tenant.tenantKey);
+      return tenant;
+    },
     onSuccess: (tenant) => {
       reset();
       onCreated(tenant);
@@ -1182,12 +1307,21 @@ const NewTenantDialog: React.FC<{
 
   return (
     <Dialog open={open} onClose={close} fullWidth maxWidth="md">
-      <DialogTitle>New tenant</DialogTitle>
+      <DialogTitle>
+        New tenant
+        <Typography variant="caption" color="text.secondary" component="div" data-testid="draft-save-state">
+          {saveState === 'saving' ? 'Saving draft…'
+            : saveState === 'saved' ? `Draft saved${draftId ? ` (#${draftId})` : ''} — you can close this and continue later`
+            : saveState === 'error' ? 'The draft could not be saved.'
+            : 'Changes are saved as a draft as you type.'}
+        </Typography>
+      </DialogTitle>
       <DialogContent>
-        <DialogContentText sx={{ mb: 2 }}>
-          Creating a tenant provisions its schema in every service. That runs asynchronously, so a
-          new tenant may take a few seconds to become reachable.
-        </DialogContentText>
+        {saveState === 'conflict' && (
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            Someone else saved this draft since you opened it. Close and reopen it to see their changes.
+          </Alert>
+        )}
 
         {create.isError && (
           <Alert severity="error" sx={{ mb: 2 }}>
@@ -1208,16 +1342,22 @@ const NewTenantDialog: React.FC<{
             iconPosition="end"
           />
           <Tab
-            label="Modules"
+            label="Owner"
             icon={blocker?.tab === 1 ? <ErrorOutline fontSize="small" color="error" /> : undefined}
+            iconPosition="end"
+          />
+          <Tab
+            label="Modules"
+            icon={blocker?.tab === 2 ? <ErrorOutline fontSize="small" color="error" /> : undefined}
             iconPosition="end"
           />
           <Tab label="Navigation" />
           <Tab
             label="Look"
-            icon={blocker?.tab === 3 ? <ErrorOutline fontSize="small" color="error" /> : undefined}
+            icon={blocker?.tab === 4 ? <ErrorOutline fontSize="small" color="error" /> : undefined}
             iconPosition="end"
           />
+          <Tab label="Review" />
         </Tabs>
 
         <Box hidden={tab !== 0}>
@@ -1296,10 +1436,29 @@ const NewTenantDialog: React.FC<{
         </Box>
 
         <Box hidden={tab !== 1}>
-          <ModulesStep vertical={vertical} modules={modules} onModules={setModules} />
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            The person who will run this workspace. When it is published they get an email with a
+            single-use link to set their own password — nobody else ever knows it — and they set up an
+            authenticator app at first sign-in.
+          </Typography>
+          <TextField fullWidth label="Owner's name" value={ownerName} onChange={(e) => setOwnerName(e.target.value)}
+            sx={{ mb: 2 }} inputProps={{ maxLength: 120 }} />
+          <TextField fullWidth label="Owner's email" value={ownerEmail} onChange={(e) => setOwnerEmail(e.target.value)}
+            error={ownerEmail.trim() !== '' && !ownerEmailValid}
+            helperText="Where the invitation is sent." inputProps={{ maxLength: 150 }} />
         </Box>
 
         <Box hidden={tab !== 2}>
+          <TextField select fullWidth label="Plan" value={plan} onChange={(e) => setPlan(e.target.value)} sx={{ mb: 2 }}
+            helperText="What the tenant has bought. Modules outside it are refused; add-ons and grants can be added later.">
+            {(planCatalog.data?.plans ?? [{ key: 'professional', name: 'Professional', version: 1 }]).map((p) => (
+              <MenuItem key={p.key} value={p.key}>{p.name}</MenuItem>
+            ))}
+          </TextField>
+          <ModulesStep vertical={vertical} modules={modules} onModules={setModules} entitled={planEntitled} />
+        </Box>
+
+        <Box hidden={tab !== 3}>
           <NavigationEditor
             modules={modules}
             overrides={overrides}
@@ -1309,13 +1468,46 @@ const NewTenantDialog: React.FC<{
           />
         </Box>
 
-        <Box hidden={tab !== 3}>
+        <Box hidden={tab !== 4}>
           <BrandingFields
             form={branding}
             onChange={setBranding}
             name={name}
             landingLabel={landingLabelFor(landingPath)}
           />
+        </Box>
+
+        <Box hidden={tab !== 5} data-testid="wizard-review">
+          <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>Review</Typography>
+          {[
+            ['Name', name.trim() || '—'],
+            ['Tenant key', tenantKey || '—'],
+            ['Address', tenantKey ? `${tenantKey}.<your-domain>${customDomain ? ` and ${customDomain}` : ''}` : '—'],
+            ['Contact', contactEmail.trim() || '—'],
+            ['Owner', ownerEmail.trim() ? `${ownerName.trim() || 'Owner'} <${ownerEmail.trim()}>` : '—'],
+            ['Vertical', chosenVertical?.label ?? vertical],
+            ['Plan', planCatalog.data?.plans.find((p) => p.key === plan)?.name ?? plan],
+            ['Modules', `${modules.size} selected${planEntitled && [...modules].some((m) => !planEntitled.has(m))
+              ? ` (${[...modules].filter((m) => !planEntitled.has(m)).length} not in plan — will not run)` : ''}`],
+            ['Look', branding.presetKey || branding.primaryColor ? 'Customised' : 'Platform default (inherited)'],
+          ].map(([label, value]) => (
+            <Stack key={label} direction="row" spacing={2} sx={{ py: 0.5 }}>
+              <Typography variant="body2" color="text.secondary" sx={{ width: 120, flexShrink: 0 }}>{label}</Typography>
+              <Typography variant="body2" sx={{ wordBreak: 'break-word' }}>{value}</Typography>
+            </Stack>
+          ))}
+          {(blocker || issues.length > 0) ? (
+            <Alert severity="warning" sx={{ mt: 2 }} data-testid="review-issues">
+              <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>Still to do</Typography>
+              {blocker && <div>{blocker.message}</div>}
+              {issues.filter((i) => i.message !== blocker?.message).map((i) => <div key={i.message}>{i.message}</div>)}
+            </Alert>
+          ) : (
+            <Alert severity="success" sx={{ mt: 2 }}>
+              Ready. <strong>Create as draft</strong> reserves the key and subdomain without building anything;
+              <strong> Create and publish</strong> builds it in every service and invites the owner.
+            </Alert>
+          )}
         </Box>
       </DialogContent>
       <DialogActions>
@@ -1331,28 +1523,21 @@ const NewTenantDialog: React.FC<{
           </Typography>
         )}
         <Button color="inherit" onClick={close} disabled={create.isPending}>Cancel</Button>
-        {tab < 3 && (
+        {tab < 5 && (
           <Button onClick={() => setTab(tab + 1)}>Next</Button>
         )}
-        <Button
-          variant="contained"
-          disabled={!valid || create.isPending}
-          onClick={() =>
-            create.mutate({
-              tenantKey,
-              name: name.trim(),
-              contactEmail: contactEmail.trim(),
-              customDomain: customDomain.trim() || undefined,
-              vertical,
-              modules: [...HORIZONTAL_MODULES, ...modules],
-              menuOverrides: [...overrides.values()].filter((o) => !isNoopOverride(o)),
-              landingPath,
-              branding: toBrandingPayload(branding),
-            })
-          }
-        >
-          {create.isPending ? 'Creating…' : 'Create tenant'}
-        </Button>
+        {tab === 5 && (
+          <>
+            <Button variant="outlined" disabled={!valid || issues.length > 0 || create.isPending}
+              onClick={() => create.mutate(false)}>
+              Create as draft
+            </Button>
+            <Button variant="contained" disabled={!valid || issues.length > 0 || create.isPending}
+              onClick={() => create.mutate(true)}>
+              {create.isPending ? 'Creating…' : 'Create and publish'}
+            </Button>
+          </>
+        )}
       </DialogActions>
     </Dialog>
   );
@@ -1852,6 +2037,14 @@ const ModuleEditor: React.FC<{ tenant: Tenant }> = ({ tenant }) => {
   // overwritten by a stale local set the next time this operator hits Save.
   useEffect(() => setModules(new Set(tenant.modules)), [tenant.modules]);
 
+  const entitlement = useQuery({
+    queryKey: ['entitlements', tenant.tenantKey],
+    queryFn: () => fetchTenantEntitlements(tenant.tenantKey),
+    enabled: tenant.tenantKey !== 'platform',
+    retry: false,
+  });
+  const entitled = entitlement.data ? new Set(entitlement.data.entitlements.features) : undefined;
+
   const save = useMutation({
     mutationFn: () => setTenantModules(tenant.tenantKey, [...HORIZONTAL_MODULES, ...modules]),
     onSuccess: () => {
@@ -1896,6 +2089,7 @@ const ModuleEditor: React.FC<{ tenant: Tenant }> = ({ tenant }) => {
           modules={modules}
           onModules={setModules}
           extraModules={extraModules}
+          entitled={entitled}
         />
 
         <Button
@@ -2053,7 +2247,9 @@ const EditBrandingDialog: React.FC<{
   const themeStatus = useQuery({
     queryKey: ['tenants', tenant.tenantKey, 'theme-status'],
     queryFn: () => fetchTenantThemeStatus(tenant.tenantKey),
-    enabled: open,
+    // Only a live tenant has a theme of its own to have customised; before publishing there is
+    // no schema to ask, and the branding set here is what seeds it.
+    enabled: open && !['DRAFT', 'PROVISIONING', 'PROVISIONING_FAILED'].includes(tenant.status),
     retry: false,
   });
 
@@ -2253,12 +2449,15 @@ const TenantDetail: React.FC<{ tenant: Tenant; onBack: () => void }> = ({
         </Alert>
       )}
 
-      <StatusEditor tenant={tenant} />
+      <PublishCard tenant={tenant} />
+      <PlanCard tenant={tenant} />
+      {OPERATOR_SETTABLE_STATUSES.includes(tenant.status) && <StatusEditor tenant={tenant} />}
       <IdentityEditor tenant={tenant} />
       <ModuleEditor tenant={tenant} />
       {/* After modules: the navigation can only reshape what the module set left behind. */}
       <NavigationCard tenant={tenant} />
       <BrandingSummary tenant={tenant} />
+      <TenantIntegrationsCard tenant={tenant} />
     </Box>
   );
 };
@@ -2267,6 +2466,7 @@ const TenantManagement: React.FC = () => {
   const queryClient = useQueryClient();
   const [openKey, setOpenKey] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [resuming, setResuming] = useState<TenantDraft | null>(null);
 
   const { data, isLoading, isError, error } = useQuery<Tenant[]>({
     queryKey: ['tenants'],
@@ -2314,13 +2514,22 @@ const TenantManagement: React.FC = () => {
         </Button>
       </Stack>
 
+      <DraftList onContinue={(d) => { setResuming(d); setCreating(true); }} />
+
       <TenantList tenants={tenants} onOpen={setOpenKey} />
 
       <NewTenantDialog
         open={creating}
-        onClose={() => setCreating(false)}
+        draft={resuming}
+        onClose={() => {
+          setCreating(false);
+          setResuming(null);
+          queryClient.invalidateQueries({ queryKey: ['tenant-drafts'] });
+        }}
         onCreated={(tenant) => {
           setCreating(false);
+          setResuming(null);
+          queryClient.invalidateQueries({ queryKey: ['tenant-drafts'] });
           queryClient.invalidateQueries({ queryKey: ['tenants'] });
           setOpenKey(tenant.tenantKey);
         }}

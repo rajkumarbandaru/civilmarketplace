@@ -13,6 +13,8 @@ import com.civileng.marketplace.project.dto.*;
 import com.civileng.marketplace.web.common.AccessDeniedException;
 import com.civileng.marketplace.project.model.*;
 import com.civileng.marketplace.project.repository.*;
+import com.civileng.marketplace.web.common.client.MediaRef;
+import com.civileng.marketplace.web.common.client.MediaReferences;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -34,6 +36,8 @@ public class ProjectService {
 
     /** From auth-service's roles seed data. */
 
+    static final String DOCUMENT_PURPOSE = "PROJECT_DOCUMENT";
+
     private final ProjectRepository projectRepository;
     private final MilestoneRepository milestoneRepository;
     private final ProjectDocumentRepository documentRepository;
@@ -41,6 +45,7 @@ public class ProjectService {
     private final ProjectBookingsClient projectBookingsClient;
     private final ProjectEscrowClient projectEscrowClient;
     private final AuditPublisher auditPublisher;
+    private final MediaReferences mediaReferences;
 
     // --------------------------------------------------------------------- projects
 
@@ -292,12 +297,16 @@ public class ProjectService {
                                           AttachDocumentRequest request) {
         Project project = requireProject(projectId);
         requireOwner(project, actorId);
+        // fileRef is a media-service upload id, checked to be a PROJECT_DOCUMENT this owner uploaded
+        // — not a URL or storage key the client could point anywhere.
+        MediaRef file = mediaReferences.requireOwned(request.getFileRef(), DOCUMENT_PURPOSE, actorId);
 
         ProjectDocument document = documentRepository.save(ProjectDocument.builder()
                 .projectId(projectId)
-                .fileRef(request.getFileRef())
+                .fileRef(file.id())
                 .docType(request.getDocType())
-                .fileName(request.getFileName())
+                .fileName(request.getFileName() == null || request.getFileName().isBlank()
+                        ? file.originalFilename() : request.getFileName().trim())
                 .uploadedBy(actorId)
                 .build());
         log.info("Document {} attached to project {} by {}", document.getId(), projectId, actorId);
@@ -309,6 +318,20 @@ public class ProjectService {
         Project project = requireProject(projectId);
         requireViewer(project, actorId, actorRole);
         return documentRepository.findByProjectIdAndIsDeletedFalseOrderByCreatedAtDesc(projectId);
+    }
+
+    /**
+     * A short-lived link to open a document, for anyone who may view the project. The file itself
+     * is private in storage; this is the only way to reach it.
+     */
+    @Transactional(readOnly = true)
+    public MediaRef getDocumentLink(Long projectId, Long documentId, Long actorId, String actorRole) {
+        Project project = requireProject(projectId);
+        requireViewer(project, actorId, actorRole);
+        ProjectDocument document = documentRepository.findByIdAndIsDeletedFalse(documentId)
+                .filter(d -> d.getProjectId().equals(projectId))
+                .orElseThrow(() -> new IllegalArgumentException("Document not found"));
+        return mediaReferences.fresh(document.getFileRef(), actorId);
     }
 
     @Transactional

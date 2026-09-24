@@ -48,7 +48,12 @@ public class InternalOnlyPathFilter implements GlobalFilter, Ordered {
             // prefix wholesale would leave no way to approve a KYC document at all. Only these two
             // are duplicated by admin-service.
             "/api/v1/users/admin/profiles",
-            "/api/v1/users/admin/stats"
+            "/api/v1/users/admin/stats",
+            // media-service hands out a signed URL to anyone its callers vouch for; only another
+            // service may do the vouching.
+            "/api/v1/media/internal",
+            // A tenant's plan and limits, for services enforcing quotas on their own tenant.
+            "/api/v1/tenants/internal"
     );
 
     @Override

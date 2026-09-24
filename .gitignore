@@ -77,3 +77,9 @@ temp/
 # Spring Boot
 *.pid
 heapdump.*
+
+# Test output
+frontend/test-results/
+frontend/playwright-report/
+frontend/blob-report/
+frontend/coverage/

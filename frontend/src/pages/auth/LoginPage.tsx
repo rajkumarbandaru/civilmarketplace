@@ -39,7 +39,9 @@ import {
 import PhoneNumberField from '../../components/form/PhoneNumberField';
 import { landingPathFor } from '../../components/AdminRoute';
 import { SOCIAL_PROVIDERS, startSocialLogin } from '../../services/socialAuth';
-import { stashRememberIntent } from '../../services/authStorage';
+import { stashRememberIntent, takeRememberIntent } from '../../services/authStorage';
+import MfaStep from '../../components/auth/MfaStep';
+import { useWorkspace } from '../../providers/WorkspaceProvider';
 
 const emailField = yup.string().email('Invalid email').required('Email is required');
 
@@ -108,7 +110,9 @@ const LoginPage: React.FC = () => {
   const theme = useTheme();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
-  const { loading, error } = useAppSelector((state) => state.auth);
+  const { loading, error, mfa, recoveryCodes } = useAppSelector((state) => state.auth);
+  const workspace = useWorkspace();
+  const workspaceName = workspace?.branding?.brandName || workspace?.name;
   const [loginMode, setLoginMode] = useState<'password' | 'otp'>('password');
   const [showPassword, setShowPassword] = useState(false);
   // Applies to every route in: password, OTP and social all end in the same place.
@@ -206,10 +210,24 @@ const LoginPage: React.FC = () => {
     }
   };
 
+  /**
+   * Where every sign-in path ends once all its factors are in. "Keep me signed in" is applied only
+   * here — never on a first step that still owes a code, since there is no session yet to keep.
+   * A social sign-in stashed its choice before leaving for the provider.
+   */
+  const finishSignIn = (role?: string) => {
+    const socialRemember = takeRememberIntent();
+    dispatch(setRememberMeAction(rememberMe || socialRemember));
+    navigate(landingPathFor(role));
+  };
+
+  /** The first step passed but a second factor is due: MfaStep takes over the card. */
+  const needsSecondFactor = (payload: any) => !!payload?.mfaRequired;
+
   const onSubmit = async (data: any) => {
     if (loginMode === 'password') {
       const result = await dispatch(login(data));
-      if (result.meta.requestStatus === 'fulfilled') {
+      if (result.meta.requestStatus === 'fulfilled' && !needsSecondFactor(result.payload)) {
         // After the tokens are in the store, so the reducer has a refresh token to remember.
         dispatch(setRememberMeAction(rememberMe));
         navigate(landingPathFor((result.payload as any)?.user?.role));
@@ -221,7 +239,7 @@ const LoginPage: React.FC = () => {
       await requestOtp(data);
     } else {
       const result = await dispatch(verifyOtp({ ...otpIdentifier(data), otp: data.otp }));
-      if (result.meta.requestStatus === 'fulfilled') {
+      if (result.meta.requestStatus === 'fulfilled' && !needsSecondFactor(result.payload)) {
         dispatch(setRememberMeAction(rememberMe));
         navigate(landingPathFor((result.payload as any)?.user?.role));
       }
@@ -305,12 +323,20 @@ const LoginPage: React.FC = () => {
           <Typography variant="h4" sx={{ color: '#fff', fontWeight: 800, fontFamily: "'Poppins', sans-serif" }}>
             Welcome Back
           </Typography>
+          {workspace?.branding?.logoUrl && (
+            <Box component="img" src={workspace.branding.logoUrl} alt={`${workspaceName} logo`}
+              sx={{ height: 40, mt: 1.5, objectFit: 'contain' }} />
+          )}
           <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', mt: 1 }}>
-            Sign in to your account
+            {workspaceName ? `Sign in to ${workspaceName}` : 'Sign in to your account'}
           </Typography>
         </Box>
 
         <CardContent sx={{ p: 4 }}>
+          {mfa || recoveryCodes ? (
+            <MfaStep onSignedIn={finishSignIn} />
+          ) : (
+          <>
           {(error || socialError) && (
             <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>{error || socialError}</Alert>
           )}
@@ -554,6 +580,8 @@ const LoginPage: React.FC = () => {
           >
             Continue browsing without signing in
           </Button>
+          </>
+          )}
         </CardContent>
       </Card>
     </motion.div>

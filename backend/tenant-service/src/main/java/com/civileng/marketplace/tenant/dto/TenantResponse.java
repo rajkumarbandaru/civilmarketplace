@@ -20,6 +20,8 @@ public class TenantResponse {
     private String customDomain;
     private String status;
     private String contactEmail;
+    private String ownerName;
+    private String ownerEmail;
     private String plan;
     private String vertical;
     private Set<String> modules;
@@ -41,6 +43,8 @@ public class TenantResponse {
                 .customDomain(tenant.getCustomDomain())
                 .status(tenant.getStatus().name())
                 .contactEmail(tenant.getContactEmail())
+                .ownerName(tenant.getOwnerName())
+                .ownerEmail(tenant.getOwnerEmail())
                 .plan(tenant.getPlan())
                 .vertical(tenant.getVertical().name())
                 .modules(tenant.moduleKeys())

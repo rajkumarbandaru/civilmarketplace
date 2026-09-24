@@ -23,6 +23,9 @@ spring:
         dialect: org.hibernate.dialect.MySQLDialect
         format_sql: true
     open-in-view: false
+  kafka:
+    # Consumed by tenant-common only: new-tenant provisioning, acknowledged to tenant-service.
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}
   flyway:
     # Off deliberately: tenant-common runs Flyway once per tenant schema. Boot's own Flyway would
     # migrate only the single legacy schema named in the datasource URL, where no tenant's data is.

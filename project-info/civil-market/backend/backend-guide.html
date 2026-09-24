@@ -1,0 +1,497 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>02 — Backend Microservices</title>
+<style>
+:root{--bg:#f6f7f9;--fg:#1f2933;--muted:#5b6770;--card:#fff;--line:#e3e6ea;--accent:#3730a3;--accent-bg:#eef2ff;--head:#0f172a;--code:#f1f3f6}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1115;--fg:#e6e8eb;--muted:#9aa4ad;--card:#171a20;--line:#2a2f37;--accent:#a5b4fc;--accent-bg:#1e2240;--head:#05070b;--code:#1f232b}}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.6 system-ui,-apple-system,Segoe UI,sans-serif;background:var(--bg);color:var(--fg)}
+header{background:var(--head);color:#fff;padding:18px 16px}
+header .in{max-width:1200px;margin:0 auto}
+header h1{margin:0;font-size:22px;line-height:1.3} header p{margin:4px 0 0;opacity:.75;font-size:13px}
+header a{color:#c7d2fe}
+.nav{max-width:1200px;margin:0 auto;padding:10px 16px 0;font-size:13px}
+.nav a{color:var(--accent);text-decoration:none;margin-right:6px;padding:3px 9px;border-radius:999px;background:var(--accent-bg);display:inline-block;margin-bottom:6px}
+.wrap{max-width:1200px;margin:0 auto;padding:0 16px 60px;display:flex;gap:24px;align-items:flex-start}
+nav.toc{position:sticky;top:12px;flex:0 0 250px;max-height:calc(100vh - 24px);overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:16px;font-size:13px}
+nav.toc ul{list-style:none;margin:0;padding-left:10px} nav.toc>ul{padding-left:0}
+nav.toc a{color:var(--accent);text-decoration:none;display:block;padding:2px 0}
+main{flex:1;min-width:0}
+main h1{display:none}
+h2{font-size:20px;margin:32px 0 10px;padding-top:8px;border-top:1px solid var(--line)}
+h3{font-size:16px;margin:20px 0 8px}
+a{color:var(--accent)}
+blockquote{margin:12px 0;padding:10px 14px;background:var(--accent-bg);border-left:4px solid var(--accent);border-radius:6px}
+blockquote p{margin:4px 0}
+table{border-collapse:collapse;width:100%;background:var(--card);font-size:14px;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:6px 10px;text-align:left;vertical-align:top}
+th{background:var(--accent-bg)}
+code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:13px}
+pre{background:var(--code);padding:12px;border-radius:8px;overflow-x:auto;font-size:13px;line-height:1.45}
+pre code{background:none;padding:0}
+pre.mermaid{background:var(--card);border:1px solid var(--line);text-align:center}
+hr{border:0;border-top:1px solid var(--line);margin:24px 0}
+@media (max-width:900px){.wrap{display:block}nav.toc{position:static;max-height:none;margin-top:16px}}
+</style></head><body>
+<header><div class="in"><h1>02 — Backend Microservices</h1><p>Civil Engineering Marketplace · source ~/RAJKUMAR · generated from <code style="color:#fff;background:none">backend/backend-guide.md</code></p></div></header>
+<div class="nav"><a href="../index.html">Home</a><a href="../interview-guide.html">Interview guide</a><a href="../overview/architecture.html">Architecture</a><a href="../backend/backend-guide.html">Backend</a><a href="../ui/ui-guide.html">UI</a><a href="../docker/docker-guide.html">Docker</a><a href="../overview/action-flows.html">Action flows</a><a href="../interview/rapid-fire.html">Rapid fire</a></div>
+<div class="wrap"><nav class="toc"><b>Contents</b><div class="toc">
+<ul>
+<li><a href="#port-table">Port table</a></li>
+<li><a href="#platform-services">Platform services</a><ul>
+<li><a href="#config-server-backendconfig-server">config-server (backend/config-server)</a></li>
+<li><a href="#service-registry-backendservice-registry">service-registry (backend/service-registry)</a></li>
+<li><a href="#api-gateway-backendapi-gateway">api-gateway (backend/api-gateway)</a></li>
+</ul>
+</li>
+<li><a href="#business-services">Business services</a><ul>
+<li><a href="#auth-service">auth-service</a></li>
+<li><a href="#user-service">user-service</a></li>
+<li><a href="#booking-service">booking-service</a></li>
+<li><a href="#payment-service">payment-service</a></li>
+<li><a href="#notification-service">notification-service</a></li>
+<li><a href="#admin-service">admin-service</a></li>
+<li><a href="#project-service">project-service</a></li>
+<li><a href="#review-service">review-service</a></li>
+<li><a href="#search-service">search-service</a></li>
+<li><a href="#messaging-service">messaging-service</a></li>
+<li><a href="#support-service">support-service</a></li>
+<li><a href="#audit-service">audit-service</a></li>
+<li><a href="#tenant-service">tenant-service</a></li>
+</ul>
+</li>
+<li><a href="#shared-libraries-not-deployed-on-their-own">Shared libraries (not deployed on their own)</a></li>
+<li><a href="#coding-conventions-from-module_statusmd">Coding conventions (from MODULE_STATUS.md)</a></li>
+</ul>
+</div>
+</nav><main><h1 id="02-backend-microservices">02 — Backend Microservices</h1>
+<p>Stack: Java 21, Spring Boot 3.2, Spring Cloud 2023.0.1 (Gateway, Config, Eureka, OpenFeign),
+Spring Security + JJWT 0.12, Spring Data JPA / Hibernate 6, Flyway, MapStruct, Lombok,
+Resilience4J, springdoc (Swagger).</p>
+<p>Parent build: <code>backend/pom.xml</code> (all modules below). Each service is its own Spring Boot jar.</p>
+<h2 id="port-table">Port table</h2>
+<p>"Container port" is what the service listens on inside Docker. "Host port" is what you use
+from your machine (set in <code>docker/.env</code>; defaults in brackets).</p>
+<table>
+<thead>
+<tr>
+<th>Service</th>
+<th>Container port</th>
+<th>Host port</th>
+<th>Database</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>config-server</td>
+<td>8888</td>
+<td><strong>8889</strong> (<code>HOST_PORT_CONFIG</code>)</td>
+<td>—</td>
+</tr>
+<tr>
+<td>service-registry (Eureka)</td>
+<td>8761</td>
+<td>8761</td>
+<td>—</td>
+</tr>
+<tr>
+<td>api-gateway</td>
+<td>8080</td>
+<td><strong>8080</strong> (<code>HOST_PORT_GATEWAY</code>)</td>
+<td>— (Redis for rate limit)</td>
+</tr>
+<tr>
+<td>auth-service</td>
+<td>8081</td>
+<td><strong>8093</strong> (<code>HOST_PORT_AUTH</code>)</td>
+<td><code>civil_engineer_auth</code></td>
+</tr>
+<tr>
+<td>user-service</td>
+<td>8082</td>
+<td><strong>8094</strong> (<code>HOST_PORT_USER</code>)</td>
+<td><code>civil_engineer_users</code></td>
+</tr>
+<tr>
+<td>booking-service</td>
+<td>8083</td>
+<td>8083</td>
+<td><code>civil_engineer_bookings</code></td>
+</tr>
+<tr>
+<td>payment-service</td>
+<td>8084</td>
+<td>8084</td>
+<td><code>civil_engineer_payments</code></td>
+</tr>
+<tr>
+<td>notification-service</td>
+<td>8085</td>
+<td>8085</td>
+<td><code>civil_engineer_notifications</code></td>
+</tr>
+<tr>
+<td>admin-service</td>
+<td>8086</td>
+<td>8086</td>
+<td><code>admin_db</code></td>
+</tr>
+<tr>
+<td>review-service</td>
+<td>8089</td>
+<td>8089</td>
+<td><code>civil_engineer_reviews</code></td>
+</tr>
+<tr>
+<td>search-service</td>
+<td>8092</td>
+<td>8092</td>
+<td>— (Elasticsearch)</td>
+</tr>
+<tr>
+<td>audit-service</td>
+<td>8095</td>
+<td>8095</td>
+<td><code>civil_engineer_audit</code></td>
+</tr>
+<tr>
+<td>project-service</td>
+<td>8096</td>
+<td>8096</td>
+<td><code>civil_engineer_projects</code></td>
+</tr>
+<tr>
+<td>messaging-service</td>
+<td>8096</td>
+<td><strong>8097</strong> (<code>HOST_PORT_MESSAGING</code>)</td>
+<td><code>civil_engineer_messaging</code></td>
+</tr>
+<tr>
+<td>support-service</td>
+<td>8098</td>
+<td>8098</td>
+<td><code>civil_engineer_support</code></td>
+</tr>
+<tr>
+<td>tenant-service</td>
+<td>8099</td>
+<td>8099</td>
+<td>tenant registry</td>
+</tr>
+</tbody>
+</table>
+<p>Always call the API through the <strong>gateway (8080)</strong>. The direct host ports are for debugging only.
+Direct calls skip the gateway, so no <code>X-User-*</code> or <code>X-Tenant-Id</code> headers get added and most
+endpoints reject them.</p>
+<h2 id="platform-services">Platform services</h2>
+<h3 id="config-server-backendconfig-server">config-server (<code>backend/config-server</code>)</h3>
+<ul>
+<li>Spring Cloud Config in <strong>native</strong> mode. It serves YAML from <code>classpath:/config-repo/</code>, so the
+  configs live in <code>backend/config-server/src/main/resources/config-repo/&lt;service&gt;.yml</code>.</li>
+<li>Every other service fetches its config from here at boot. <strong>It starts first.</strong> Its healthcheck
+  gates everything else.</li>
+<li>Check a service's resolved config: <code>curl http://localhost:8889/auth-service/default</code></li>
+</ul>
+<h3 id="service-registry-backendservice-registry">service-registry (<code>backend/service-registry</code>)</h3>
+<ul>
+<li>Netflix Eureka server. Each service registers under its <code>spring.application.name</code>.</li>
+<li>Dashboard: http://localhost:8761</li>
+<li>The gateway's <code>lb://&lt;name&gt;</code> routes and Feign clients look up instances here.</li>
+</ul>
+<h3 id="api-gateway-backendapi-gateway">api-gateway (<code>backend/api-gateway</code>)</h3>
+<p>Spring Cloud Gateway (reactive/WebFlux). Main classes:</p>
+<table>
+<thead>
+<tr>
+<th>Class</th>
+<th>Job</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>GatewayConfig</code></td>
+<td>Path → service routes, CORS origin patterns, Redis rate limiter (100 req/s, burst 200)</td>
+</tr>
+<tr>
+<td><code>TenantResolutionGlobalFilter</code></td>
+<td>Works out the tenant from the Host subdomain, strips any client <code>X-Tenant-Id</code>, sets the real one</td>
+</tr>
+<tr>
+<td><code>TenantDirectory</code> / <code>TenantDescriptor</code></td>
+<td>Looks up and caches tenants from tenant-service (via Eureka)</td>
+</tr>
+<tr>
+<td><code>JwtAuthGatewayFilterFactory</code></td>
+<td>Validates the Bearer JWT, checks the <code>tenant</code> claim matches, adds <code>X-User-Id</code>, <code>X-User-Email</code>, <code>X-User-Role</code>, <code>X-User-Name</code></td>
+</tr>
+<tr>
+<td><code>InternalOnlyPathFilter</code></td>
+<td>Blocks internal-only paths from outside (e.g. <code>/api/v1/bookings/admin</code>, <code>/api/v1/auth/admin</code>)</td>
+</tr>
+<tr>
+<td><code>FallbackController</code></td>
+<td>Circuit-breaker fallback responses</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Route table</strong> (order matters: specific paths come before broad ones):</p>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th>Service</th>
+<th>JWT?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/api/v1/auth/**</code>, <code>/oauth2/**</code></td>
+<td>auth-service</td>
+<td>no (public)</td>
+</tr>
+<tr>
+<td><code>/api/v1/geo/**</code></td>
+<td>user-service</td>
+<td>no</td>
+</tr>
+<tr>
+<td><code>/api/v1/users/**</code></td>
+<td>user-service</td>
+<td>yes</td>
+</tr>
+<tr>
+<td><code>/api/v1/bookings/*/reviews</code></td>
+<td>review-service</td>
+<td>yes</td>
+</tr>
+<tr>
+<td><code>/api/v1/bookings/*/messages</code>, <code>/api/v1/threads/**</code></td>
+<td>messaging-service</td>
+<td>yes</td>
+</tr>
+<tr>
+<td><code>/api/v1/catalogue/**</code></td>
+<td>booking-service</td>
+<td>no (public catalogue)</td>
+</tr>
+<tr>
+<td><code>/api/v1/content/**</code></td>
+<td>admin-service</td>
+<td>no (landing page content)</td>
+</tr>
+<tr>
+<td><code>/api/v1/bookings/**</code></td>
+<td>booking-service</td>
+<td>yes</td>
+</tr>
+<tr>
+<td><code>/api/v1/payments/**</code>, <code>/wallets/**</code>, <code>/razorpay/**</code>, <code>/escrow/**</code>, <code>/admin/escrow/**</code></td>
+<td>payment-service</td>
+<td>yes</td>
+</tr>
+<tr>
+<td><code>/webhooks/**</code></td>
+<td>payment-service</td>
+<td>no (Razorpay webhook)</td>
+</tr>
+<tr>
+<td><code>/api/v1/admin/audit/**</code>, <code>/api/v1/privacy/**</code></td>
+<td>audit-service</td>
+<td>yes</td>
+</tr>
+<tr>
+<td><code>/api/v1/search/**</code>, <code>/api/v1/admin/search/**</code></td>
+<td>search-service</td>
+<td>yes</td>
+</tr>
+<tr>
+<td><code>/api/v1/projects/**</code>, <code>/api/v1/admin/projects/**</code></td>
+<td>project-service</td>
+<td>yes</td>
+</tr>
+<tr>
+<td><code>/api/v1/reviews/**</code>, <code>/api/v1/profiles/**</code>, <code>/api/v1/admin/reviews/**</code></td>
+<td>review-service</td>
+<td>yes</td>
+</tr>
+<tr>
+<td><code>/api/v1/notifications/webhooks/**</code></td>
+<td>notification-service</td>
+<td>no (Brevo callback, shared secret)</td>
+</tr>
+<tr>
+<td><code>/api/v1/notifications/**</code>, <code>/api/v1/admin/announcements/**</code>, <code>/api/v1/admin/notifications/**</code></td>
+<td>notification-service</td>
+<td>yes</td>
+</tr>
+<tr>
+<td><code>/api/v1/support/**</code>, <code>/api/v1/admin/support/**</code></td>
+<td>support-service</td>
+<td>yes</td>
+</tr>
+<tr>
+<td><code>/api/v1/admin/**</code>, <code>/api/v1/ui-config/**</code></td>
+<td>admin-service</td>
+<td>yes (catch-all for admin)</td>
+</tr>
+<tr>
+<td><code>/api/v1/tenant-resolution/**</code></td>
+<td>tenant-service</td>
+<td>no</td>
+</tr>
+<tr>
+<td><code>/api/v1/tenants/**</code></td>
+<td>tenant-service</td>
+<td>yes (SUPER_ADMIN of the operator tenant)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="business-services">Business services</h2>
+<h3 id="auth-service">auth-service</h3>
+<ul>
+<li>Register, login (email + password), OTP send/verify, refresh token, logout, OAuth2 social
+  login (Google/Facebook, only when the <code>social</code> profile and real credentials are set).</li>
+<li>Issues the <strong>JWT</strong> (signed with <code>JWT_SECRET</code>), which carries user id, email, role, name and tenant.</li>
+<li>Uses Redis for OTPs and sessions, and Kafka to publish events (e.g. OTP delivery →
+  notification-service).</li>
+<li>Profile <code>docker</code> turns on <code>DevUserSeeder</code>, which creates test accounts (password <code>Password123!</code>):
+  <code>superadmin@</code>, <code>admin@</code>, <code>customer@</code>, <code>worker@</code>, <code>engineer@</code>, <code>architect@</code>, <code>contractor@</code>,
+  <code>surveyor@</code>, <code>supplier@</code>, <code>labour@</code> — all <code>@civileng.test</code>.</li>
+<li>Roles: <code>SUPER_ADMIN</code>, <code>ADMIN</code>, <code>SUB_ADMIN</code>, <code>REGIONAL_ADMIN</code>, plus customer and provider roles.</li>
+</ul>
+<h3 id="user-service">user-service</h3>
+<ul>
+<li>User profiles, addresses, worker portfolios, <strong>KYC</strong> (submit, list, admin approve/reject;
+  approval sets <code>UserProfile.isVerified</code>).</li>
+<li>Public country/state/city reference data under <code>/api/v1/geo/**</code>.</li>
+<li>First audit producer (KYC actions).</li>
+</ul>
+<h3 id="booking-service">booking-service</h3>
+<ul>
+<li>Booking lifecycle: create → assign worker → status changes → complete/cancel. Quotations.</li>
+<li>Public <strong>service catalogue</strong> (<code>/api/v1/catalogue/**</code>).</li>
+<li><code>bookings.project_id</code> / <code>milestone_id</code> link bookings to project-service.</li>
+</ul>
+<h3 id="payment-service">payment-service</h3>
+<ul>
+<li>Razorpay orders, payment verification, refunds, webhooks.</li>
+<li><strong>Escrow</strong> (<code>EscrowHold</code>): the payer funds → HELD → payer releases (or auto-release after 7 days via
+  <code>EscrowAutoReleaseJob</code>) → commission (5%) taken → payee's <strong>Wallet</strong> credited with a ledger line.
+  Disputes freeze the hold, and an admin resolves them.</li>
+<li>A hold becomes HELD only when the linked payment is confirmed by the PSP (Razorpay).</li>
+</ul>
+<h3 id="notification-service">notification-service</h3>
+<ul>
+<li>Delivery channels: email (SMTP or Brevo), SMS (Twilio), WhatsApp (Twilio), in-app notifications.</li>
+<li>Each channel can be set to <code>log</code> (<code>EMAIL_PROVIDER</code>, <code>SMS_PROVIDER</code>, <code>WHATSAPP_PROVIDER</code>). Then
+  messages are only written to the service log. Useful locally, where OTPs show up in
+  <code>docker compose logs notification-service</code>.</li>
+<li>Kafka listeners (e.g. <code>message.sent</code>), plus RabbitMQ.</li>
+<li><strong>Announcements</strong>: an admin broadcast fans out one <code>Notification</code> row per recipient.</li>
+</ul>
+<h3 id="admin-service">admin-service</h3>
+<ul>
+<li>Admin console backend: dashboards, analytics, revenue, workspace management.</li>
+<li><strong>UI-config / theme</strong>: platform theme, per-workspace theme, presets
+  (<code>/api/v1/admin/theme</code>, <code>/api/v1/admin/workspaces/{ws}/theme</code>, <code>/api/v1/ui-config/me</code>).
+  The frontend reads this to style itself at runtime.</li>
+<li>Editable site content (<code>/api/v1/content/**</code> public reads, <code>/api/v1/admin/content/**</code> writes).</li>
+</ul>
+<h3 id="project-service">project-service</h3>
+<ul>
+<li>Projects, milestones (warns on budget over-allocation), project documents, status history,
+  budget-vs-actual rollup (pulls booking and escrow figures by Feign), admin oversight.</li>
+</ul>
+<h3 id="review-service">review-service</h3>
+<ul>
+<li>Two-way reviews (customer ↔ worker), allowed only for a COMPLETED booking (checked with
+  booking-service by Feign). One review per booking per reviewer. Rolling average in
+  <code>RatingSummary</code>. One response per review. Admins can hide or restore reviews.</li>
+</ul>
+<h3 id="search-service">search-service</h3>
+<ul>
+<li>Elasticsearch indices: <code>profiles</code> (built from auth, user and review data) and <code>services</code>
+  (the catalogue). Fuzzy full-text search with filters (role, city, price, rating, verified) and sorting.
+  Admins can trigger a reindex. Stores nothing in MySQL; it reads the tenant registry only
+  to know which tenants to reindex.</li>
+</ul>
+<h3 id="messaging-service">messaging-service</h3>
+<ul>
+<li>One chat thread per booking between customer and worker. It opens once a worker is assigned.
+  Unread counters. Publishes <code>message.sent</code> to Kafka → in-app notification.</li>
+</ul>
+<h3 id="support-service">support-service</h3>
+<ul>
+<li>Helpdesk tickets: reporter creates → admin assigns (→ IN_PROGRESS) → RESOLVED/CLOSED.
+  Reply threads. Closed tickets refuse new replies.</li>
+<li><strong>Ask AI</strong> assistant using Google Gemini (<code>GEMINI_API_KEY</code>, model plus fallbacks). If the key is
+  unset, the assistant reports that it is unavailable and ticketing keeps working.</li>
+</ul>
+<h3 id="audit-service">audit-service</h3>
+<ul>
+<li>Consumes audit events from Kafka. Storage is append-only and <strong>hash-chained</strong>, so tampering can be detected.</li>
+<li>Producers (through the <code>audit-common</code> library): KYC, projects, escrow, announcements, support,
+  UI-config.</li>
+</ul>
+<h3 id="tenant-service">tenant-service</h3>
+<ul>
+<li>Registry of tenants (workspaces). Resolves host → tenant for the gateway and the login screen.</li>
+<li>Onboarding a tenant publishes <code>tenant.events</code> on Kafka. Every service then creates and migrates that
+  tenant's schema with no restart.</li>
+</ul>
+<h2 id="shared-libraries-not-deployed-on-their-own">Shared libraries (not deployed on their own)</h2>
+<table>
+<thead>
+<tr>
+<th>Module</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>tenant-common</code></td>
+<td>Routes each request's DB connection to <code>&lt;db&gt;_&lt;tenantKey&gt;</code> using <code>X-Tenant-Id</code>; runs Flyway for every tenant schema at boot and on <code>tenant.events</code></td>
+</tr>
+<tr>
+<td><code>audit-common</code></td>
+<td>Spring Boot starter; lets a service publish audit events to Kafka with one call</td>
+</tr>
+<tr>
+<td><code>web-common</code></td>
+<td>Common web/exception classes</td>
+</tr>
+</tbody>
+</table>
+<h2 id="coding-conventions-from-module_statusmd">Coding conventions (from MODULE_STATUS.md)</h2>
+<ul>
+<li>Read identity with <code>@RequestHeader("X-User-Id")</code> etc. Make role headers <code>required = false</code> and
+  null-check them, so a missing header returns a 4xx instead of a 500.</li>
+<li>Enum columns: <code>@Enumerated(EnumType.STRING)</code> <strong>and</strong> <code>@JdbcTypeCode(SqlTypes.VARCHAR)</code>.</li>
+<li>Service layer throws <code>IllegalArgumentException</code> for client errors. Each service's
+  <code>GlobalExceptionHandler</code> maps that to 400.</li>
+<li>Flyway: <code>src/main/resources/db/migration/V&lt;n&gt;__*.sql</code>. Never edit an applied migration.</li>
+<li>A <strong>new service</strong> needs: a route in <code>GatewayConfig</code>, a Eureka client dependency, a config file in
+  config-server's <code>config-repo</code>, and a block in <code>docker-compose.yml</code> with <code>depends_on</code>
+  service-registry and config-server (<code>condition: service_healthy</code>).</li>
+</ul></main></div>
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+mermaid.initialize({ startOnLoad: false, theme: dark ? 'dark' : 'default', securityLevel: 'loose',
+                      flowchart: { htmlLabels: true }, sequence: { useMaxWidth: false } });
+const blocks = [...document.querySelectorAll('pre.mermaid')];
+for (let i = 0; i < blocks.length; i++) {
+  const el = blocks[i];
+  const src = el.textContent;
+  try {
+    const { svg } = await mermaid.render('mmd' + i, src);
+    el.innerHTML = svg;
+    el.setAttribute('data-processed', 'true');
+  } catch (e) {
+    el.setAttribute('data-error', 'true');
+    el.textContent = 'Diagram error: ' + e.message + ' --- ' + src;
+  }
+}
+</script>
+</body></html>

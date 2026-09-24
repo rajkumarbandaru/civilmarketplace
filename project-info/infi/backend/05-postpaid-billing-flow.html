@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Postpaid Billing Flow Explorer</title>
+<style>
+:root{
+  --bg:#f6f7fb; --surface:#ffffff; --surface-2:#f0f2f7; --text:#1b1f2a; --muted:#5b6475; --border:#dde1ea;
+  --accent:#3b5bdb; --lane-a:#fafbfd; --lane-b:#f3f5f9; --edge:#b7bfcf; --edge-done:#7c8aa5;
+  --sel:#607089; --ins:#2b8a3e; --upd:#b7791f; --pub:#7048e8; --ext:#c2255c; --warn:#c92a2a;
+  --shadow:0 1px 2px rgba(20,30,60,.06),0 4px 14px rgba(20,30,60,.06);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f1218; --surface:#171b24; --surface-2:#1e2330; --text:#e6e9f0; --muted:#98a1b3; --border:#2a3040;
+    --accent:#7b94ff; --lane-a:#141821; --lane-b:#181d27; --edge:#3a4256; --edge-done:#6a7590;
+    --sel:#9aa8c0; --ins:#51cf66; --upd:#fcc419; --pub:#b197fc; --ext:#f06595; --warn:#ff6b6b;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 14px rgba(0,0,0,.3);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f1218; --surface:#171b24; --surface-2:#1e2330; --text:#e6e9f0; --muted:#98a1b3; --border:#2a3040;
+  --accent:#7b94ff; --lane-a:#141821; --lane-b:#181d27; --edge:#3a4256; --edge-done:#6a7590;
+  --sel:#9aa8c0; --ins:#51cf66; --upd:#fcc419; --pub:#b197fc; --ext:#f06595; --warn:#ff6b6b;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 14px rgba(0,0,0,.3);
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px}
+.wrap{max-width:1500px;margin:0 auto;padding:20px 16px 48px}
+header h1{font-size:22px;margin:0 0 4px}
+.home{display:inline-block;margin-bottom:6px;color:var(--accent);text-decoration:none;font-size:13px}
+.home:hover{text-decoration:underline}
+header p{margin:0;color:var(--muted);max-width:900px}
+.toolbar>*{max-width:100%}
+.seg{flex-wrap:wrap}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:16px 0 12px}
+.seg{display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--surface)}
+.seg button{border:0;background:transparent;color:var(--text);padding:7px 12px;cursor:pointer;font:inherit}
+.seg button.on{background:var(--accent);color:#fff}
+.btn{flex:none;border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:8px;padding:7px 12px;cursor:pointer;font:inherit}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;min-width:88px}
+select.btn{padding:6px 8px}
+.progress{flex:1 1 160px;min-width:140px;height:6px;background:var(--surface-2);border-radius:99px;overflow:hidden}
+.progress>i{display:block;height:100%;width:0;background:var(--accent);transition:width .3s}
+.stepcount{color:var(--muted);font-variant-numeric:tabular-nums;min-width:64px;text-align:right}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;align-items:start}
+.grid>*{min-width:0}
+@media (max-width:1060px){.grid{grid-template-columns:1fr}}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow)}
+.diagram{overflow:auto;max-height:calc(100vh - 170px);min-height:420px;position:relative}
+@media (max-width:1060px){.diagram{max-height:70vh}}
+.canvas{position:relative}
+.lane{position:absolute;top:0;bottom:0}
+.lanehead{position:sticky;top:0;z-index:5;height:44px;display:flex}
+.lanehead div{flex:none;display:flex;align-items:center;justify-content:center;text-align:center;font-size:10.5px;font-weight:600;
+  padding:0 6px;border-bottom:1px solid var(--border);background:var(--surface);color:var(--muted);line-height:1.2}
+.lanehead div b{display:block;width:8px;height:8px;border-radius:50%;margin-right:6px;flex:none}
+svg.edges{position:absolute;left:0;top:0;pointer-events:none;overflow:visible}
+.edge{fill:none;stroke:var(--edge);stroke-width:1.6;transition:stroke .3s,opacity .3s}
+.edge.done{stroke:var(--edge-done)}
+.edge.active{stroke:var(--accent);stroke-width:2.6;stroke-dasharray:7 5;animation:dash 0.9s linear infinite}
+@keyframes dash{to{stroke-dashoffset:-24}}
+.token{fill:var(--accent);filter:drop-shadow(0 0 4px var(--accent))}
+.elabel{position:absolute;z-index:4;transform:translate(-50%,-50%);background:var(--accent);color:#fff;font:600 11px/1.3 ui-monospace,Menlo,Consolas,monospace;
+  padding:3px 7px;border-radius:6px;white-space:nowrap;pointer-events:none;box-shadow:var(--shadow);max-width:340px;overflow:hidden;text-overflow:ellipsis}
+.node{position:absolute;z-index:3;border-radius:10px;border:1.5px solid color-mix(in srgb,var(--c) 45%,var(--border));
+  background:color-mix(in srgb,var(--c) 9%,var(--surface));padding:6px 8px;cursor:pointer;transition:opacity .3s,transform .2s,box-shadow .3s;
+  display:flex;flex-direction:column;justify-content:center;gap:2px;overflow:hidden}
+.node .t{font-weight:600;font-size:11.5px;line-height:1.2;overflow-wrap:anywhere}
+.node .s{font-size:10.5px;color:var(--muted);line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.node .chips{display:flex;gap:4px;margin-top:1px}
+.chip{font:600 9.5px/1 ui-monospace,Menlo,Consolas,monospace;padding:2px 4px;border-radius:4px;background:var(--surface-2);color:var(--muted)}
+.node.ui{border-radius:22px}
+.node.ext{border-style:dashed}
+.node.bus{border-radius:4px;transform:skewX(-6deg)}
+.node.bus>*{transform:skewX(6deg)}
+.node.future{opacity:.38}
+.node.done{opacity:1}
+.node.current{opacity:1;box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 35%,transparent),var(--shadow);transform:scale(1.04)}
+.node .num{position:absolute;top:4px;right:6px;font:600 10px/1 ui-monospace,Menlo,monospace;color:var(--muted)}
+.panel{position:sticky;top:12px;padding:16px 16px 18px;max-height:calc(100vh - 24px);overflow:auto}
+@media (max-width:1060px){.panel{position:static;max-height:none}}
+.panel .svc{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--muted)}
+.panel .svc b{width:9px;height:9px;border-radius:50%}
+.panel h2{font-size:18px;margin:6px 0 6px}
+.panel p.desc{margin:0 0 10px;overflow-wrap:anywhere}
+.panel h2,.panel .code,.tbl .n,.tbl .cols{overflow-wrap:anywhere}
+.sec{margin-top:14px}
+.sec h3{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 6px}
+.api{border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.api .line{display:flex;gap:8px;align-items:center;padding:8px 10px;background:var(--surface-2);flex-wrap:wrap}
+.method{font:700 11px/1 ui-monospace,Menlo,monospace;padding:4px 6px;border-radius:5px;color:#fff;background:var(--sel)}
+.method.POST{background:var(--ins)} .method.GET{background:var(--accent)} .method.EVENT{background:var(--pub)} .method.EXT{background:var(--ext)}
+.api dl{margin:0;padding:8px 10px;display:grid;grid-template-columns:78px 1fr;gap:4px 8px}
+.api dt{color:var(--muted);font-size:12px}
+.api dd{margin:0;word-break:break-word}
+.tbl{display:flex;gap:8px;align-items:flex-start;padding:7px 0;border-top:1px solid var(--border)}
+.tbl:first-of-type{border-top:0}
+.op{font:700 10px/1 ui-monospace,Menlo,monospace;padding:4px 5px;border-radius:4px;color:#fff;flex:none;min-width:52px;text-align:center}
+.op.SELECT{background:var(--sel)} .op.INSERT{background:var(--ins)} .op.UPDATE{background:var(--upd)} .op.PUBLISH{background:var(--pub)}
+.tbl .n{font-weight:600}
+.tbl .cols{color:var(--muted);font-size:12px}
+.conf{display:inline-block;font:700 10px/1 ui-monospace,Menlo,monospace;padding:3px 6px;border-radius:4px;border:1px solid var(--border);color:var(--muted)}
+.conf.HIGH{color:var(--ins);border-color:var(--ins)} .conf.MEDIUM{color:var(--upd);border-color:var(--upd)}
+.note{border-left:3px solid var(--upd);background:color-mix(in srgb,var(--upd) 8%,transparent);padding:8px 10px;border-radius:0 6px 6px 0;font-size:13px}
+.note.warn{border-color:var(--warn);background:color-mix(in srgb,var(--warn) 8%,transparent)}
+.code{font-size:12px;color:var(--muted);overflow-wrap:anywhere}
+.legend{display:flex;flex-wrap:wrap;gap:14px;margin:10px 2px 0;color:var(--muted);font-size:12px}
+.legend span{display:inline-flex;gap:6px;align-items:center}
+.lg{display:inline-block;width:22px;height:13px;border:1.5px solid var(--muted);border-radius:4px}
+.lg.ui{border-radius:10px}.lg.ext{border-style:dashed}.lg.bus{transform:skewX(-10deg)}
+h2.block{font-size:17px;margin:28px 0 10px}
+.tablewrap{overflow-x:auto}
+table.sum{border-collapse:collapse;width:100%;font-size:13px}
+table.sum th,table.sum td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+table.sum th{font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);background:var(--surface-2);position:sticky;top:0}
+table.sum tr:hover td{background:var(--surface-2)}
+table.sum td .op{margin:0 4px 4px 0;display:inline-block}
+.kbd{font:600 11px ui-monospace,Menlo,monospace;border:1px solid var(--border);border-bottom-width:2px;border-radius:4px;padding:1px 5px;color:var(--muted)}
+.foot{color:var(--muted);font-size:12.5px;margin-top:18px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a class="home" href="index.html">← All flows</a>
+    <h1>Postpaid Billing Flow: monthly invoice and dunning</h1>
+    <p>Press <b>Play</b> to follow the monthly invoice run from the cron trigger to the customer's inbox, or switch to the dunning cycle for unpaid invoices. Built from <code>billing_micro_services</code> source.</p>
+  </header>
+
+  <div class="toolbar">
+    <div class="seg" id="seg" role="tablist" aria-label="Billing path"></div>
+    <button class="btn" id="b-restart" title="Restart">⟲ Restart</button>
+    <button class="btn" id="b-prev" title="Previous (←)">◀ Prev</button>
+    <button class="btn primary" id="b-play" title="Play / pause (space)">▶ Play</button>
+    <button class="btn" id="b-next" title="Next (→)">Next ▶</button>
+    <select class="btn" id="speed" aria-label="Speed">
+      <option value="3200">Slow</option>
+      <option value="2200" selected>Normal</option>
+      <option value="1300">Fast</option>
+    </select>
+    <div class="progress" aria-hidden="true"><i id="prog"></i></div>
+    <span class="stepcount" id="count">1 / 1</span>
+    <button class="btn" id="b-theme" title="Toggle light / dark">Theme</button>
+  </div>
+
+  <div class="grid">
+    <div>
+      <div class="card diagram" id="diagram">
+        <div class="canvas" id="canvas">
+          <div class="lanehead" id="lanehead"></div>
+          <svg class="edges" id="edges"></svg>
+        </div>
+      </div>
+      <div class="legend">
+        <span><i class="lg ui"></i>UI / customer</span>
+        <span><i class="lg"></i>Service logic</span>
+        <span><i class="lg bus"></i>Event bus</span>
+        <span><i class="lg ext"></i>External API</span>
+        <span><span class="op SELECT">SELECT</span><span class="op INSERT">INSERT</span><span class="op UPDATE">UPDATE</span><span class="op PUBLISH">PUBLISH</span></span>
+        <span>Keys: <span class="kbd">←</span> <span class="kbd">→</span> <span class="kbd">space</span></span>
+      </div>
+    </div>
+    <aside class="card panel" id="panel" aria-live="polite"></aside>
+  </div>
+
+  <h2 class="block">APIs in this path</h2>
+  <div class="card tablewrap"><table class="sum" id="apiTable"></table></div>
+
+  <h2 class="block">Database tables in this path</h2>
+  <div class="card tablewrap"><table class="sum" id="tblTable"></table></div>
+
+  <p class="foot">Confidence: <span class="conf HIGH">HIGH</span> means it was read in the current source; <span class="conf MEDIUM">MEDIUM</span> means it comes from the
+    repo's discovery docs or the internals were not read line by line. Line numbers reflect the source at the time this page was written.</p>
+</div>
+
+<script>
+const LANES = [
+  {k:'cron', label:'Scheduler (cron)',       c:'#868e96'},
+  {k:'post', label:'postpaid-service',       c:'#5c7cfa'},
+  {k:'bus',  label:'Event bus (DB-poll)',    c:'#7048e8'},
+  {k:'integ',label:'billing-integ',          c:'#40c057'},
+  {k:'mysql',label:'MySQL',                  c:'#f59f00'},
+  {k:'sched',label:'billing-scheduler',      c:'#fd7e14'},
+  {k:'carr', label:'Carrier SMS (per MNO)',  c:'#e03131'},
+  {k:'ext',  label:'AWS SES / customer',     c:'#e64980'},
+  {k:'cust', label:'Customer',               c:'#3b82f6'}
+];
+
+const S = {
+  cron: {lane:'cron', kind:'bus', title:'Monthly invoice cron fires', sub:'midnight on the 1st',
+    desc:'postpaid-service runs its invoice generation job at midnight on the first of each month. A second hourly job in the same class handles other periodic work.',
+    api:{m:'CRON', path:'@Scheduled(cron = "0 0 0 1 * ?") → InvoiceController.scheduleGenerateInvoice()', auth:'—', req:'—', res:'—'},
+    code:'postpaid-service/…/rest/InvoiceController.java:265-266 · schedular/CronJobUtility.java:46', conf:'HIGH',
+    note:{warn:true, t:'No distributed lock exists. If postpaid-service runs more than one replica, every replica fires this cron.'}},
+  cycle:{lane:'post', title:'Resolve the billing cycle', sub:'day-of-month bucket',
+    desc:'Accounts are grouped into a billing cycle by day of month (1-7 → cycle 1, 8-15 → 2, 16-23 → 3, else 4). Per the repo notes this bucketing is independent of the start/end days configured on the BillingCycle table itself.',
+    tables:[{n:'billing cycle / account tables',op:'SELECT',cols:'accounts due this cycle'}],
+    code:'.claude/context/26-business-processes.md Process 9', conf:'MEDIUM'},
+  prorate:{lane:'post', title:'Charges and proration', sub:'calculateProRate',
+    desc:'Charges for the period are assembled. A mid-cycle activation is prorated on calendar days: monthly divides by a flat 30, quarterly and half-yearly by 90. The repo notes flag an inconsistency in how the cycle end date is interpreted across cycle types.',
+    code:'.claude/context/29-business-calculations.md', conf:'MEDIUM'},
+  publish:{lane:'post', title:'Publish the invoice event', sub:'Topic.Invoice',
+    desc:'postpaid-service publishes an Invoice event rather than calling billing-integ directly. This is the live path: billing-scheduler has its own invoice handler, but it is never wired in and is dead code.',
+    api:{m:'EVENT', path:'Topic.Invoice (PostpaidServiceEventService publish topics)', auth:'internal', req:'invoice / subscription reference', res:'—'},
+    tables:[{n:'rmq_events',op:'PUBLISH',cols:'InvoiceEvent row'}],
+    code:'postpaid-service/…/event/PostpaidServiceEventService.java:17', conf:'HIGH'},
+  deliver:{lane:'bus', kind:'bus', title:'Bus delivers the event', sub:'polled by billing-integ',
+    desc:'billing-integ polls rmq_events for its topics and dispatches to its event hooks.',
+    code:'event-mgmt-utils', conf:'HIGH'},
+  raise:{lane:'integ', title:'Raise the invoice', sub:'IntegrationEventHooks.onInvoiceEvent()',
+    desc:'billing-integ receives the event and calls InvoiceService.sendPostpaidOrFixedipInvoice(event), which runs InvoiceBillingNew. Per the repo notes this path uses the strongest transaction settings found in the codebase (SERIALIZABLE, REQUIRES_NEW).',
+    code:'billing-integ/…/event/IntegrationEventHooks.java:2860-2876', conf:'HIGH'},
+  state:{lane:'mysql', title:'Invoice row and state', sub:'invoice table',
+    desc:'The invoice is written and moves from TrailRun to InvoiceRaised. Payment status is tracked separately by the PaymentStatus enum, which is what a later payment updates.',
+    tables:[{n:'invoice',op:'INSERT',cols:'invoice_state: TrailRun → InvoiceRaised, payment_status, amounts'}],
+    code:'billing-integ/…/invoice/InvoiceBillingNew.java:928, :936 · billing-repostiory Invoice.java @Table("invoice")', conf:'HIGH'},
+  due:{lane:'mysql', title:'Set the due date', sub:'from dunning config, not a fixed offset',
+    desc:'The due date is generation date + DunningConfig.duePeriod. If the account has an immediate service-cutoff setting, that value is used instead. It is configuration-driven per deployment.',
+    tables:[{n:'dunning_config',op:'SELECT',cols:'due_period, due_period_action'},{n:'invoice',op:'UPDATE',cols:'due_date'}],
+    code:'InvoiceBillingNew.java:779-794 · postpaid-service-repo DunningConfig.java', conf:'HIGH',
+    note:{t:'This corrects a claim in the repo\'s own discovery notes that the due date is a flat 15-day offset. In the current source it comes from dunning_config.'}},
+  email:{lane:'ext', kind:'ext', title:'Send the invoice email', sub:'AWS SES',
+    desc:'On success billing-integ dispatches the invoice email through AWS SES, and publishes Email / Sms / HeartBeatAck events.',
+    api:{m:'EXT', path:'AWS SES sendEmail', auth:'AWS credentials / Secrets Manager', req:'invoice PDF / template', res:'message id'},
+    conf:'MEDIUM'},
+  sms:{lane:'carr', title:'Payment SMS per carrier', sub:'SmsMediaDispatcher',
+    desc:'The SMS provider is chosen from the subscriber\'s carrier: SmsMediaDispatcher reads sub.getMnoSimProfile() and routes to the Verizon, T-Mobile, GUPI or Tuvalu implementation. This is the clearest carrier-branching seam in the platform.',
+    code:'billing-integ/…/sms/SmsMediaDispatcher.java:179 · SMSMedia.java:293 · VzwSmsMediaServiceV3Impl / GupiSmsMediaImpl', conf:'HIGH'},
+  cust:{lane:'cust', kind:'ui', title:'Customer receives the invoice', sub:'email + SMS',
+    desc:'The subscriber gets the invoice and can pay it. Payment runs through the normal payment path (see the recharge flow) and updates the invoice payment status.', conf:'MEDIUM'},
+
+  // ---------- dunning ----------
+  dunCron:{lane:'sched', title:'Dunning cron', sub:'every 2 hours',
+    desc:'billing-scheduler runs processDunning(), which calls CronController.processDunningNew() to work through unpaid invoices past their due date.',
+    api:{m:'CRON', path:'@Scheduled(cron = "0 0 */2 * * ?") → processDunning()', auth:'—', req:'—', res:'—'},
+    code:'billing-scheduler/…/rest/CronJobUtility.java:380-395 · CronController.java:2409', conf:'HIGH',
+    note:{warn:true, t:'billing-scheduler shows compile-break evidence in the repo notes, so whether this runs in production is UNKNOWN / REQUIRES VALIDATION.'}},
+  dunFind:{lane:'mysql', title:'Find overdue invoices', sub:'invoice + dunning_config',
+    desc:'Unpaid invoices past due_date are selected, and the configured dunning action for the period decides what happens next.',
+    tables:[{n:'invoice',op:'SELECT',cols:'payment_status, due_date'},{n:'dunning_config',op:'SELECT',cols:'due_period_action'}],
+    conf:'MEDIUM'},
+  dunNotify:{lane:'integ', title:'Reminder notifications', sub:'Email / Sms events',
+    desc:'Reminder events are published and billing-integ sends them. A separate reminder job checks invoices due within three days and publishes an InvoiceThreeDaysPriorCheck email event.',
+    api:{m:'EVENT', path:'Topic.Email / Topic.Sms', auth:'internal', req:'invoice, customer', res:'—'},
+    conf:'MEDIUM'},
+  dunAction:{lane:'sched', title:'Escalation', sub:'suspend / restrict',
+    desc:'If the invoice stays unpaid, the configured action escalates toward service restriction. Related SIM lifecycle jobs move cards through warn and quarantine states.',
+    code:'billing-scheduler/…/CronJobUtility.java:278 (simCardsWarnState) and siblings', conf:'MEDIUM',
+    note:{t:'Recovery for a stuck dunning or billing job is manual; the repo notes record no documented procedure.'}}
+};
+
+const PATHS = {
+  invoice: ['cron','cycle','prorate','publish','deliver','raise','state','due','email','sms','cust'],
+  dunning: ['dunCron','dunFind','dunNotify','email','dunAction']
+};
+const PATH_LABELS = {invoice:'Monthly invoice run', dunning:'Dunning (unpaid invoices)'};
+const EDGE_LABEL = {
+  cycle:'accounts due this cycle', prorate:'compute charges', publish:'PUBLISH Topic.Invoice', deliver:'poll rmq_events',
+  raise:'onInvoiceEvent → sendPostpaidOrFixedipInvoice', state:'INSERT invoice (TrailRun → InvoiceRaised)',
+  due:'dueDate = genDate + duePeriod', email:'send invoice email', sms:'sub.getMnoSimProfile() → provider', cust:'invoice delivered',
+  dunFind:'SELECT overdue invoices', dunNotify:'PUBLISH Email / Sms', dunAction:'escalate per dunning action'
+};
+
+// build path buttons
+(()=>{const seg=document.getElementById('seg'); Object.keys(PATHS).forEach((k,i)=>{const b=document.createElement('button');b.dataset.path=k; b.textContent=PATH_LABELS[k]; if(i===0) b.className='on'; seg.append(b);});})();
+
+const LANE_W=124, NODE_W=114, NODE_H=80, ROW_H=102, TOP=62;
+const laneIdx = Object.fromEntries(LANES.map((l,i)=>[l.k,i]));
+const laneColor = Object.fromEntries(LANES.map(l=>[l.k,l.c]));
+
+let path=Object.keys(PATHS)[0], idx=0, playing=false, timer=null, tokenRAF=null;
+const canvas=document.getElementById('canvas'), svg=document.getElementById('edges'), head=document.getElementById('lanehead');
+const NS='http://www.w3.org/2000/svg';
+
+function el(tag, cls, text){const e=document.createElement(tag); if(cls) e.className=cls; if(text!=null) e.textContent=text; return e;}
+
+function pos(id,row){const s=S[id]; const x=laneIdx[s.lane]*LANE_W+(LANE_W-NODE_W)/2; return {x, y:TOP+row*ROW_H};}
+
+function build(){
+  canvas.querySelectorAll('.lane,.node,.elabel').forEach(n=>n.remove());
+  svg.innerHTML='';
+  const ids=PATHS[path];
+  const W=LANES.length*LANE_W, H=TOP+ids.length*ROW_H+10;
+  canvas.style.width=W+'px'; canvas.style.height=H+'px';
+  svg.setAttribute('width',W); svg.setAttribute('height',H);
+  head.style.width=W+'px'; head.innerHTML='';
+  LANES.forEach((l,i)=>{
+    const lane=el('div','lane'); lane.style.left=i*LANE_W+'px'; lane.style.width=LANE_W+'px';
+    lane.style.background=i%2?'var(--lane-b)':'var(--lane-a)'; canvas.insertBefore(lane, svg);
+    const h=el('div'); h.style.width=LANE_W+'px'; const dot=el('b'); dot.style.background=l.c; h.append(dot, el('span',null,l.label.replace('-management','-mgmt'))); h.title=l.label; head.append(h);
+  });
+  const defs=document.createElementNS(NS,'defs');
+  [['arr','var(--edge)'],['arrd','var(--edge-done)'],['arra','var(--accent)']].forEach(([id,col])=>{
+    const m=document.createElementNS(NS,'marker'); m.setAttribute('id',id); m.setAttribute('viewBox','0 0 10 10'); m.setAttribute('refX','9'); m.setAttribute('refY','5');
+    m.setAttribute('markerWidth','7'); m.setAttribute('markerHeight','7'); m.setAttribute('orient','auto-start-reverse');
+    const p=document.createElementNS(NS,'path'); p.setAttribute('d','M0,0 L10,5 L0,10 z'); p.style.fill=col; m.append(p); defs.append(m);
+  });
+  svg.append(defs);
+  ids.forEach((id,row)=>{
+    const s=S[id], p=pos(id,row);
+    if(row>0){
+      const a=pos(ids[row-1],row-1);
+      const x1=a.x+NODE_W/2, y1=a.y+NODE_H, x2=p.x+NODE_W/2, y2=p.y;
+      const d = Math.abs(x1-x2)<1 ? `M${x1},${y1} L${x2},${y2-2}` : `M${x1},${y1} C${x1},${y1+34} ${x2},${y2-34} ${x2},${y2-2}`;
+      const e=document.createElementNS(NS,'path'); e.setAttribute('d',d); e.setAttribute('class','edge'); e.dataset.to=row; svg.append(e);
+    }
+    const n=el('div','node'+(s.kind?' '+s.kind:'')); n.dataset.row=row;
+    n.style.cssText=`left:${p.x}px;top:${p.y}px;width:${NODE_W}px;height:${NODE_H}px;--c:${laneColor[s.lane]}`;
+    n.append(el('span','num',String(row+1)), el('div','t',s.title), el('div','s',s.sub||''));
+    const chips=el('div','chips');
+    if(s.api) chips.append(el('span','chip', s.api.m==='EXT'?'EXT':s.api.m));
+    if(s.tables&&s.tables.length) chips.append(el('span','chip', s.tables.length+' tbl'));
+    if(chips.children.length) n.append(chips);
+    n.title=s.title+' — '+(s.sub||'');
+    n.addEventListener('click',()=>{stop(); go(row);});
+    canvas.append(n);
+  });
+  buildSummary();
+}
+
+function go(i, animate){
+  const ids=PATHS[path];
+  idx=Math.max(0,Math.min(ids.length-1,i));
+  canvas.querySelectorAll('.node').forEach(n=>{const r=+n.dataset.row; n.classList.toggle('current',r===idx); n.classList.toggle('done',r<idx); n.classList.toggle('future',r>idx);});
+  let active=null;
+  svg.querySelectorAll('.edge').forEach(e=>{const r=+e.dataset.to;
+    e.classList.toggle('active',r===idx); e.classList.toggle('done',r<idx);
+    e.setAttribute('marker-end', r===idx?'url(#arra)':(r<idx?'url(#arrd)':'url(#arr)'));
+    if(r===idx) active=e;});
+  canvas.querySelectorAll('.elabel').forEach(n=>n.remove());
+  if(tokenRAF) cancelAnimationFrame(tokenRAF); svg.querySelectorAll('.token').forEach(t=>t.remove());
+  if(active){
+    const L=active.getTotalLength(), mid=active.getPointAtLength(L/2);
+    const lab=el('div','elabel',EDGE_LABEL[ids[idx]]||''); lab.style.left=mid.x+'px'; lab.style.top=mid.y+'px'; canvas.append(lab);
+    if(animate!==false){
+      const dot=document.createElementNS(NS,'circle'); dot.setAttribute('r','5.5'); dot.setAttribute('class','token'); svg.append(dot);
+      const t0=performance.now(), dur=900;
+      const step=t=>{const k=Math.min(1,(t-t0)/dur), pt=active.getPointAtLength(L*(1-Math.pow(1-k,2))); dot.setAttribute('cx',pt.x); dot.setAttribute('cy',pt.y);
+        if(k<1) tokenRAF=requestAnimationFrame(step); else dot.remove();};
+      tokenRAF=requestAnimationFrame(step);
+    }
+  }
+  const cur=canvas.querySelector('.node.current');
+  if(cur){const d=document.getElementById('diagram'); const r=cur.getBoundingClientRect(), dr=d.getBoundingClientRect();
+    if(r.top<dr.top+50||r.bottom>dr.bottom-10||r.left<dr.left||r.right>dr.right) d.scrollTo({top:cur.offsetTop-d.clientHeight/2+NODE_H/2, left:cur.offsetLeft-d.clientWidth/2+NODE_W/2, behavior:'smooth'});}
+  renderPanel(S[ids[idx]], idx, ids.length);
+  document.getElementById('count').textContent=(idx+1)+' / '+ids.length;
+  document.getElementById('prog').style.width=((idx+1)/ids.length*100)+'%';
+}
+
+function renderPanel(s,i,n){
+  const p=document.getElementById('panel'); p.innerHTML='';
+  const lane=LANES[laneIdx[s.lane]];
+  const svc=el('div','svc'); const b=el('b'); b.style.background=lane.c; svc.append(b, document.createTextNode(`Step ${i+1} of ${n} · ${lane.label}`));
+  p.append(svc, el('h2',null,s.title));
+  if(s.sub) p.append(el('div','code mono',s.sub));
+  const d=el('p','desc',s.desc); d.style.marginTop='10px'; p.append(d);
+  if(s.api){
+    const sec=el('div','sec'); sec.append(el('h3',null, s.api.m==='EVENT'?'Event':(s.api.m==='EXT'?'External API':'API')));
+    const box=el('div','api'); const line=el('div','line');
+    line.append(el('span','method '+s.api.m, s.api.m), el('code',null,s.api.path)); box.append(line);
+    const dl=el('dl'); [['Auth',s.api.auth],['Request',s.api.req],['Response',s.api.res]].forEach(([k,v])=>{ if(v){dl.append(el('dt',null,k)); const dd=el('dd','mono',v); dl.append(dd);} });
+    box.append(dl); sec.append(box); p.append(sec);
+  }
+  if(s.tables&&s.tables.length){
+    const sec=el('div','sec'); sec.append(el('h3',null,'Database tables'));
+    s.tables.forEach(t=>{const r=el('div','tbl'); const right=el('div'); right.append(el('div','n mono',t.n), el('div','cols',t.cols)); r.append(el('span','op '+t.op,t.op), right); sec.append(r);});
+    p.append(sec);
+  }
+  if(s.note){const sec=el('div','sec'); sec.append(el('div','note'+(s.note.warn?' warn':''), s.note.t)); p.append(sec);}
+  const meta=el('div','sec'); meta.append(el('h3',null,'Source'));
+  if(s.code) meta.append(el('div','code mono',s.code));
+  const c=el('span','conf '+s.conf,'Confidence: '+s.conf); c.style.marginTop='8px'; meta.append(c); p.append(meta);
+}
+
+function buildSummary(){
+  const ids=PATHS[path];
+  const at=document.getElementById('apiTable'); at.innerHTML='';
+  const th=at.insertRow(); ['#','Type','Endpoint / call','Service','Auth','Request','Response'].forEach(h=>{const c=el('th',null,h); th.append(c);});
+  ids.forEach((id,i)=>{const s=S[id]; if(!s.api) return; const r=at.insertRow();
+    [String(i+1), s.api.m, s.api.path, LANES[laneIdx[s.lane]].label, s.api.auth, s.api.req, s.api.res].forEach((v,j)=>{const c=r.insertCell();
+      if(j===1){c.append(el('span','method '+v,v));} else {c.textContent=v; if(j===2||j>=5) c.className='mono';}});
+    r.style.cursor='pointer'; r.onclick=()=>{stop(); go(i); document.getElementById('diagram').scrollIntoView({behavior:'smooth',block:'start'});};});
+  const tt=document.getElementById('tblTable'); tt.innerHTML='';
+  const agg=new Map();
+  ids.forEach((id,i)=>{const s=S[id]; (s.tables||[]).forEach(t=>{ if(!agg.has(t.n)) agg.set(t.n,{ops:new Set(),svc:new Set(),steps:[],cols:new Set()});
+    const a=agg.get(t.n); a.ops.add(t.op); a.svc.add(LANES[laneIdx[s.lane]].label); a.steps.push(i+1); a.cols.add(t.cols);});});
+  const h2=tt.insertRow(); ['Table','Operations','Written / read by','Steps','Key columns'].forEach(h=>h2.append(el('th',null,h)));
+  agg.forEach((a,n)=>{const r=tt.insertRow(); const c0=r.insertCell(); c0.className='mono'; c0.textContent=n;
+    const c1=r.insertCell(); ['SELECT','INSERT','UPDATE','PUBLISH'].forEach(o=>{ if(a.ops.has(o)) c1.append(el('span','op '+o,o));});
+    r.insertCell().textContent=[...a.svc].join(', '); r.insertCell().textContent=a.steps.join(', ');
+    const c4=r.insertCell(); c4.textContent=[...a.cols].join(' · '); c4.style.color='var(--muted)';});
+}
+
+function next(){ if(idx<PATHS[path].length-1) go(idx+1); else stop(); }
+function schedule(){ clearTimeout(timer); if(playing) timer=setTimeout(()=>{ next(); if(playing&&idx<PATHS[path].length-1) schedule(); else stop(); }, +document.getElementById('speed').value); }
+function play(){ if(idx>=PATHS[path].length-1) go(0); playing=true; document.getElementById('b-play').textContent='❚❚ Pause'; schedule(); }
+function stop(){ playing=false; clearTimeout(timer); document.getElementById('b-play').textContent='▶ Play'; }
+
+document.getElementById('b-play').onclick=()=>playing?stop():play();
+document.getElementById('b-next').onclick=()=>{stop(); next();};
+document.getElementById('b-prev').onclick=()=>{stop(); go(idx-1);};
+document.getElementById('b-restart').onclick=()=>{stop(); go(0);};
+document.getElementById('speed').onchange=()=>{ if(playing) schedule(); };
+document.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{
+  stop(); document.querySelectorAll('.seg button').forEach(x=>x.classList.toggle('on',x===b)); path=b.dataset.path;
+  try{localStorage.setItem('bill-path',path);}catch(e){}
+  build(); go(0,false); document.getElementById('diagram').scrollTo({top:0,left:0});
+});
+document.getElementById('b-theme').onclick=()=>{
+  const r=document.documentElement; const dark=r.dataset.theme?r.dataset.theme==='dark':matchMedia('(prefers-color-scheme: dark)').matches;
+  r.dataset.theme=dark?'light':'dark'; try{localStorage.setItem('pf-theme',r.dataset.theme);}catch(e){} go(idx,false);
+};
+document.addEventListener('keydown',e=>{ if(['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName)) return;
+  if(e.key==='ArrowRight'){stop(); next(); e.preventDefault();}
+  else if(e.key==='ArrowLeft'){stop(); go(idx-1); e.preventDefault();}
+  else if(e.key===' '){playing?stop():play(); e.preventDefault();} });
+
+try{ const t=localStorage.getItem('pf-theme'); if(t) document.documentElement.dataset.theme=t;
+     const p=localStorage.getItem('bill-path'); if(p&&PATHS[p]){path=p; document.querySelectorAll('.seg button').forEach(x=>x.classList.toggle('on',x.dataset.path===p));} }catch(e){}
+build(); go(0,false);
+</script>
+</body>
+</html>

@@ -111,13 +111,14 @@ class TenantBrandingOptionsTest {
                 .buttonStyle("solid")
                 .layoutStyle("topbar")
                 .density("compact")
+                .siteLayout("corporate")
                 .build();
 
         branding.validate();
 
         // One field per ThemeUpdateCommand component, minus nothing: if a component is added there
         // and not here, this list stops matching and the mapping in TenantStateSync is incomplete.
-        assertThat(ThemeUpdateCommand.class.getRecordComponents()).hasSize(13);
+        assertThat(ThemeUpdateCommand.class.getRecordComponents()).hasSize(14);
         assertThat(branding.isEmpty()).isFalse();
     }
 

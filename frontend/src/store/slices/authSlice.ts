@@ -7,6 +7,7 @@ import {
   forgetSession,
   persistSession,
   persistTokens,
+  persistUser,
   readRememberedToken,
   rememberSession,
   readSession,
@@ -26,7 +27,20 @@ interface User {
   provider?: string;
 }
 
+/**
+ * A sign-in that passed its first step and still owes a second factor. Held only in memory: a
+ * reload drops it and the user signs in again, which is the point of a five-minute ticket.
+ */
+export interface PendingMfa {
+  token: string;
+  /** No authenticator yet: enrol first (QR code, then a code), then sign-in completes. */
+  setup: boolean;
+}
+
 interface AuthState {
+  mfa: PendingMfa | null;
+  /** Shown once after enrolling, then cleared. */
+  recoveryCodes: string[] | null;
   user: User | null;
   accessToken: string | null;
   refreshToken: string | null;
@@ -40,6 +54,8 @@ interface AuthState {
 const stored = readSession();
 
 const initialState: AuthState = {
+  mfa: null,
+  recoveryCodes: null,
   user: stored.user as User | null,
   accessToken: stored.accessToken,
   refreshToken: stored.refreshToken,
@@ -116,15 +132,40 @@ export const verifyOtp = createAsyncThunk(
   }
 );
 
+/** Finishes a sign-in that asked for a second factor, with an authenticator or recovery code. */
+export const verifyMfa = createAsyncThunk<any, string, { state: { auth: AuthState } }>(
+  'auth/verifyMfa',
+  async (code, { getState, rejectWithValue }) => {
+    try {
+      const response = await api.post('/auth/mfa/verify', { mfaToken: getState().auth.mfa?.token, code });
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(apiErrorMessage(error, 'That code did not work'));
+    }
+  }
+);
+
+/** Confirms a newly scanned authenticator with its first code; completes the sign-in. */
+export const enableMfa = createAsyncThunk<any, string, { state: { auth: AuthState } }>(
+  'auth/enableMfa',
+  async (code, { getState, rejectWithValue }) => {
+    try {
+      const response = await api.post('/auth/mfa/enable', { mfaToken: getState().auth.mfa?.token, code });
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(apiErrorMessage(error, 'That code did not work'));
+    }
+  }
+);
+
 /**
  * Signs a fresh tab back in from the "remember me" token.
  *
  * Runs only when this tab has no session of its own (see `canRestoreRemembered`), so a tab that is
  * already signed in as someone else is never rebuilt into the remembered account.
  *
- * The refresh endpoint rotates the token, so the new one is written straight back — reusing a
- * spent token on the next launch would sign the user out and look like "remember me forgot me".
- * A rejection means the token expired or was revoked: the remembered slot is cleared so the app
+ * The refresh endpoint rotates the token, so the remembered slot is replaced with a fresh device
+ * token of its own (not the tab's new one — see `issueDeviceToken`). A rejection means the token expired or was revoked: the remembered slot is cleared so the app
  * stops retrying a credential the server has already refused.
  */
 export const restoreRememberedSession = createAsyncThunk(
@@ -135,7 +176,10 @@ export const restoreRememberedSession = createAsyncThunk(
 
     try {
       const response = await api.post('/auth/refresh', { refreshToken });
-      return response.data;
+      // The exchange spent the remembered token. The tab keeps the pair it got back; the device
+      // needs its own replacement, or the next new tab would present a spent token.
+      const deviceToken = await issueDeviceToken(response.data.refreshToken);
+      return { ...response.data, deviceToken };
     } catch (error: any) {
       forgetSession();
       return rejectWithValue(apiErrorMessage(error, 'Could not restore your session'));
@@ -143,7 +187,90 @@ export const restoreRememberedSession = createAsyncThunk(
   }
 );
 
+/**
+ * A refresh token of the device's own, independent of the tab's.
+ *
+ * The tab and the remembered slot must never share a token. The server rotates a token on every
+ * use and treats a spent one presented again as theft — revoking every session the user has — so
+ * if both held the same token, whichever used it second would sign the user out everywhere.
+ * Returns null when the server will not issue one; the caller then simply does not remember.
+ */
+const issueDeviceToken = async (refreshToken: string | null): Promise<string | null> => {
+  if (!refreshToken) return null;
+  try {
+    const response = await api.post('/auth/refresh/device', { refreshToken });
+    return response.data?.refreshToken ?? null;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Records (or drops) the "remember me" choice for the session that just started.
+ *
+ * Dispatched once, after whichever sign-in path succeeded — password, OTP and social all arrive
+ * differently, and threading a flag through each would mean three chances to forget it. Must run
+ * within two minutes of sign-in: the server only issues a device token for a freshly minted one.
+ */
+export const setRememberMe = createAsyncThunk<void, boolean, { state: { auth: AuthState } }>(
+  'auth/rememberMe',
+  async (remember, { getState }) => {
+    if (!remember) {
+      forgetSession();
+      return;
+    }
+    const deviceToken = await issueDeviceToken(getState().auth.refreshToken);
+    if (deviceToken) rememberSession(deviceToken);
+    else forgetSession();
+  }
+);
+
+/**
+ * Signs out on the server as well as in the browser.
+ *
+ * Local state is cleared first so the UI responds at once; the server call then blacklists the
+ * access token and revokes both refresh tokens this device holds. Its outcome is deliberately
+ * ignored — an unreachable server must not leave someone stuck signed in on their own screen.
+ */
+export const signOut = createAsyncThunk<void, void, { state: { auth: AuthState } }>(
+  'auth/signOut',
+  async (_, { getState, dispatch }) => {
+    const { accessToken, refreshToken } = getState().auth;
+    const remembered = readRememberedToken();
+    dispatch(authSlice.actions.logout());
+    const refreshTokens = [refreshToken, remembered].filter((t): t is string => !!t);
+    if (!accessToken && refreshTokens.length === 0) return;
+    try {
+      await api.post(
+        '/auth/logout',
+        { refreshTokens },
+        accessToken ? { headers: { Authorization: `Bearer ${accessToken}` } } : undefined
+      );
+    } catch {
+      // See above: best effort.
+    }
+  }
+);
+
 export const shouldRestoreRemembered = canRestoreRemembered;
+
+/**
+ * Applies a sign-in response: a session, or — when the account needs a second factor — the MFA
+ * ticket in its place, with the user still signed out.
+ */
+const signedIn = (state: AuthState, payload: any) => {
+  state.loading = false;
+  if (payload?.mfaRequired) {
+    state.mfa = { token: payload.mfaToken, setup: !!payload.mfaSetupRequired };
+    return;
+  }
+  state.mfa = null;
+  state.isAuthenticated = true;
+  state.user = payload.user;
+  state.accessToken = payload.accessToken;
+  state.refreshToken = payload.refreshToken;
+  persistSession(payload.user, payload.accessToken, payload.refreshToken);
+};
 
 const authSlice = createSlice({
   name: 'auth',
@@ -170,21 +297,9 @@ const authSlice = createSlice({
       state.error = null;
       persistSession(action.payload.user, action.payload.accessToken, action.payload.refreshToken);
     },
-    /**
-     * Records (or drops) the "remember me" choice for the session that just started.
-     *
-     * Separate from the login thunks on purpose: password, OTP and social sign-in all arrive
-     * through different paths, and threading a `remember` flag through each one would mean three
-     * chances to forget it. The caller states the intent once, after whichever path succeeded.
-     */
-    setRememberMe(state, action: PayloadAction<boolean>) {
-      if (action.payload && state.refreshToken) {
-        rememberSession(state.refreshToken);
-      } else {
-        forgetSession();
-      }
-    },
     logout(state) {
+      state.mfa = null;
+      state.recoveryCodes = null;
       state.user = null;
       state.accessToken = null;
       state.refreshToken = null;
@@ -198,6 +313,25 @@ const authSlice = createSlice({
     },
     clearError(state) {
       state.error = null;
+    },
+    /** A second factor is due (social sign-in hands its ticket over in the redirect). */
+    beginMfa(state, action: PayloadAction<PendingMfa>) {
+      state.mfa = action.payload;
+      state.error = null;
+    },
+    cancelMfa(state) {
+      state.mfa = null;
+      state.error = null;
+    },
+    /** The recovery codes have been shown; they are never kept. */
+    clearRecoveryCodes(state) {
+      state.recoveryCodes = null;
+    },
+    /** The server's copy of the signed-in user after a profile change (e.g. a new photo). */
+    setUser(state, action: PayloadAction<User>) {
+      if (!state.user || state.user.id !== action.payload.id) return;
+      state.user = { ...state.user, ...action.payload };
+      persistUser(state.user);
     },
   },
   extraReducers: (builder) => {
@@ -216,8 +350,9 @@ const authSlice = createSlice({
         action.payload.accessToken,
         action.payload.refreshToken
       );
-      // The refresh rotated the token, so the remembered copy has to move with it.
-      rememberSession(action.payload.refreshToken);
+      // The old remembered token is spent now; keep the device signed in only if it got a new one.
+      if (action.payload.deviceToken) rememberSession(action.payload.deviceToken);
+      else forgetSession();
     });
     builder.addCase(restoreRememberedSession.rejected, (state) => {
       // Deliberately no error surfaced: the user did not ask for this, they just opened the app.
@@ -231,14 +366,7 @@ const authSlice = createSlice({
       state.loading = true;
       state.error = null;
     });
-    builder.addCase(login.fulfilled, (state, action) => {
-      state.loading = false;
-      state.isAuthenticated = true;
-      state.user = action.payload.user;
-      state.accessToken = action.payload.accessToken;
-      state.refreshToken = action.payload.refreshToken;
-      persistSession(action.payload.user, action.payload.accessToken, action.payload.refreshToken);
-    });
+    builder.addCase(login.fulfilled, (state, action) => signedIn(state, action.payload));
     builder.addCase(login.rejected, (state, action) => {
       state.loading = false;
       state.error = action.payload as string;
@@ -282,13 +410,23 @@ const authSlice = createSlice({
       state.loading = false;
       state.error = action.payload as string;
     });
-    builder.addCase(verifyOtp.fulfilled, (state, action) => {
-      state.loading = false;
-      state.isAuthenticated = true;
-      state.user = action.payload.user;
-      state.accessToken = action.payload.accessToken;
-      state.refreshToken = action.payload.refreshToken;
-      persistSession(action.payload.user, action.payload.accessToken, action.payload.refreshToken);
+    builder.addCase(verifyOtp.fulfilled, (state, action) => signedIn(state, action.payload));
+
+    // Second factor
+    for (const thunk of [verifyMfa, enableMfa]) {
+      builder.addCase(thunk.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      });
+      builder.addCase(thunk.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      });
+    }
+    builder.addCase(verifyMfa.fulfilled, (state, action) => signedIn(state, action.payload));
+    builder.addCase(enableMfa.fulfilled, (state, action) => {
+      signedIn(state, action.payload);
+      state.recoveryCodes = action.payload.recoveryCodes ?? null;
     });
   },
 });
@@ -298,6 +436,9 @@ export const {
   clearError,
   setCredentials,
   setSocialCredentials,
-  setRememberMe,
+  setUser,
+  beginMfa,
+  cancelMfa,
+  clearRecoveryCodes,
 } = authSlice.actions;
 export default authSlice.reducer;

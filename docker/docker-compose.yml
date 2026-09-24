@@ -14,8 +14,6 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_password}
       MYSQL_DATABASE: civil_engineer_platform
-    ports:
-      - "${HOST_PORT_MYSQL:-3306}:3306"
     volumes:
       - mysql_data:/var/lib/mysql
       - ./database/init:/docker-entrypoint-initdb.d
@@ -35,8 +33,6 @@ services:
   redis:
     image: redis:7-alpine
     container_name: civil_redis
-    ports:
-      - "${HOST_PORT_REDIS:-6381}:6379"
     volumes:
       - redis_data:/data
     networks:
@@ -47,25 +43,53 @@ services:
       timeout: 5s
       retries: 5
 
+  # S3-compatible object storage for uploads. Pinned, and pulled from quay.io: MinIO no longer
+  # publishes to Docker Hub. The API port must be reachable from browsers — uploads and downloads
+  # go to it directly with signed URLs, never through the gateway.
+  minio:
+    image: quay.io/minio/minio:RELEASE.2025-04-22T22-12-26Z
+    container_name: civil_minio
+    command: server /data --console-address ":9001"
+    ports:
+      - "${HOST_PORT_MINIO:-9000}:9000"
+    environment:
+      - MINIO_ROOT_USER=${MEDIA_STORAGE_ACCESS_KEY:-civeng-media}
+      - MINIO_ROOT_PASSWORD=${MEDIA_STORAGE_SECRET_KEY:-civeng-media-secret}
+      # Browsers POST uploads cross-origin, from every tenant's subdomain.
+      - MINIO_API_CORS_ALLOW_ORIGIN=${MEDIA_CORS_ALLOW_ORIGIN:-*}
+    volumes:
+      - minio_data:/data
+    networks:
+      - civil-network
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
     container_name: civil_zookeeper
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
-    ports:
-      - "2181:2181"
+    # Named, like kafka_data: Kafka's topic IDs live in both places and must stay in step. On the
+    # image's anonymous volumes ZooKeeper started empty every time compose recreated it, while
+    # Kafka kept its data — the IDs then disagreed and every consumer group stopped working.
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper/data
+      - zookeeper_log:/var/lib/zookeeper/log
     networks:
       - civil-network
 
   kafka:
     image: confluentinc/cp-kafka:7.5.0
     container_name: civil_kafka
+    # A recreated broker can find its old ZooKeeper registration still alive for a few seconds
+    # after an unclean stop, and exits with NodeExists; the retry succeeds once it lapses.
+    restart: on-failure
     depends_on:
       - zookeeper
-    ports:
-      - "9092:9092"
-      - "${HOST_PORT_KAFKA:-29093}:29092"
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
@@ -82,9 +106,6 @@ services:
   rabbitmq:
     image: rabbitmq:3.12-management
     container_name: civil_rabbitmq
-    ports:
-      - "5672:5672"
-      - "15672:15672"
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-guest}
@@ -100,9 +121,6 @@ services:
       - discovery.type=single-node
       - xpack.security.enabled=false
       - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
-    ports:
-      - "9200:9200"
-      - "9300:9300"
     volumes:
       - elasticsearch_data:/usr/share/elasticsearch/data
     networks:
@@ -111,8 +129,6 @@ services:
   zipkin:
     image: openzipkin/zipkin:2.24
     container_name: civil_zipkin
-    ports:
-      - "9411:9411"
     environment:
       - STORAGE_TYPE=mem
     networks:
@@ -121,8 +137,6 @@ services:
   prometheus:
     image: prom/prometheus:latest
     container_name: civil_prometheus
-    ports:
-      - "9090:9090"
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
       - prometheus_data:/prometheus
@@ -137,8 +151,6 @@ services:
   grafana:
     image: grafana/grafana:latest
     container_name: civil_grafana
-    ports:
-      - "3001:3000"
     environment:
       - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
@@ -161,8 +173,6 @@ services:
       context: ..
       dockerfile: backend/config-server/Dockerfile
     container_name: civil_config_server
-    ports:
-      - "${HOST_PORT_CONFIG:-8888}:8888"
     networks:
       - civil-network
     healthcheck:
@@ -176,8 +186,6 @@ services:
       context: ..
       dockerfile: backend/service-registry/Dockerfile
     container_name: civil_service_registry
-    ports:
-      - "8761:8761"
     networks:
       - civil-network
     depends_on:
@@ -197,6 +205,9 @@ services:
     ports:
       - "${HOST_PORT_GATEWAY:-8080}:8080"
     environment:
+      # Signs (gateway) and checks (services) forwarded identity. Empty stops the service at
+      # startup with instructions, rather than letting it trust unsigned headers.
+      - INTERNAL_SIGNING_KEY=${INTERNAL_SIGNING_KEY:-}
       - JWT_SECRET=${JWT_SECRET}
       - REDIS_HOST=redis
     networks:
@@ -214,9 +225,10 @@ services:
       context: ..
       dockerfile: backend/auth-service/Dockerfile
     container_name: civil_auth_service
-    ports:
-      - "${HOST_PORT_AUTH:-8093}:8081"
     environment:
+      # Signs (gateway) and checks (services) forwarded identity. Empty stops the service at
+      # startup with instructions, rather than letting it trust unsigned headers.
+      - INTERNAL_SIGNING_KEY=${INTERNAL_SIGNING_KEY:-}
       # Read at boot to learn which tenant schemas to migrate.
       - TENANT_DB_USERNAME=${TENANT_DB_USERNAME:-civil_user}
       - TENANT_DB_PASSWORD=${TENANT_DB_PASSWORD:-civil_pass}
@@ -254,9 +266,10 @@ services:
       context: ..
       dockerfile: backend/user-service/Dockerfile
     container_name: civil_user_service
-    ports:
-      - "${HOST_PORT_USER:-8094}:8082"
     environment:
+      # Signs (gateway) and checks (services) forwarded identity. Empty stops the service at
+      # startup with instructions, rather than letting it trust unsigned headers.
+      - INTERNAL_SIGNING_KEY=${INTERNAL_SIGNING_KEY:-}
       # Read at boot to learn which tenant schemas to migrate.
       - TENANT_DB_USERNAME=${TENANT_DB_USERNAME:-civil_user}
       - TENANT_DB_PASSWORD=${TENANT_DB_PASSWORD:-civil_pass}
@@ -280,9 +293,10 @@ services:
       context: ..
       dockerfile: backend/booking-service/Dockerfile
     container_name: civil_booking_service
-    ports:
-      - "8083:8083"
     environment:
+      # Signs (gateway) and checks (services) forwarded identity. Empty stops the service at
+      # startup with instructions, rather than letting it trust unsigned headers.
+      - INTERNAL_SIGNING_KEY=${INTERNAL_SIGNING_KEY:-}
       # Read at boot to learn which tenant schemas to migrate.
       - TENANT_DB_USERNAME=${TENANT_DB_USERNAME:-civil_user}
       - TENANT_DB_PASSWORD=${TENANT_DB_PASSWORD:-civil_pass}
@@ -309,9 +323,12 @@ services:
       context: ..
       dockerfile: backend/payment-service/Dockerfile
     container_name: civil_payment_service
-    ports:
-      - "8084:8084"
     environment:
+      # Signs (gateway) and checks (services) forwarded identity. Empty stops the service at
+      # startup with instructions, rather than letting it trust unsigned headers.
+      - INTERNAL_SIGNING_KEY=${INTERNAL_SIGNING_KEY:-}
+      # Seals per-tenant provider secrets (tenant-common integrations); same value in all four services.
+      - INTEGRATION_MASTER_KEY=${INTEGRATION_MASTER_KEY}
       # Read at boot to learn which tenant schemas to migrate.
       - TENANT_DB_USERNAME=${TENANT_DB_USERNAME:-civil_user}
       - TENANT_DB_PASSWORD=${TENANT_DB_PASSWORD:-civil_pass}
@@ -338,9 +355,12 @@ services:
       context: ..
       dockerfile: backend/notification-service/Dockerfile
     container_name: civil_notification_service
-    ports:
-      - "8085:8085"
     environment:
+      # Signs (gateway) and checks (services) forwarded identity. Empty stops the service at
+      # startup with instructions, rather than letting it trust unsigned headers.
+      - INTERNAL_SIGNING_KEY=${INTERNAL_SIGNING_KEY:-}
+      # Seals per-tenant provider secrets (tenant-common integrations); same value in all four services.
+      - INTEGRATION_MASTER_KEY=${INTEGRATION_MASTER_KEY}
       # Read at boot to learn which tenant schemas to migrate.
       - TENANT_DB_USERNAME=${TENANT_DB_USERNAME:-civil_user}
       - TENANT_DB_PASSWORD=${TENANT_DB_PASSWORD:-civil_pass}
@@ -388,9 +408,10 @@ services:
       context: ..
       dockerfile: backend/admin-service/Dockerfile
     container_name: civil_admin_service
-    ports:
-      - "8086:8086"
     environment:
+      # Signs (gateway) and checks (services) forwarded identity. Empty stops the service at
+      # startup with instructions, rather than letting it trust unsigned headers.
+      - INTERNAL_SIGNING_KEY=${INTERNAL_SIGNING_KEY:-}
       # Read at boot to learn which tenant schemas to migrate.
       - TENANT_DB_USERNAME=${TENANT_DB_USERNAME:-civil_user}
       - TENANT_DB_PASSWORD=${TENANT_DB_PASSWORD:-civil_pass}
@@ -414,9 +435,10 @@ services:
       context: ..
       dockerfile: backend/project-service/Dockerfile
     container_name: civil_project_service
-    ports:
-      - "${HOST_PORT_PROJECT:-8096}:8096"
     environment:
+      # Signs (gateway) and checks (services) forwarded identity. Empty stops the service at
+      # startup with instructions, rather than letting it trust unsigned headers.
+      - INTERNAL_SIGNING_KEY=${INTERNAL_SIGNING_KEY:-}
       # Read at boot to learn which tenant schemas to migrate.
       - TENANT_DB_USERNAME=${TENANT_DB_USERNAME:-civil_user}
       - TENANT_DB_PASSWORD=${TENANT_DB_PASSWORD:-civil_pass}
@@ -443,9 +465,12 @@ services:
       context: ..
       dockerfile: backend/tenant-service/Dockerfile
     container_name: civil_tenant_service
-    ports:
-      - "${HOST_PORT_TENANT:-8099}:8099"
     environment:
+      # Signs (gateway) and checks (services) forwarded identity. Empty stops the service at
+      # startup with instructions, rather than letting it trust unsigned headers.
+      - INTERNAL_SIGNING_KEY=${INTERNAL_SIGNING_KEY:-}
+      # Seals per-tenant provider secrets (tenant-common integrations); same value in all four services.
+      - INTEGRATION_MASTER_KEY=${INTEGRATION_MASTER_KEY}
       - TENANT_DB_USERNAME=${TENANT_DB_USERNAME:-civil_user}
       - TENANT_DB_PASSWORD=${TENANT_DB_PASSWORD:-civil_pass}
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
@@ -466,9 +491,12 @@ services:
       context: ..
       dockerfile: backend/support-service/Dockerfile
     container_name: civil_support_service
-    ports:
-      - "${HOST_PORT_SUPPORT:-8098}:8098"
     environment:
+      # Signs (gateway) and checks (services) forwarded identity. Empty stops the service at
+      # startup with instructions, rather than letting it trust unsigned headers.
+      - INTERNAL_SIGNING_KEY=${INTERNAL_SIGNING_KEY:-}
+      # Seals per-tenant provider secrets (tenant-common integrations); same value in all four services.
+      - INTEGRATION_MASTER_KEY=${INTEGRATION_MASTER_KEY}
       # Read at boot to learn which tenant schemas to migrate.
       - TENANT_DB_USERNAME=${TENANT_DB_USERNAME:-civil_user}
       - TENANT_DB_PASSWORD=${TENANT_DB_PASSWORD:-civil_pass}
@@ -500,18 +528,81 @@ services:
       context: ..
       dockerfile: backend/review-service/Dockerfile
     container_name: civil_review_service
-    ports:
-      - "${HOST_PORT_REVIEW:-8089}:8089"
     environment:
+      # Signs (gateway) and checks (services) forwarded identity. Empty stops the service at
+      # startup with instructions, rather than letting it trust unsigned headers.
+      - INTERNAL_SIGNING_KEY=${INTERNAL_SIGNING_KEY:-}
       # Read at boot to learn which tenant schemas to migrate.
       - TENANT_DB_USERNAME=${TENANT_DB_USERNAME:-civil_user}
       - TENANT_DB_PASSWORD=${TENANT_DB_PASSWORD:-civil_pass}
       - REVIEW_DB_USERNAME=${REVIEW_DB_USERNAME:-civil_user}
       - REVIEW_DB_PASSWORD=${REVIEW_DB_PASSWORD:-civil_pass}
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
     networks:
       - civil-network
     depends_on:
       mysql:
+        condition: service_started
+      kafka:
+        condition: service_started
+      service-registry:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+
+  media-service:
+    build:
+      context: ..
+      dockerfile: backend/media-service/Dockerfile
+    container_name: civil_media_service
+    environment:
+      # Signs (gateway) and checks (services) forwarded identity. Empty stops the service at
+      # startup with instructions, rather than letting it trust unsigned headers.
+      - INTERNAL_SIGNING_KEY=${INTERNAL_SIGNING_KEY:-}
+      - TENANT_DB_USERNAME=${TENANT_DB_USERNAME:-civil_user}
+      - TENANT_DB_PASSWORD=${TENANT_DB_PASSWORD:-civil_pass}
+      - MEDIA_DB_USERNAME=${MEDIA_DB_USERNAME:-civil_user}
+      - MEDIA_DB_PASSWORD=${MEDIA_DB_PASSWORD:-civil_pass}
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - MEDIA_STORAGE_ENDPOINT=http://minio:9000
+      # What a browser uses to reach MinIO; signed URLs are bound to this host.
+      - MEDIA_PUBLIC_ENDPOINT=${MEDIA_PUBLIC_ENDPOINT:-http://localhost:9000}
+      - MEDIA_STORAGE_ACCESS_KEY=${MEDIA_STORAGE_ACCESS_KEY:-civeng-media}
+      - MEDIA_STORAGE_SECRET_KEY=${MEDIA_STORAGE_SECRET_KEY:-civeng-media-secret}
+    networks:
+      - civil-network
+    depends_on:
+      mysql:
+        condition: service_started
+      kafka:
+        condition: service_started
+      minio:
+        condition: service_healthy
+      service-registry:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+
+  procurement-service:
+    build:
+      context: ..
+      dockerfile: backend/procurement-service/Dockerfile
+    container_name: civil_procurement_service
+    environment:
+      # Signs (gateway) and checks (services) forwarded identity. Empty stops the service at
+      # startup with instructions, rather than letting it trust unsigned headers.
+      - INTERNAL_SIGNING_KEY=${INTERNAL_SIGNING_KEY:-}
+      - TENANT_DB_USERNAME=${TENANT_DB_USERNAME:-civil_user}
+      - TENANT_DB_PASSWORD=${TENANT_DB_PASSWORD:-civil_pass}
+      - PROCUREMENT_DB_USERNAME=${PROCUREMENT_DB_USERNAME:-civil_user}
+      - PROCUREMENT_DB_PASSWORD=${PROCUREMENT_DB_PASSWORD:-civil_pass}
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+    networks:
+      - civil-network
+    depends_on:
+      mysql:
+        condition: service_started
+      kafka:
         condition: service_started
       service-registry:
         condition: service_healthy
@@ -523,9 +614,10 @@ services:
       context: ..
       dockerfile: backend/audit-service/Dockerfile
     container_name: civil_audit_service
-    ports:
-      - "${HOST_PORT_AUDIT:-8095}:8095"
     environment:
+      # Signs (gateway) and checks (services) forwarded identity. Empty stops the service at
+      # startup with instructions, rather than letting it trust unsigned headers.
+      - INTERNAL_SIGNING_KEY=${INTERNAL_SIGNING_KEY:-}
       # Read at boot to learn which tenant schemas to migrate.
       - TENANT_DB_USERNAME=${TENANT_DB_USERNAME:-civil_user}
       - TENANT_DB_PASSWORD=${TENANT_DB_PASSWORD:-civil_pass}
@@ -549,11 +641,10 @@ services:
       context: ..
       dockerfile: backend/messaging-service/Dockerfile
     container_name: civil_messaging_service
-    ports:
-      # Not 8096 — project-service (built concurrently by another session) claims that as
-      # HOST_PORT_PROJECT in .env. Internal container port stays 8096; only the host mapping differs.
-      - "${HOST_PORT_MESSAGING:-8097}:8096"
     environment:
+      # Signs (gateway) and checks (services) forwarded identity. Empty stops the service at
+      # startup with instructions, rather than letting it trust unsigned headers.
+      - INTERNAL_SIGNING_KEY=${INTERNAL_SIGNING_KEY:-}
       # Read at boot to learn which tenant schemas to migrate.
       - TENANT_DB_USERNAME=${TENANT_DB_USERNAME:-civil_user}
       - TENANT_DB_PASSWORD=${TENANT_DB_PASSWORD:-civil_pass}
@@ -577,9 +668,10 @@ services:
       context: ..
       dockerfile: backend/search-service/Dockerfile
     container_name: civil_search_service
-    ports:
-      - "${HOST_PORT_SEARCH:-8092}:8092"
     environment:
+      # Signs (gateway) and checks (services) forwarded identity. Empty stops the service at
+      # startup with instructions, rather than letting it trust unsigned headers.
+      - INTERNAL_SIGNING_KEY=${INTERNAL_SIGNING_KEY:-}
       - ELASTICSEARCH_URIS=http://elasticsearch:9200
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       # This service stores nothing in MySQL; the credentials are for reading the tenant registry,
@@ -617,7 +709,6 @@ services:
         # every tenant's traffic to one hostname, and the gateway resolves tenants by Host — so
         # acme.localhost and hostelfee.localhost would both resolve to the fallback tenant.
         VITE_API_BASE_URL: same-origin
-        VITE_RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-}
         VITE_GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY:-}
     container_name: civil_frontend
     ports:
@@ -653,8 +744,11 @@ networks:
 
 volumes:
   mysql_data:
+  minio_data:
   redis_data:
   kafka_data:
+  zookeeper_data:
+  zookeeper_log:
   rabbitmq_data:
   elasticsearch_data:
   prometheus_data:

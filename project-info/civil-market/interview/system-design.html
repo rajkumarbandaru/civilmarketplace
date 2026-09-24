@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>System Design — Whiteboarding This Project</title>
+<style>
+:root{--bg:#f6f7f9;--fg:#1f2933;--muted:#5b6770;--card:#fff;--line:#e3e6ea;--accent:#3730a3;--accent-bg:#eef2ff;--head:#0f172a;--code:#f1f3f6}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1115;--fg:#e6e8eb;--muted:#9aa4ad;--card:#171a20;--line:#2a2f37;--accent:#a5b4fc;--accent-bg:#1e2240;--head:#05070b;--code:#1f232b}}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.6 system-ui,-apple-system,Segoe UI,sans-serif;background:var(--bg);color:var(--fg)}
+header{background:var(--head);color:#fff;padding:18px 16px}
+header .in{max-width:1200px;margin:0 auto}
+header h1{margin:0;font-size:22px;line-height:1.3} header p{margin:4px 0 0;opacity:.75;font-size:13px}
+header a{color:#c7d2fe}
+.nav{max-width:1200px;margin:0 auto;padding:10px 16px 0;font-size:13px}
+.nav a{color:var(--accent);text-decoration:none;margin-right:6px;padding:3px 9px;border-radius:999px;background:var(--accent-bg);display:inline-block;margin-bottom:6px}
+.wrap{max-width:1200px;margin:0 auto;padding:0 16px 60px;display:flex;gap:24px;align-items:flex-start}
+nav.toc{position:sticky;top:12px;flex:0 0 250px;max-height:calc(100vh - 24px);overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:16px;font-size:13px}
+nav.toc ul{list-style:none;margin:0;padding-left:10px} nav.toc>ul{padding-left:0}
+nav.toc a{color:var(--accent);text-decoration:none;display:block;padding:2px 0}
+main{flex:1;min-width:0}
+main h1{display:none}
+h2{font-size:20px;margin:32px 0 10px;padding-top:8px;border-top:1px solid var(--line)}
+h3{font-size:16px;margin:20px 0 8px}
+a{color:var(--accent)}
+blockquote{margin:12px 0;padding:10px 14px;background:var(--accent-bg);border-left:4px solid var(--accent);border-radius:6px}
+blockquote p{margin:4px 0}
+table{border-collapse:collapse;width:100%;background:var(--card);font-size:14px;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:6px 10px;text-align:left;vertical-align:top}
+th{background:var(--accent-bg)}
+code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:13px}
+pre{background:var(--code);padding:12px;border-radius:8px;overflow-x:auto;font-size:13px;line-height:1.45}
+pre code{background:none;padding:0}
+pre.mermaid{background:var(--card);border:1px solid var(--line);text-align:center}
+hr{border:0;border-top:1px solid var(--line);margin:24px 0}
+@media (max-width:900px){.wrap{display:block}nav.toc{position:static;max-height:none;margin-top:16px}}
+</style></head><body>
+<header><div class="in"><h1>System Design — Whiteboarding This Project</h1><p>Civil Engineering Marketplace · source ~/RAJKUMAR · generated from <code style="color:#fff;background:none">interview/system-design.md</code></p></div></header>
+<div class="nav"><a href="../index.html">Home</a><a href="../interview-guide.html">Interview guide</a><a href="../overview/architecture.html">Architecture</a><a href="../backend/backend-guide.html">Backend</a><a href="../ui/ui-guide.html">UI</a><a href="../docker/docker-guide.html">Docker</a><a href="../overview/action-flows.html">Action flows</a><a href="../interview/rapid-fire.html">Rapid fire</a></div>
+<div class="wrap"><nav class="toc"><b>Contents</b><div class="toc">
+<ul>
+<li><a href="#1-draw-this-in-this-order">1. Draw this, in this order</a></li>
+<li><a href="#2-the-three-decisions-worth-defending">2. The three decisions worth defending</a></li>
+<li><a href="#3-capacity-the-numbers-to-reason-with">3. Capacity: the numbers to reason with</a></li>
+<li><a href="#4-failure-modes-and-what-happens-today">4. Failure modes, and what happens today</a></li>
+<li><a href="#5-consistency-how-to-talk-about-it">5. Consistency: how to talk about it</a></li>
+<li><a href="#6-if-traffic-went-100">6. If traffic went 100×</a></li>
+<li><a href="#7-if-they-ask-you-to-design-it-fresh-on-a-whiteboard">7. If they ask you to design it fresh on a whiteboard</a></li>
+<li><a href="#8-questions-they-use-to-test-depth">8. Questions they use to test depth</a></li>
+</ul>
+</div>
+</nav><main><h1 id="system-design-whiteboarding-this-project">System Design — Whiteboarding This Project</h1>
+<p>For the round where they say <em>"design a services marketplace"</em> or <em>"how would you scale what you
+built?"</em>. Everything here refers to the real system; the "what I'd change" parts are marked as such.</p>
+<hr />
+<h2 id="1-draw-this-in-this-order">1. Draw this, in this order</h2>
+<p>Do not start with the database. Start with the request.</p>
+<pre><code>[Browser / PWA]
+      │  HTTPS, tenant subdomain
+[CDN + nginx]  ── static bundle, /api proxied (Host preserved)
+      │
+[API Gateway]  ── tenant resolution · JWT validation · header injection · rate limit · routing
+      │
+[Services]  auth  user  booking  payment  notification  admin  review  search  messaging
+            support  project  audit  tenant
+      │                    │                       │
+[MySQL per service]   [Kafka topics]        [Redis]  [Elasticsearch]
+      │
+[Config Server]  [Eureka]  [Prometheus/Grafana/Zipkin]
+</code></pre>
+<p>Then say the sentence that frames everything: <strong>"Cross-cutting concerns live at the edge; each
+service owns its data; anything that does not need an answer immediately is an event."</strong></p>
+<hr />
+<h2 id="2-the-three-decisions-worth-defending">2. The three decisions worth defending</h2>
+<table>
+<thead>
+<tr>
+<th>Decision</th>
+<th>Why</th>
+<th>What it costs</th>
+<th>When I'd choose differently</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Auth at the gateway, headers downstream</td>
+<td>One implementation, one rotation point, simple services</td>
+<td>Services trust headers, so they must be unreachable directly</td>
+<td>Zero-trust environment → mTLS or a signed internal token per hop</td>
+</tr>
+<tr>
+<td>Database per service</td>
+<td>Independent schema evolution, no cross-team table coupling</td>
+<td>No joins across domains; eventual consistency; more connections</td>
+<td>Small team, one product → modular monolith, one database, same boundaries</td>
+</tr>
+<tr>
+<td>Schema per tenant</td>
+<td>Isolation that cannot be forgotten in a <code>WHERE</code> clause</td>
+<td>Migration fan-out (N tenants × M services), pool pressure</td>
+<td>Thousands of small tenants → shared schema + mandatory filter, or sharding by tenant</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="3-capacity-the-numbers-to-reason-with">3. Capacity: the numbers to reason with</h2>
+<p>Do not invent precision. Reason out loud:</p>
+<ul>
+<li>Say 100k bookings/month ≈ 40 writes/minute at peak — trivial for MySQL. <strong>Reads dominate</strong>:
+  catalogue, profiles, search, tracking polls.</li>
+<li>Tracking is the noisy one: one poll every 5 s per active booking. 1,000 concurrent bookings =
+  200 req/s of pure reads. That alone justifies moving tracking to server-sent events or WebSocket
+  push, and caching the last position in Redis rather than hitting MySQL.</li>
+<li>Search must not touch MySQL at all — that is why profiles are denormalised into Elasticsearch.</li>
+<li>Notifications fan out: one announcement to 50k users is 50k rows plus 50k sends. That belongs in a
+  batched, rate-limited worker, not a request thread. Today it is a synchronous fan-out inside the
+  request — a genuine limitation worth naming.</li>
+</ul>
+<hr />
+<h2 id="4-failure-modes-and-what-happens-today">4. Failure modes, and what happens today</h2>
+<table>
+<thead>
+<tr>
+<th>Failure</th>
+<th>Today</th>
+<th>What I'd add</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A service is down</td>
+<td>Gateway returns a circuit-breaker fallback; other flows unaffected</td>
+<td>Per-route timeouts and bulkheads so one slow dependency cannot exhaust the caller</td>
+</tr>
+<tr>
+<td>Kafka is down</td>
+<td>Sync flows keep working; receipts, audit rows and index updates stop</td>
+<td>Transactional outbox so nothing is lost, and a replay tool</td>
+</tr>
+<tr>
+<td>Consumer throws</td>
+<td>Caught and logged so the group keeps moving — the event is dropped</td>
+<td>Dead-letter topic + retry with backoff</td>
+</tr>
+<tr>
+<td>Crash between DB commit and Kafka publish</td>
+<td>Silent divergence: DB moved, event never sent</td>
+<td><strong>Outbox pattern.</strong> The single most valuable change</td>
+</tr>
+<tr>
+<td>Duplicate event delivery</td>
+<td>Handled: consumers are idempotent on state (<code>already PAID</code> → return)</td>
+<td>Idempotency keys on the write API too, so client retries are safe</td>
+</tr>
+<tr>
+<td>MySQL down</td>
+<td>Everything stops</td>
+<td>Read replicas, connection budgets, graceful degradation for read-only pages</td>
+</tr>
+<tr>
+<td>Razorpay down or slow</td>
+<td>Payment creation fails; the payment row is persisted FAILED</td>
+<td>Retries with backoff, reconciliation job against the PSP, webhook as the source of truth</td>
+</tr>
+<tr>
+<td>Elasticsearch stale</td>
+<td>Search shows old data; reindex is a full sweep</td>
+<td>Incremental indexing driven by domain events</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="5-consistency-how-to-talk-about-it">5. Consistency: how to talk about it</h2>
+<p>Payments are the sharp end, so use them as the example.</p>
+<ul>
+<li><strong>Inside a service:</strong> ACID. Escrow release debits the hold, freezes the commission and writes the
+  wallet ledger line in one <code>@Transactional</code> method. Never two transactions for one financial fact.</li>
+<li><strong>Across services:</strong> no 2PC. <code>payment.completed</code> is a fact published after the money is real; the
+  booking service reacts by marking the booking PAID. This is eventual consistency, and the user
+  sees it as "payment confirmed, booking updates a moment later".</li>
+<li><strong>Idempotency is the price of at-least-once.</strong> Consumers key off state rather than delivery count.</li>
+<li><strong>The invariant that protects the money:</strong> a hold becomes HELD only because its linked payment
+  completed at the PSP. There is no endpoint where a payer declares their own money received, so
+  the platform cannot be talked into releasing funds that never arrived. Say this one verbatim —
+  it shows you think in invariants, not endpoints.</li>
+</ul>
+<hr />
+<h2 id="6-if-traffic-went-100">6. If traffic went 100×</h2>
+<p>In priority order, with the reason attached:</p>
+<ol>
+<li><strong>Cache the hot reads.</strong> Catalogue, site content and <code>/ui-config/me</code> are read on every page load
+   and change rarely → Redis with event-based invalidation. Biggest win per hour spent.</li>
+<li><strong>Split read and write paths for tracking.</strong> Push instead of poll; last known position in Redis.</li>
+<li><strong>Outbox + dead-letter topics.</strong> Correctness before capacity — scaling a lossy pipeline multiplies
+   the loss.</li>
+<li><strong>Read replicas and per-service connection budgets.</strong> Per-tenant schemas multiply pools; that is
+   the first thing to bite.</li>
+<li><strong>Scale stateless services horizontally.</strong> They already register in Eureka, so the gateway
+   load-balances new instances with no config change. Kafka consumer groups give per-topic
+   parallelism up to the partition count — so partition counts become a capacity decision.</li>
+<li><strong>Move notification fan-out to a worker</strong> with batching and provider rate limits.</li>
+<li><strong>Incremental search indexing</strong> off the event stream instead of full reindex sweeps.</li>
+<li><strong>Then</strong> consider sharding tenants across database instances, routed by the same tenant key that
+   already flows through every request.</li>
+</ol>
+<hr />
+<h2 id="7-if-they-ask-you-to-design-it-fresh-on-a-whiteboard">7. If they ask you to design it fresh on a whiteboard</h2>
+<p>A defensible 45-minute answer that is not just "copy what I built":</p>
+<ol>
+<li><strong>Start as a modular monolith</strong> with hard internal boundaries (auth, catalogue, booking,
+   payment, messaging) and one database with schema-per-module. Ship features fast.</li>
+<li><strong>Extract first the services with a different shape</strong>: payment (regulatory, different deploy
+   cadence, different on-call), search (different datastore), notification (bursty, external
+   providers).</li>
+<li><strong>Put tenancy in from day one.</strong> Retrofitting tenant isolation is far more expensive than
+   carrying a tenant key from the start — every table, every cache key, every index.</li>
+<li><strong>Make the event backbone real from the first event</strong>: outbox, dead-letter, replay. Half an event
+   system is worse than none.</li>
+<li><strong>Decide the money invariants before the endpoints</strong> and write them down: what makes a hold
+   HELD, who may release, what freezes on dispute.</li>
+</ol>
+<hr />
+<h2 id="8-questions-they-use-to-test-depth">8. Questions they use to test depth</h2>
+<p><strong>"Why not put the tenant id in the JWT only?"</strong>
+Because then a request's tenant depends entirely on a token the client holds. The subdomain gives an
+independent signal, and the gateway requires the two to agree. Defence in depth: stealing a token
+from one tenant does not let you use it against another.</p>
+<p><strong>"Why strip the client's <code>X-Tenant-Id</code> instead of validating it?"</strong>
+Because anything a client can set, a client can forge, and a validation rule can be weakened later
+by someone who does not know why it exists. Stripping and re-deriving leaves no path where client
+input decides isolation.</p>
+<p><strong>"Your admin dashboard calls four services. Isn't that slow and fragile?"</strong>
+Yes, and it is the classic API composition trade-off. Today it is parallel Feign calls with
+fallbacks, so one slow service degrades one card rather than the page. At scale the fix is a
+read model: consume the domain events into a dashboard projection and serve it from one query — CQRS
+where it earns its keep.</p>
+<p><strong>"How do you roll out a breaking API change across 16 services?"</strong>
+Expand and contract. Add the new field alongside the old, deploy consumers first, migrate producers,
+then remove the old field in a later release. Never rename in place, and never edit an applied
+migration — the same discipline in the database and in the API.</p></main></div>
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+mermaid.initialize({ startOnLoad: false, theme: dark ? 'dark' : 'default', securityLevel: 'loose',
+                      flowchart: { htmlLabels: true }, sequence: { useMaxWidth: false } });
+const blocks = [...document.querySelectorAll('pre.mermaid')];
+for (let i = 0; i < blocks.length; i++) {
+  const el = blocks[i];
+  const src = el.textContent;
+  try {
+    const { svg } = await mermaid.render('mmd' + i, src);
+    el.innerHTML = svg;
+    el.setAttribute('data-processed', 'true');
+  } catch (e) {
+    el.setAttribute('data-error', 'true');
+    el.textContent = 'Diagram error: ' + e.message + ' --- ' + src;
+  }
+}
+</script>
+</body></html>

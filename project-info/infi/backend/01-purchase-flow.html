@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Purchase Flow Explorer</title>
+<style>
+:root{
+  --bg:#f6f7fb; --surface:#ffffff; --surface-2:#f0f2f7; --text:#1b1f2a; --muted:#5b6475; --border:#dde1ea;
+  --accent:#3b5bdb; --lane-a:#fafbfd; --lane-b:#f3f5f9; --edge:#b7bfcf; --edge-done:#7c8aa5;
+  --sel:#607089; --ins:#2b8a3e; --upd:#b7791f; --pub:#7048e8; --ext:#c2255c; --warn:#c92a2a;
+  --shadow:0 1px 2px rgba(20,30,60,.06),0 4px 14px rgba(20,30,60,.06);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f1218; --surface:#171b24; --surface-2:#1e2330; --text:#e6e9f0; --muted:#98a1b3; --border:#2a3040;
+    --accent:#7b94ff; --lane-a:#141821; --lane-b:#181d27; --edge:#3a4256; --edge-done:#6a7590;
+    --sel:#9aa8c0; --ins:#51cf66; --upd:#fcc419; --pub:#b197fc; --ext:#f06595; --warn:#ff6b6b;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 14px rgba(0,0,0,.3);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f1218; --surface:#171b24; --surface-2:#1e2330; --text:#e6e9f0; --muted:#98a1b3; --border:#2a3040;
+  --accent:#7b94ff; --lane-a:#141821; --lane-b:#181d27; --edge:#3a4256; --edge-done:#6a7590;
+  --sel:#9aa8c0; --ins:#51cf66; --upd:#fcc419; --pub:#b197fc; --ext:#f06595; --warn:#ff6b6b;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 14px rgba(0,0,0,.3);
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px}
+.wrap{max-width:1500px;margin:0 auto;padding:20px 16px 48px}
+header h1{font-size:22px;margin:0 0 4px}
+.home{display:inline-block;margin-bottom:6px;color:var(--accent);text-decoration:none;font-size:13px}
+.home:hover{text-decoration:underline}
+header p{margin:0;color:var(--muted);max-width:900px}
+.toolbar>*{max-width:100%}
+.seg{flex-wrap:wrap}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:16px 0 12px}
+.seg{display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--surface)}
+.seg button{border:0;background:transparent;color:var(--text);padding:7px 12px;cursor:pointer;font:inherit}
+.seg button.on{background:var(--accent);color:#fff}
+.btn{flex:none;border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:8px;padding:7px 12px;cursor:pointer;font:inherit}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;min-width:88px}
+select.btn{padding:6px 8px}
+.progress{flex:1 1 160px;min-width:140px;height:6px;background:var(--surface-2);border-radius:99px;overflow:hidden}
+.progress>i{display:block;height:100%;width:0;background:var(--accent);transition:width .3s}
+.stepcount{color:var(--muted);font-variant-numeric:tabular-nums;min-width:64px;text-align:right}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;align-items:start}
+.grid>*{min-width:0}
+@media (max-width:1060px){.grid{grid-template-columns:1fr}}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow)}
+.diagram{overflow:auto;max-height:calc(100vh - 170px);min-height:420px;position:relative}
+@media (max-width:1060px){.diagram{max-height:70vh}}
+.canvas{position:relative}
+.lane{position:absolute;top:0;bottom:0}
+.lanehead{position:sticky;top:0;z-index:5;height:44px;display:flex}
+.lanehead div{flex:none;display:flex;align-items:center;justify-content:center;text-align:center;font-size:10.5px;font-weight:600;
+  padding:0 6px;border-bottom:1px solid var(--border);background:var(--surface);color:var(--muted);line-height:1.2}
+.lanehead div b{display:block;width:8px;height:8px;border-radius:50%;margin-right:6px;flex:none}
+svg.edges{position:absolute;left:0;top:0;pointer-events:none;overflow:visible}
+.edge{fill:none;stroke:var(--edge);stroke-width:1.6;transition:stroke .3s,opacity .3s}
+.edge.done{stroke:var(--edge-done)}
+.edge.active{stroke:var(--accent);stroke-width:2.6;stroke-dasharray:7 5;animation:dash 0.9s linear infinite}
+@keyframes dash{to{stroke-dashoffset:-24}}
+.token{fill:var(--accent);filter:drop-shadow(0 0 4px var(--accent))}
+.elabel{position:absolute;z-index:4;transform:translate(-50%,-50%);background:var(--accent);color:#fff;font:600 11px/1.3 ui-monospace,Menlo,Consolas,monospace;
+  padding:3px 7px;border-radius:6px;white-space:nowrap;pointer-events:none;box-shadow:var(--shadow);max-width:340px;overflow:hidden;text-overflow:ellipsis}
+.node{position:absolute;z-index:3;border-radius:10px;border:1.5px solid color-mix(in srgb,var(--c) 45%,var(--border));
+  background:color-mix(in srgb,var(--c) 9%,var(--surface));padding:6px 8px;cursor:pointer;transition:opacity .3s,transform .2s,box-shadow .3s;
+  display:flex;flex-direction:column;justify-content:center;gap:2px;overflow:hidden}
+.node .t{font-weight:600;font-size:11.5px;line-height:1.2;overflow-wrap:anywhere}
+.node .s{font-size:10.5px;color:var(--muted);line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.node .chips{display:flex;gap:4px;margin-top:1px}
+.chip{font:600 9.5px/1 ui-monospace,Menlo,Consolas,monospace;padding:2px 4px;border-radius:4px;background:var(--surface-2);color:var(--muted)}
+.node.ui{border-radius:22px}
+.node.ext{border-style:dashed}
+.node.bus{border-radius:4px;transform:skewX(-6deg)}
+.node.bus>*{transform:skewX(6deg)}
+.node.future{opacity:.38}
+.node.done{opacity:1}
+.node.current{opacity:1;box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 35%,transparent),var(--shadow);transform:scale(1.04)}
+.node .num{position:absolute;top:4px;right:6px;font:600 10px/1 ui-monospace,Menlo,monospace;color:var(--muted)}
+.panel{position:sticky;top:12px;padding:16px 16px 18px;max-height:calc(100vh - 24px);overflow:auto}
+@media (max-width:1060px){.panel{position:static;max-height:none}}
+.panel .svc{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--muted)}
+.panel .svc b{width:9px;height:9px;border-radius:50%}
+.panel h2{font-size:18px;margin:6px 0 6px}
+.panel p.desc{margin:0 0 10px;overflow-wrap:anywhere}
+.panel h2,.panel .code,.tbl .n,.tbl .cols{overflow-wrap:anywhere}
+.sec{margin-top:14px}
+.sec h3{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 6px}
+.api{border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.api .line{display:flex;gap:8px;align-items:center;padding:8px 10px;background:var(--surface-2);flex-wrap:wrap}
+.method{font:700 11px/1 ui-monospace,Menlo,monospace;padding:4px 6px;border-radius:5px;color:#fff;background:var(--sel)}
+.method.POST{background:var(--ins)} .method.GET{background:var(--accent)} .method.EVENT{background:var(--pub)} .method.EXT{background:var(--ext)}
+.api dl{margin:0;padding:8px 10px;display:grid;grid-template-columns:78px 1fr;gap:4px 8px}
+.api dt{color:var(--muted);font-size:12px}
+.api dd{margin:0;word-break:break-word}
+.tbl{display:flex;gap:8px;align-items:flex-start;padding:7px 0;border-top:1px solid var(--border)}
+.tbl:first-of-type{border-top:0}
+.op{font:700 10px/1 ui-monospace,Menlo,monospace;padding:4px 5px;border-radius:4px;color:#fff;flex:none;min-width:52px;text-align:center}
+.op.SELECT{background:var(--sel)} .op.INSERT{background:var(--ins)} .op.UPDATE{background:var(--upd)} .op.PUBLISH{background:var(--pub)}
+.tbl .n{font-weight:600}
+.tbl .cols{color:var(--muted);font-size:12px}
+.conf{display:inline-block;font:700 10px/1 ui-monospace,Menlo,monospace;padding:3px 6px;border-radius:4px;border:1px solid var(--border);color:var(--muted)}
+.conf.HIGH{color:var(--ins);border-color:var(--ins)} .conf.MEDIUM{color:var(--upd);border-color:var(--upd)}
+.note{border-left:3px solid var(--upd);background:color-mix(in srgb,var(--upd) 8%,transparent);padding:8px 10px;border-radius:0 6px 6px 0;font-size:13px}
+.note.warn{border-color:var(--warn);background:color-mix(in srgb,var(--warn) 8%,transparent)}
+.code{font-size:12px;color:var(--muted);overflow-wrap:anywhere}
+.legend{display:flex;flex-wrap:wrap;gap:14px;margin:10px 2px 0;color:var(--muted);font-size:12px}
+.legend span{display:inline-flex;gap:6px;align-items:center}
+.lg{display:inline-block;width:22px;height:13px;border:1.5px solid var(--muted);border-radius:4px}
+.lg.ui{border-radius:10px}.lg.ext{border-style:dashed}.lg.bus{transform:skewX(-10deg)}
+h2.block{font-size:17px;margin:28px 0 10px}
+.tablewrap{overflow-x:auto}
+table.sum{border-collapse:collapse;width:100%;font-size:13px}
+table.sum th,table.sum td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+table.sum th{font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);background:var(--surface-2);position:sticky;top:0}
+table.sum tr:hover td{background:var(--surface-2)}
+table.sum td .op{margin:0 4px 4px 0;display:inline-block}
+.kbd{font:600 11px ui-monospace,Menlo,monospace;border:1px solid var(--border);border-bottom-width:2px;border-radius:4px;padding:1px 5px;color:var(--muted)}
+.foot{color:var(--muted);font-size:12.5px;margin-top:18px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a class="home" href="index.html">← All flows</a>
+    <h1>Purchase Flow — how a SIM + plan order moves through the platform</h1>
+    <p>Press <b>Play</b> to watch the request travel from the customer's browser through each microservice, external API and
+      database table, or click any box to jump to it. Each step shows the API called, the tables it reads or writes, and the source location.
+      Built from <code>billing_micro_services</code> source.</p>
+  </header>
+
+  <div class="toolbar">
+    <div class="seg" role="tablist" aria-label="Payment path">
+      <button id="p-card" class="on" data-path="card">Card purchase (Stripe)</button>
+      <button id="p-wallet" data-path="wallet">Reseller wallet (e-balance)</button>
+    </div>
+    <button class="btn" id="b-restart" title="Restart">⟲ Restart</button>
+    <button class="btn" id="b-prev" title="Previous (←)">◀ Prev</button>
+    <button class="btn primary" id="b-play" title="Play / pause (space)">▶ Play</button>
+    <button class="btn" id="b-next" title="Next (→)">Next ▶</button>
+    <select class="btn" id="speed" aria-label="Speed">
+      <option value="3200">Slow</option>
+      <option value="2200" selected>Normal</option>
+      <option value="1300">Fast</option>
+    </select>
+    <div class="progress" aria-hidden="true"><i id="prog"></i></div>
+    <span class="stepcount" id="count">1 / 1</span>
+    <button class="btn" id="b-theme" title="Toggle light / dark">Theme</button>
+  </div>
+
+  <div class="grid">
+    <div>
+      <div class="card diagram" id="diagram">
+        <div class="canvas" id="canvas">
+          <div class="lanehead" id="lanehead"></div>
+          <svg class="edges" id="edges"></svg>
+        </div>
+      </div>
+      <div class="legend">
+        <span><i class="lg ui"></i>UI / customer</span>
+        <span><i class="lg"></i>Service logic</span>
+        <span><i class="lg bus"></i>Event bus</span>
+        <span><i class="lg ext"></i>External API</span>
+        <span><span class="op SELECT">SELECT</span><span class="op INSERT">INSERT</span><span class="op UPDATE">UPDATE</span><span class="op PUBLISH">PUBLISH</span></span>
+        <span>Keys: <span class="kbd">←</span> <span class="kbd">→</span> <span class="kbd">space</span></span>
+      </div>
+    </div>
+    <aside class="card panel" id="panel" aria-live="polite"></aside>
+  </div>
+
+  <h2 class="block">APIs in this path</h2>
+  <div class="card tablewrap"><table class="sum" id="apiTable"></table></div>
+
+  <h2 class="block">Database tables in this path</h2>
+  <div class="card tablewrap"><table class="sum" id="tblTable"></table></div>
+
+  <p class="foot">Confidence: <span class="conf HIGH">HIGH</span> means it was read in the current source; <span class="conf MEDIUM">MEDIUM</span> means it comes from the
+    repo's discovery docs or the internals were not read line by line. Line numbers reflect the source at the time this page was written.</p>
+</div>
+
+<script>
+const LANES = [
+  {k:'ui',   label:'Customer UI',            c:'#3b82f6'},
+  {k:'cat',  label:'catalogue-management',   c:'#0ca678'},
+  {k:'ssp',  label:'self-service-payment',   c:'#5c7cfa'},
+  {k:'wal',  label:'wallet-management',      c:'#f59f00'},
+  {k:'bus',  label:'Event bus (DB-poll)',    c:'#868e96'},
+  {k:'um',   label:'user-management',        c:'#40c057'},
+  {k:'inv',  label:'inventory-management',   c:'#fd7e14'},
+  {k:'ship', label:'shipment-management',    c:'#a9744f'},
+  {k:'ext',  label:'External APIs',          c:'#e64980'}
+];
+
+const S = {
+  browse: {lane:'ui', kind:'ui', title:'Customer opens "Buy SIM / Plan"', sub:'Web, mobile app or reseller portal',
+    desc:'The storefront loads the plans that can be sold. Everything that follows is triggered by the customer\'s choices on this page.',
+    conf:'HIGH'},
+  plans: {lane:'cat', title:'List plans', sub:'MnoPlansController.getPlanGroups()',
+    desc:'Returns the plan groups (bundles) with price, validity and available add-ons.',
+    api:{m:'GET', path:'/mno_plan_groups', auth:'SESSIONID header', req:'—', res:'List of PlanGroup: planGroupToken, price, setupPrice, validity, add-ons'},
+    tables:[{n:'plan_group',op:'SELECT',cols:'plan_group_id, plan_group_token, price, setup_price, group_type'},{n:'plan_addon',op:'SELECT',cols:'plan_addon_token, price, description'}],
+    code:'catalogue-management/…/MnoPlansController.java:280', conf:'HIGH'},
+  detail: {lane:'cat', title:'Plan details', sub:'getPlanDetailsByGroupId()',
+    desc:'Loads the selected plan\'s full detail (price, taxes, add-ons) for the cart.',
+    api:{m:'GET', path:'/plan_detail_by_group_id/{groupId}', auth:'SESSIONID header', req:'groupId (path)', res:'Plan detail map'},
+    tables:[{n:'plan_group',op:'SELECT',cols:'by plan_group_id'}],
+    code:'MnoPlansController.java:636', conf:'HIGH'},
+  cart: {lane:'ui', kind:'ui', title:'Checkout', sub:'Cart + user info + shipping address',
+    desc:'The customer fills in name, email and shipping address and picks SIM type (pSIM/eSIM) and plan. The UI builds an OrderCommand, with a client-side orderId, and sends it together with the payment request.',
+    conf:'HIGH'},
+  initPay: {lane:'ssp', title:'Start payment', sub:'CustomerSelfRechargeController.initiatePayment()',
+    desc:'Single entry point for every paid product. It only attaches IP and session, then hands everything to PaymentFacade.',
+    api:{m:'POST', path:'/api/v1/session/payments/', auth:'SESSIONID header (API-key variant: /api/v1/payments/)',
+      req:'UserSelfPaymentCommand { entityType: ConsumerOrderPayment | GuestOrderPayment | ResellerOrderPayment, entityId: orderId, paymentMethod: STRIPE, transactionAmount, taxAmount, totalPriceExclTaxes, planAddonTokens[], email, orderInfo: OrderCommand { userInfo, subscriptions[], shipping, totalValue } }',
+      res:'OrderResponse { status, transactionId, orderId, paymentState, routingGateway, clientSecret, clientSessionId, requiresAction }'},
+    code:'self-service-payment/…/CustomerSelfRechargeController.java:824', conf:'HIGH',
+    note:{warn:true, t:'On the API-key variant (/api/v1/payments/, line 835) the key check result is computed but never used: the request goes ahead even if the key is invalid.'}},
+  facade: {lane:'ssp', title:'Validate + stage order', sub:'PaymentFacade.initiateOrderFulfillment()',
+    desc:'Builds a PaymentContext and runs every PaymentValidator that supports() this context, sorted by order (channel restrictions, purchase rules, limits). Then it switches on entityType; order payments go to OrderFulfillmentServiceImpl.initiateOrderFullfillment(). No order_table row exists yet: the whole cart is parked as JSON in payment_order_info until the money is confirmed.',
+    tables:[{n:'gateway_transaction',op:'INSERT',cols:'transaction_token, transaction_status = transactionStarted, entity_type, entity_id (orderId), total_price, tax_amount, user_ref (email)'},
+            {n:'payment_order_info',op:'INSERT',cols:'order_id, order_request (full OrderCommand JSON), stripe_customer_id'}],
+    code:'PaymentFacade.java:193-266 · OrderFulfillmentServiceImpl.java:3102 (payment_order_info save ≈ :3236)', conf:'HIGH'},
+  route: {lane:'ssp', title:'Pick payment gateway', sub:'GatewayRoutingEngine.route()',
+    desc:'Evaluates DB-driven RoutingRule rows (amount, tier, country, currency, card brand, gateway health), skips gateways marked DOWN and falls back to Stripe. Then StripePaymentGateway.initiateCheckout() is called.',
+    code:'PaymentFacade.java:297 · service/routing/GatewayRoutingEngine.java', conf:'HIGH'},
+  stripeCreate: {lane:'ext', kind:'ext', title:'Stripe: create checkout', sub:'Checkout Session / PaymentIntent',
+    desc:'Stripe creates a session for the amount. The platform returns clientSecret and clientSessionId to the UI in OrderResponse.',
+    api:{m:'EXT', path:'Stripe API — Checkout Session / PaymentIntent', auth:'Stripe secret key', req:'amount, currency, metadata (transaction token)', res:'session id, client secret'},
+    code:'StripePaymentGateway.java', conf:'HIGH'},
+  pay: {lane:'ui', kind:'ui', title:'Customer pays', sub:'Stripe-hosted checkout (card, 3-D Secure)',
+    desc:'The browser is sent to Stripe with the clientSecret. Card details never touch the platform.', conf:'HIGH'},
+  webhook: {lane:'ext', kind:'ext', title:'Stripe → webhook', sub:'payment_intent / checkout events',
+    desc:'Stripe calls the platform back asynchronously. The payment is not trusted until this and the follow-up check succeed.',
+    api:{m:'POST', path:'/api/webhooks/{gateway}', auth:'Stripe signature (raw body)', req:'Stripe event JSON', res:'200 OK'},
+    code:'rest/WebhookController.java:43', conf:'HIGH'},
+  whHandle: {lane:'ssp', title:'Verify + de-duplicate', sub:'StripeWebhookHandler.handleWebhook()',
+    desc:'Verifies the signature, records the event id so replays are ignored, and queues processing per resource.',
+    tables:[{n:'webhook_events',op:'INSERT',cols:'gateway event id, processing status (dedup key)'}],
+    code:'StripeWebhookHandler.java', conf:'HIGH'},
+  confirm: {lane:'ssp', title:'Confirm payment', sub:'PaymentFacade.confirmPayment()',
+    desc:'Per-transaction ReentrantLock. If the transaction is already complete it returns (idempotent replay). It calls gateway.retrievePayment(ref) to double-check with Stripe, runs a review check, then marks the transaction complete.',
+    api:{m:'EXT', path:'Stripe retrievePayment(ref)', auth:'Stripe secret key', req:'gateway reference', res:'status, payment method, confirmation id'},
+    tables:[{n:'gateway_transaction',op:'UPDATE',cols:'WEBHOOK_CONFIRMED → transactionComplete, txn_confirm_id, payment_source_id, payment_method_type'},
+            {n:'webhook_events',op:'UPDATE',cols:'status = PROCESSED'}],
+    code:'PaymentFacade.java:601-715', conf:'HIGH',
+    note:{t:'The lock map is in-JVM only. Across pods, duplicate protection relies on the DB status check.'}},
+  finish: {lane:'ssp', title:'Hand off the paid order', sub:'finishOrderFulfillment() → fulfillProductFulfillment()',
+    desc:'Reads the parked cart from payment_order_info and publishes OrderEvent SUBMIT_ORDER. It also publishes a ledger event (type SimPurchase) per line for accounting.',
+    api:{m:'EVENT', path:'Topic.Order  flag SUBMIT_ORDER  +  Ledger (SimPurchase)', auth:'internal', req:'orderId, ipAddress', res:'—'},
+    tables:[{n:'payment_order_info',op:'SELECT',cols:'order_request JSON'},{n:'events (bus table)',op:'PUBLISH',cols:'OrderEvent SUBMIT_ORDER, LedgerEvent'}],
+    code:'PaymentFacade.java:855 · OrderFulfillmentServiceImpl.java:1694-1741', conf:'HIGH'},
+  bus1: {lane:'bus', kind:'bus', title:'Deliver SUBMIT_ORDER', sub:'DB-polling event bus (event-mgmt-utils)',
+    desc:'Events are rows polled by each subscribing service, not MQ messages. user-management picks up SUBMIT_ORDER; general-ledger-mgmt picks up the ledger event.',
+    code:'event-mgmt-utils/…/EventService.java', conf:'MEDIUM',
+    note:{t:'Per the repo\'s failure-handling docs, a handler that throws is marked processed after one attempt (no DLQ).'}},
+  umSubmit: {lane:'um', title:'Receive order event', sub:'UserMgmtEventHooks.onOrderEvent()',
+    desc:'Loads payment_order_info, rebuilds the OrderCommand, gives guests a temporary user token, and calls OrderHelper.submitAndFulfilOrder(). That method checks again that gateway_transaction is transactionComplete before creating anything.',
+    tables:[{n:'payment_order_info',op:'SELECT',cols:'order_request, stripe_customer_id'},{n:'gateway_transaction',op:'SELECT',cols:'latest txn for orderId must be transactionComplete'}],
+    code:'user-management/…/event/UserMgmtEventHooks.java:194 · rest/OrderHelper.java:518', conf:'HIGH'},
+  umCreate: {lane:'um', title:'Create order + customer', sub:'OrderController.submitNewOrderHelper()',
+    desc:'This is where the order and the customer record are actually created. The customer\'s personal details go into user and user_address, and order_table only references them by user_id/account_id.',
+    tables:[{n:'order_table',op:'INSERT',cols:'order_id, order_no, user_id, account_id, current_status (Submitted …), total_value, total_taxes_n_fees, payment_id, channel, order_origin, shipping_service'},
+            {n:'order_item',op:'INSERT',cols:'sim_config_id, order_id, bundle_id (plan), entity_type, entity_id, status, total_spent, device_serial_number'},
+            {n:'order_sub_item',op:'INSERT',cols:'order_item_id, item_type = Plan_Addon, unit_price, quantity'},
+            {n:'user',op:'INSERT',cols:'user_id, user_name, full_name, email, phone_number, account_id, reseller_code, created_on'},
+            {n:'user_address',op:'INSERT',cols:'billing / shipping address, zip'}],
+    code:'OrderHelper.java:~555 (calls OrderController.submitNewOrderHelper)', conf:'MEDIUM',
+    note:{t:'The call and resulting order_table row are confirmed (HIGH). The exact child tables written inside submitNewOrderHelper were not read line by line.'}},
+  umFulfil: {lane:'um', title:'Finalize order', sub:'OrderUtils.fulfillOrder()',
+    desc:'Saves the order, records checkpoints, sends new-user events and the device-registration SMS. The reseller code is copied onto the user.',
+    tables:[{n:'order_table',op:'UPDATE',cols:'status / fulfilment fields'},{n:'order_check_points',op:'INSERT',cols:'per-step checkpoint of the order'},{n:'user',op:'UPDATE',cols:'reseller_code'},
+            {n:'events (bus table)',op:'PUBLISH',cols:'new-user events, SMS'}],
+    code:'user-management/…/utils/OrderUtils.java (fulfillOrder)', conf:'HIGH'},
+  umDone: {lane:'um', title:'Announce completion', sub:'SUBMIT_ORDER_COMPLETED + email',
+    desc:'Marks payment_order_info as submitted and publishes SUBMIT_ORDER_COMPLETED plus the CustomerSIMPurchase email event.',
+    api:{m:'EVENT', path:'Topic.Order SUBMIT_ORDER_COMPLETED · Email CustomerSIMPurchase', auth:'internal', req:'orderId, status', res:'—'},
+    tables:[{n:'payment_order_info',op:'UPDATE',cols:'is_ordersubmitted = true, submitted_on'},{n:'events (bus table)',op:'PUBLISH',cols:'OrderEvent, EmailEvent'}],
+    code:'UserMgmtEventHooks.java:230-242', conf:'HIGH'},
+  sspAck: {lane:'ssp', title:'Mark order confirmed', sub:'SelfServicePaymentEventHooks',
+    desc:'self-service-payment consumes SUBMIT_ORDER_COMPLETED and flags the parked order as confirmed, or stores the failure cause and logs a CRITICAL error.',
+    tables:[{n:'payment_order_info',op:'UPDATE',cols:'is_order_confirmed, order_confirmed_on, failure_cause'}],
+    code:'self-service-payment/…/event/SelfServicePaymentEventHooks.java:130', conf:'HIGH'},
+  alloc: {lane:'inv', title:'Allocate SIM / device', sub:'SimInfoController.allocateSimBlocks()',
+    desc:'Picks physical stock. The carrier (Verizon / T-Mobile / GUPI) is decided here by the mno_sim_profile of the stock allocated, capped by MAX_LINES_PER_DEVICE per carrier.',
+    tables:[{n:'sim_info',op:'UPDATE',cols:'is_allocated, lifecycle_state NotProvisioned → PreActive, order_id'},{n:'device_inventory',op:'UPDATE',cols:'order_id, mno_sim_profile (carrier)'}],
+    code:'inventory-management/…/SimInfoController.java:1164', conf:'MEDIUM',
+    note:{warn:true, t:'Allocation has no row lock or transaction, so concurrent orders can grab the same stock. How allocation is triggered from the order was not traced line by line.'}},
+  pickup: {lane:'inv', title:'Schedule courier pickup', sub:'WarehouseController.scheduleOrderPickup()',
+    desc:'Warehouse staff pack the order and trigger pickup. USPSDeliveryService / UPSDeliveryService call shipment-management through CourierUtils.',
+    api:{m:'POST', path:'/schedule_order_pickup/{orderNo}', auth:'SESSIONID header', req:'orderNo, pickup details', res:'status map'},
+    tables:[{n:'order_table',op:'UPDATE',cols:'current_status (shipping states)'}],
+    code:'WarehouseController.java:593 · USPSDeliveryService.java:540-607', conf:'HIGH'},
+  label: {lane:'ship', title:'Create label + pickup', sub:'LabelsController',
+    desc:'Internal HTTP call from inventory-management. It picks USPS or UPS (package carrier, not telecom carrier).',
+    api:{m:'POST', path:'shipment-mgmt:8099/shipment_management/labels/v2/label/  ·  /schedule_package_pickup/', auth:'hard-coded API key', req:'order no, address, package', res:'label, tracking number'},
+    tables:[{n:'order_track_info',op:'INSERT',cols:'order ref (string, no FK), tracking number, courier, status'}],
+    code:'shipment-management LabelsController → USPSLabelServiceImpl / PackagePickupServiceImpl', conf:'MEDIUM'},
+  usps: {lane:'ext', kind:'ext', title:'USPS / UPS', sub:'Label, pickup, tracking',
+    desc:'USPS REST v3 (OAuth2) or legacy XML Web Tools; UPS REST (OAuth2).',
+    api:{m:'EXT', path:'USPS REST v3 / legacy XML · UPS REST', auth:'OAuth2 client credentials', req:'address, weight, service', res:'label PDF, tracking number'},
+    conf:'MEDIUM'},
+  track: {lane:'ship', title:'Track delivery (hourly)', sub:'trackingScheduler',
+    desc:'Polls open shipments and updates their status. No event is published, so other services must poll order_track_info.',
+    tables:[{n:'order_track_info',op:'UPDATE',cols:'status'}], conf:'MEDIUM'},
+  delivered: {lane:'ui', kind:'ui', title:'SIM delivered → activate', sub:'Continue in 02-activation-flow',
+    desc:'The customer receives the SIM (or eSIM QR) and the purchase email, then activates. See the activation flow.', conf:'HIGH'},
+
+  // ---------- wallet (e-balance) path ----------
+  wCart: {lane:'ui', kind:'ui', title:'Reseller sells a plan', sub:'Reseller portal, pays from e-balance',
+    desc:'A reseller buys a starter plan or bundle for a customer\'s SIM (ICCID) and pays from the reseller\'s pre-funded e-balance wallet.', conf:'HIGH'},
+  wInit: {lane:'ssp', title:'Start payment', sub:'CustomerSelfRechargeController.initiatePayment()',
+    desc:'Same endpoint as card payments, with paymentMethod EBALANCE.',
+    api:{m:'POST', path:'/api/v1/session/payments/', auth:'SESSIONID header',
+      req:'UserSelfPaymentCommand { entityType: BundleTopup | StarterPlanPurchase, entityId: planGroupToken, paymentMethod: EBALANCE, resellerId, transactionAmount, taxAmount, planAddonTokens[], multiTenureMonthsCommitted }',
+      res:'OrderResponse { status, transactionId, routingGateway: AirtimeBalance }'},
+    code:'CustomerSelfRechargeController.java:824', conf:'HIGH'},
+  wFacade: {lane:'ssp', title:'Validate + fulfil', sub:'PaymentFacade → initiateServiceBundleFulfilment()',
+    desc:'Validators run as for cards. EBALANCE is in PaymentMethod.noNeedtoSessionCreationTypes(), so no gateway routing or Stripe session happens.',
+    tables:[{n:'gateway_transaction',op:'INSERT',cols:'transaction_token, entity_type, entity_id, payment_method'},{n:'discount_redeem_log',op:'INSERT',cols:'discounts applied, transaction_token'}],
+    code:'PaymentFacade.java:218-276 · OrderFulfillmentServiceImpl.java:1996 · billing-util PaymentMethod.java:10', conf:'HIGH'},
+  wDebit: {lane:'wal', title:'Debit reseller e-balance', sub:'ConnectorApplication (AccountBalanceInterface)',
+    desc:'Money moves out of the reseller\'s wallet. The wallet ledger log id becomes the order\'s payment_id.',
+    api:{m:'POST', path:'/deduct_account_balance/', auth:'internal', req:'account, amount, reference', res:'status, walletAccountTransactionLogId'},
+    tables:[{n:'wallet account / account_balance_transaction',op:'UPDATE',cols:'balance, ledger row'}],
+    code:'wallet-management/…/connector/ConnectorApplication.java:297', conf:'MEDIUM',
+    note:{warn:true, t:'The wallet debit and the local order insert are not in one transaction.'}},
+  wOrder: {lane:'ssp', title:'Create order directly', sub:'createOrderForServiceBundleEbalanceRecharge()',
+    desc:'In this path self-service-payment writes the order itself, already complete. The SIM is tracked by ICCID because the customer may not have an account yet.',
+    tables:[{n:'order_table',op:'INSERT',cols:'order_id (UUID), order_no, current_status = orderComplete, channel = ResellerPortal, payment_id = wallet log id, reseller_code, user_id, msisdn, total_value'},
+            {n:'order_item',op:'INSERT',cols:'bundle_id, payment_method = EBALANCE, device_serial_number = ICCID, reseller_id, status'},
+            {n:'order_sub_item',op:'INSERT',cols:'Plan_Addon lines × tenure'}],
+    code:'OrderFulfillmentServiceImpl.java:2171-2250', conf:'HIGH'},
+  wResp: {lane:'ui', kind:'ui', title:'Instant confirmation', sub:'routingGateway = AirtimeBalance',
+    desc:'No checkout page: the reseller sees success immediately. The plan is then applied through the recharge/activation path.', conf:'HIGH'},
+  wNext: {lane:'ui', kind:'ui', title:'Activate / apply plan', sub:'Continue in 02-activation / 03-recharge',
+    desc:'The new SIM is activated (02-activation-flow) and the bundle is applied (03-recharge-flow).', conf:'HIGH'}
+};
+
+const PATHS = {
+  card:  ['browse','plans','detail','cart','initPay','facade','route','stripeCreate','pay','webhook','whHandle','confirm','finish','bus1','umSubmit','umCreate','umFulfil','umDone','sspAck','alloc','pickup','label','usps','track','delivered'],
+  wallet:['browse','plans','detail','wCart','wInit','wFacade','wDebit','wOrder','wResp','wNext']
+};
+// Short label shown on the moving arrow into each step
+const EDGE_LABEL = {
+  plans:'GET /mno_plan_groups', detail:'GET /plan_detail_by_group_id/{groupId}', cart:'plan detail JSON',
+  initPay:'POST /api/v1/session/payments/', facade:'initiateOrderFulfillment(cmd)', route:'route(context)',
+  stripeCreate:'create Checkout Session', pay:'clientSecret → redirect', webhook:'card charged',
+  whHandle:'POST /api/webhooks/stripe', confirm:'confirmPayment(ref)', finish:'transactionComplete',
+  bus1:'PUBLISH SUBMIT_ORDER', umSubmit:'onOrderEvent(SUBMIT_ORDER)', umCreate:'submitAndFulfilOrder()',
+  umFulfil:'fulfillOrder()', umDone:'PUBLISH SUBMIT_ORDER_COMPLETED', sspAck:'onOrderEvent(COMPLETED)',
+  alloc:'stock allocation', pickup:'POST /schedule_order_pickup/{orderNo}', label:'POST …/labels/v2/label/',
+  usps:'USPS / UPS API', track:'hourly poll', delivered:'SIM shipped',
+  wCart:'plan detail JSON', wInit:'POST /api/v1/session/payments/ (EBALANCE)', wFacade:'initiateOrderFulfillment(cmd)',
+  wDebit:'POST /deduct_account_balance/', wOrder:'walletAccountTransactionLogId', wResp:'OrderResponse', wNext:'next flow'
+};
+
+const LANE_W=124, NODE_W=114, NODE_H=80, ROW_H=102, TOP=62;
+const laneIdx = Object.fromEntries(LANES.map((l,i)=>[l.k,i]));
+const laneColor = Object.fromEntries(LANES.map(l=>[l.k,l.c]));
+
+let path='card', idx=0, playing=false, timer=null, tokenRAF=null;
+const canvas=document.getElementById('canvas'), svg=document.getElementById('edges'), head=document.getElementById('lanehead');
+const NS='http://www.w3.org/2000/svg';
+
+function el(tag, cls, text){const e=document.createElement(tag); if(cls) e.className=cls; if(text!=null) e.textContent=text; return e;}
+
+function pos(id,row){const s=S[id]; const x=laneIdx[s.lane]*LANE_W+(LANE_W-NODE_W)/2; return {x, y:TOP+row*ROW_H};}
+
+function build(){
+  canvas.querySelectorAll('.lane,.node,.elabel').forEach(n=>n.remove());
+  svg.innerHTML='';
+  const ids=PATHS[path];
+  const W=LANES.length*LANE_W, H=TOP+ids.length*ROW_H+10;
+  canvas.style.width=W+'px'; canvas.style.height=H+'px';
+  svg.setAttribute('width',W); svg.setAttribute('height',H);
+  head.style.width=W+'px'; head.innerHTML='';
+  LANES.forEach((l,i)=>{
+    const lane=el('div','lane'); lane.style.left=i*LANE_W+'px'; lane.style.width=LANE_W+'px';
+    lane.style.background=i%2?'var(--lane-b)':'var(--lane-a)'; canvas.insertBefore(lane, svg);
+    const h=el('div'); h.style.width=LANE_W+'px'; const dot=el('b'); dot.style.background=l.c; h.append(dot, el('span',null,l.label.replace('-management','-mgmt'))); h.title=l.label; head.append(h);
+  });
+  const defs=document.createElementNS(NS,'defs');
+  [['arr','var(--edge)'],['arrd','var(--edge-done)'],['arra','var(--accent)']].forEach(([id,col])=>{
+    const m=document.createElementNS(NS,'marker'); m.setAttribute('id',id); m.setAttribute('viewBox','0 0 10 10'); m.setAttribute('refX','9'); m.setAttribute('refY','5');
+    m.setAttribute('markerWidth','7'); m.setAttribute('markerHeight','7'); m.setAttribute('orient','auto-start-reverse');
+    const p=document.createElementNS(NS,'path'); p.setAttribute('d','M0,0 L10,5 L0,10 z'); p.style.fill=col; m.append(p); defs.append(m);
+  });
+  svg.append(defs);
+  ids.forEach((id,row)=>{
+    const s=S[id], p=pos(id,row);
+    if(row>0){
+      const a=pos(ids[row-1],row-1);
+      const x1=a.x+NODE_W/2, y1=a.y+NODE_H, x2=p.x+NODE_W/2, y2=p.y;
+      const d = Math.abs(x1-x2)<1 ? `M${x1},${y1} L${x2},${y2-2}` : `M${x1},${y1} C${x1},${y1+34} ${x2},${y2-34} ${x2},${y2-2}`;
+      const e=document.createElementNS(NS,'path'); e.setAttribute('d',d); e.setAttribute('class','edge'); e.dataset.to=row; svg.append(e);
+    }
+    const n=el('div','node'+(s.kind?' '+s.kind:'')); n.dataset.row=row;
+    n.style.cssText=`left:${p.x}px;top:${p.y}px;width:${NODE_W}px;height:${NODE_H}px;--c:${laneColor[s.lane]}`;
+    n.append(el('span','num',String(row+1)), el('div','t',s.title), el('div','s',s.sub||''));
+    const chips=el('div','chips');
+    if(s.api) chips.append(el('span','chip', s.api.m==='EXT'?'EXT':s.api.m));
+    if(s.tables&&s.tables.length) chips.append(el('span','chip', s.tables.length+' tbl'));
+    if(chips.children.length) n.append(chips);
+    n.title=s.title+' — '+(s.sub||'');
+    n.addEventListener('click',()=>{stop(); go(row);});
+    canvas.append(n);
+  });
+  buildSummary();
+}
+
+function go(i, animate){
+  const ids=PATHS[path];
+  idx=Math.max(0,Math.min(ids.length-1,i));
+  canvas.querySelectorAll('.node').forEach(n=>{const r=+n.dataset.row; n.classList.toggle('current',r===idx); n.classList.toggle('done',r<idx); n.classList.toggle('future',r>idx);});
+  let active=null;
+  svg.querySelectorAll('.edge').forEach(e=>{const r=+e.dataset.to;
+    e.classList.toggle('active',r===idx); e.classList.toggle('done',r<idx);
+    e.setAttribute('marker-end', r===idx?'url(#arra)':(r<idx?'url(#arrd)':'url(#arr)'));
+    if(r===idx) active=e;});
+  canvas.querySelectorAll('.elabel').forEach(n=>n.remove());
+  if(tokenRAF) cancelAnimationFrame(tokenRAF); svg.querySelectorAll('.token').forEach(t=>t.remove());
+  if(active){
+    const L=active.getTotalLength(), mid=active.getPointAtLength(L/2);
+    const lab=el('div','elabel',EDGE_LABEL[ids[idx]]||''); lab.style.left=mid.x+'px'; lab.style.top=mid.y+'px'; canvas.append(lab);
+    if(animate!==false){
+      const dot=document.createElementNS(NS,'circle'); dot.setAttribute('r','5.5'); dot.setAttribute('class','token'); svg.append(dot);
+      const t0=performance.now(), dur=900;
+      const step=t=>{const k=Math.min(1,(t-t0)/dur), pt=active.getPointAtLength(L*(1-Math.pow(1-k,2))); dot.setAttribute('cx',pt.x); dot.setAttribute('cy',pt.y);
+        if(k<1) tokenRAF=requestAnimationFrame(step); else dot.remove();};
+      tokenRAF=requestAnimationFrame(step);
+    }
+  }
+  const cur=canvas.querySelector('.node.current');
+  if(cur){const d=document.getElementById('diagram'); const r=cur.getBoundingClientRect(), dr=d.getBoundingClientRect();
+    if(r.top<dr.top+50||r.bottom>dr.bottom-10||r.left<dr.left||r.right>dr.right) d.scrollTo({top:cur.offsetTop-d.clientHeight/2+NODE_H/2, left:cur.offsetLeft-d.clientWidth/2+NODE_W/2, behavior:'smooth'});}
+  renderPanel(S[ids[idx]], idx, ids.length);
+  document.getElementById('count').textContent=(idx+1)+' / '+ids.length;
+  document.getElementById('prog').style.width=((idx+1)/ids.length*100)+'%';
+}
+
+function renderPanel(s,i,n){
+  const p=document.getElementById('panel'); p.innerHTML='';
+  const lane=LANES[laneIdx[s.lane]];
+  const svc=el('div','svc'); const b=el('b'); b.style.background=lane.c; svc.append(b, document.createTextNode(`Step ${i+1} of ${n} · ${lane.label}`));
+  p.append(svc, el('h2',null,s.title));
+  if(s.sub) p.append(el('div','code mono',s.sub));
+  const d=el('p','desc',s.desc); d.style.marginTop='10px'; p.append(d);
+  if(s.api){
+    const sec=el('div','sec'); sec.append(el('h3',null, s.api.m==='EVENT'?'Event':(s.api.m==='EXT'?'External API':'API')));
+    const box=el('div','api'); const line=el('div','line');
+    line.append(el('span','method '+s.api.m, s.api.m), el('code',null,s.api.path)); box.append(line);
+    const dl=el('dl'); [['Auth',s.api.auth],['Request',s.api.req],['Response',s.api.res]].forEach(([k,v])=>{ if(v){dl.append(el('dt',null,k)); const dd=el('dd','mono',v); dl.append(dd);} });
+    box.append(dl); sec.append(box); p.append(sec);
+  }
+  if(s.tables&&s.tables.length){
+    const sec=el('div','sec'); sec.append(el('h3',null,'Database tables'));
+    s.tables.forEach(t=>{const r=el('div','tbl'); const right=el('div'); right.append(el('div','n mono',t.n), el('div','cols',t.cols)); r.append(el('span','op '+t.op,t.op), right); sec.append(r);});
+    p.append(sec);
+  }
+  if(s.note){const sec=el('div','sec'); sec.append(el('div','note'+(s.note.warn?' warn':''), s.note.t)); p.append(sec);}
+  const meta=el('div','sec'); meta.append(el('h3',null,'Source'));
+  if(s.code) meta.append(el('div','code mono',s.code));
+  const c=el('span','conf '+s.conf,'Confidence: '+s.conf); c.style.marginTop='8px'; meta.append(c); p.append(meta);
+}
+
+function buildSummary(){
+  const ids=PATHS[path];
+  const at=document.getElementById('apiTable'); at.innerHTML='';
+  const th=at.insertRow(); ['#','Type','Endpoint / call','Service','Auth','Request','Response'].forEach(h=>{const c=el('th',null,h); th.append(c);});
+  ids.forEach((id,i)=>{const s=S[id]; if(!s.api) return; const r=at.insertRow();
+    [String(i+1), s.api.m, s.api.path, LANES[laneIdx[s.lane]].label, s.api.auth, s.api.req, s.api.res].forEach((v,j)=>{const c=r.insertCell();
+      if(j===1){c.append(el('span','method '+v,v));} else {c.textContent=v; if(j===2||j>=5) c.className='mono';}});
+    r.style.cursor='pointer'; r.onclick=()=>{stop(); go(i); document.getElementById('diagram').scrollIntoView({behavior:'smooth',block:'start'});};});
+  const tt=document.getElementById('tblTable'); tt.innerHTML='';
+  const agg=new Map();
+  ids.forEach((id,i)=>{const s=S[id]; (s.tables||[]).forEach(t=>{ if(!agg.has(t.n)) agg.set(t.n,{ops:new Set(),svc:new Set(),steps:[],cols:new Set()});
+    const a=agg.get(t.n); a.ops.add(t.op); a.svc.add(LANES[laneIdx[s.lane]].label); a.steps.push(i+1); a.cols.add(t.cols);});});
+  const h2=tt.insertRow(); ['Table','Operations','Written / read by','Steps','Key columns'].forEach(h=>h2.append(el('th',null,h)));
+  agg.forEach((a,n)=>{const r=tt.insertRow(); const c0=r.insertCell(); c0.className='mono'; c0.textContent=n;
+    const c1=r.insertCell(); ['SELECT','INSERT','UPDATE','PUBLISH'].forEach(o=>{ if(a.ops.has(o)) c1.append(el('span','op '+o,o));});
+    r.insertCell().textContent=[...a.svc].join(', '); r.insertCell().textContent=a.steps.join(', ');
+    const c4=r.insertCell(); c4.textContent=[...a.cols].join(' · '); c4.style.color='var(--muted)';});
+}
+
+function next(){ if(idx<PATHS[path].length-1) go(idx+1); else stop(); }
+function schedule(){ clearTimeout(timer); if(playing) timer=setTimeout(()=>{ next(); if(playing&&idx<PATHS[path].length-1) schedule(); else stop(); }, +document.getElementById('speed').value); }
+function play(){ if(idx>=PATHS[path].length-1) go(0); playing=true; document.getElementById('b-play').textContent='❚❚ Pause'; schedule(); }
+function stop(){ playing=false; clearTimeout(timer); document.getElementById('b-play').textContent='▶ Play'; }
+
+document.getElementById('b-play').onclick=()=>playing?stop():play();
+document.getElementById('b-next').onclick=()=>{stop(); next();};
+document.getElementById('b-prev').onclick=()=>{stop(); go(idx-1);};
+document.getElementById('b-restart').onclick=()=>{stop(); go(0);};
+document.getElementById('speed').onchange=()=>{ if(playing) schedule(); };
+document.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{
+  stop(); document.querySelectorAll('.seg button').forEach(x=>x.classList.toggle('on',x===b)); path=b.dataset.path;
+  try{localStorage.setItem('pf-path',path);}catch(e){}
+  build(); go(0,false); document.getElementById('diagram').scrollTo({top:0,left:0});
+});
+document.getElementById('b-theme').onclick=()=>{
+  const r=document.documentElement; const dark=r.dataset.theme?r.dataset.theme==='dark':matchMedia('(prefers-color-scheme: dark)').matches;
+  r.dataset.theme=dark?'light':'dark'; try{localStorage.setItem('pf-theme',r.dataset.theme);}catch(e){} go(idx,false);
+};
+document.addEventListener('keydown',e=>{ if(['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName)) return;
+  if(e.key==='ArrowRight'){stop(); next(); e.preventDefault();}
+  else if(e.key==='ArrowLeft'){stop(); go(idx-1); e.preventDefault();}
+  else if(e.key===' '){playing?stop():play(); e.preventDefault();} });
+
+try{ const t=localStorage.getItem('pf-theme'); if(t) document.documentElement.dataset.theme=t;
+     const p=localStorage.getItem('pf-path'); if(p&&PATHS[p]){path=p; document.querySelectorAll('.seg button').forEach(x=>x.classList.toggle('on',x.dataset.path===p));} }catch(e){}
+build(); go(0,false);
+</script>
+</body>
+</html>

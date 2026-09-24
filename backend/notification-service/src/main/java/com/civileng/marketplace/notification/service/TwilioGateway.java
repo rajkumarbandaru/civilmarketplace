@@ -1,27 +1,35 @@
 package com.civileng.marketplace.notification.service;
 
-import com.twilio.Twilio;
+import com.civileng.marketplace.tenant.common.integration.IntegrationCapability;
+import com.civileng.marketplace.tenant.common.integration.ResolvedIntegration;
+import com.civileng.marketplace.tenant.common.integration.TenantIntegrationResolver;
+import com.twilio.http.TwilioRestClient;
 import com.twilio.rest.api.v2010.account.Message;
 import com.twilio.type.PhoneNumber;
-import jakarta.annotation.PostConstruct;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 
 /**
- * Thin wrapper over the Twilio REST client, shared by {@link SmsService} and
- * {@link WhatsAppService} — both channels are the same Twilio Messages API, differing
- * only in the {@code whatsapp:} prefix on the addresses.
+ * Twilio, per tenant — shared by {@link SmsService} and {@link WhatsAppService}, which differ only
+ * in the {@code whatsapp:} address prefix.
  *
- * <p>{@code Twilio.init} sets process-wide static state, so it is done exactly once here
- * rather than per send. When the configured credentials are not a real account SID and auth
- * token the gateway reports itself unconfigured and the callers fall back to logging, instead
- * of failing a login flow on credentials that were never filled in.
+ * <p>This used to call {@code Twilio.init} once, which sets process-wide static credentials: every
+ * tenant's SMS went out from one account and one sender. Each send now builds (and caches) a
+ * {@link TwilioRestClient} for the account the current tenant resolves to. A customer tenant uses
+ * its own account; only the operator tenant uses the {@code app.sms.twilio.*} account from
+ * configuration.
  */
-@Component
 @Slf4j
+@Component
+@RequiredArgsConstructor
 public class TwilioGateway {
 
     /**
@@ -33,30 +41,47 @@ public class TwilioGateway {
     /** Auth tokens are 32 hex digits. */
     private static final Pattern AUTH_TOKEN = Pattern.compile("^[0-9a-fA-F]{32}$");
 
+    private final TenantIntegrationResolver resolver;
+    private final Map<String, TwilioRestClient> clients = new ConcurrentHashMap<>();
+
     @Value("${app.sms.twilio.account-sid:}")
-    private String accountSid;
+    private String platformAccountSid;
 
     @Value("${app.sms.twilio.auth-token:}")
-    private String authToken;
+    private String platformAuthToken;
 
-    private boolean configured;
-
-    @PostConstruct
-    void init() {
-        configured = accountSid != null && AUTH_TOKEN.matcher(nullToEmpty(authToken)).matches()
-                && ACCOUNT_SID.matcher(accountSid).matches();
-        if (configured) {
-            Twilio.init(accountSid, authToken);
-            log.info("Twilio gateway initialised for account ending {}",
-                    accountSid.substring(Math.max(0, accountSid.length() - 4)));
-        } else {
-            log.warn("Twilio credentials missing or not a real account SID/auth token "
-                    + "- SMS and WhatsApp will fall back to logging");
+    /**
+     * The account one channel should send on for the current tenant, or why there is none.
+     *
+     * @param platformEnabled whether the platform's own provider setting selects Twilio at all
+     * @param platformFrom    the platform's sender number for this channel
+     * @param nameKey         the tenant setting holding its sender label ({@code senderId} /
+     *                        {@code senderName})
+     * @param platformName    the platform's label, for the operator tenant
+     */
+    public Route route(IntegrationCapability channel, boolean platformEnabled, String platformFrom,
+                       String nameKey, String platformName) {
+        Optional<ResolvedIntegration> resolved = resolver.find(channel);
+        if (resolved.isEmpty()) {
+            return Route.skipped(platformName, channel.key().toUpperCase()
+                    + " is not configured for this tenant - message was logged, not sent");
         }
-    }
-
-    public boolean isConfigured() {
-        return configured;
+        ResolvedIntegration integration = resolved.get();
+        if (integration.usesPlatformCredentials()) {
+            if (!platformEnabled || !looksReal(platformAccountSid, platformAuthToken)) {
+                return Route.skipped(platformName, "No " + channel.key().toUpperCase()
+                        + " provider configured - message was logged, not sent");
+            }
+            return new Route(new Account(platformAccountSid, platformAuthToken), platformFrom,
+                    platformName, null);
+        }
+        String label = integration.setting(nameKey) == null ? platformName : integration.setting(nameKey);
+        Account account = new Account(integration.setting("accountSid"), integration.secret("authToken"));
+        if (!looksReal(account.accountSid(), account.authToken())) {
+            return Route.skipped(label, "The tenant's Twilio credentials are not a real account "
+                    + "SID/auth token - message was logged, not sent");
+        }
+        return new Route(account, integration.setting("fromNumber"), label, null);
     }
 
     /**
@@ -64,12 +89,44 @@ public class TwilioGateway {
      * @param to   recipient address, already channel-prefixed for WhatsApp
      * @return the Twilio message SID
      */
-    public String send(String from, String to, String body) {
-        Message message = Message.creator(new PhoneNumber(to), new PhoneNumber(from), body).create();
+    public String send(Account account, String from, String to, String body) {
+        TwilioRestClient client = clients.computeIfAbsent(account.cacheKey(),
+                key -> new TwilioRestClient.Builder(account.accountSid(), account.authToken()).build());
+        Message message = Message.creator(new PhoneNumber(to), new PhoneNumber(from), body).create(client);
         return message.getSid();
     }
 
-    private static String nullToEmpty(String value) {
-        return value == null ? "" : value;
+    static boolean looksReal(String accountSid, String authToken) {
+        return accountSid != null && authToken != null
+                && ACCOUNT_SID.matcher(accountSid).matches()
+                && AUTH_TOKEN.matcher(authToken).matches();
+    }
+
+    /** A Twilio account. {@code toString} leaves the token out. */
+    public record Account(String accountSid, String authToken) {
+
+        String cacheKey() {
+            return accountSid + ":" + Objects.hashCode(authToken);
+        }
+
+        @Override
+        public String toString() {
+            return "Account[" + accountSid + "]";
+        }
+    }
+
+    /**
+     * Where one message goes. {@code account} null means "log it instead", with
+     * {@code skipReason} saying why.
+     */
+    public record Route(Account account, String from, String senderLabel, String skipReason) {
+
+        static Route skipped(String senderLabel, String reason) {
+            return new Route(null, null, senderLabel, reason);
+        }
+
+        public boolean sendable() {
+            return account != null;
+        }
     }
 }

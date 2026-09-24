@@ -21,6 +21,7 @@ const AdminLayout = lazy(() => import('./layouts/AdminLayout'));
 const HomePage = lazy(() => import('./pages/HomePage'));
 const LoginPage = lazy(() => import('./pages/auth/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/auth/RegisterPage'));
+const InviteAcceptPage = lazy(() => import('./pages/auth/InviteAcceptPage'));
 const OAuth2RedirectPage = lazy(() => import('./pages/auth/OAuth2RedirectPage'));
 const DashboardPage = lazy(() => import('./pages/dashboard/DashboardPage'));
 const ServicesPage = lazy(() => import('./pages/services/ServicesPage'));
@@ -32,6 +33,9 @@ const MaterialPricesPage = lazy(() => import('./pages/profile/MaterialPricesPage
 const AppearancePage = lazy(() => import('./pages/settings/AppearancePage'));
 const SupportTicketsPage = lazy(() => import('./pages/support/SupportTicketsPage'));
 const LiveTrackingPage = lazy(() => import('./pages/tracking/LiveTrackingPage'));
+const ProcurementPage = lazy(() => import('./pages/procurement/ProcurementPage'));
+const RfqDetailPage = lazy(() => import('./pages/procurement/RfqDetailPage'));
+const PurchaseOrderPage = lazy(() => import('./pages/procurement/PurchaseOrderPage'));
 
 // Admin Pages
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
@@ -48,6 +52,7 @@ const EmailTemplateManagement = lazy(() => import('./pages/admin/EmailTemplateMa
 const EmailLogPage = lazy(() => import('./pages/admin/EmailLogPage'));
 const WorkspaceManagement = lazy(() => import('./pages/admin/WorkspaceManagement'));
 const TenantManagement = lazy(() => import('./pages/admin/TenantManagement'));
+const KycReviewPage = lazy(() => import('./pages/admin/KycReviewPage'));
 const ReportsPage = lazy(() => import('./pages/admin/ReportsPage'));
 const InvoicesPage = lazy(() => import('./pages/admin/InvoicesPage'));
 const PlatformSettingsPage = lazy(() => import('./pages/admin/PlatformSettingsPage'));
@@ -141,6 +146,15 @@ const App: React.FC = () => {
             <Route path="track/:bookingId" element={
               <ProtectedRoute><LiveTrackingPage /></ProtectedRoute>
             } />
+            <Route path="procurement" element={
+              <ProtectedRoute><ProcurementPage /></ProtectedRoute>
+            } />
+            <Route path="procurement/rfqs/:rfqId" element={
+              <ProtectedRoute><RfqDetailPage /></ProtectedRoute>
+            } />
+            <Route path="procurement/orders/:poId" element={
+              <ProtectedRoute><PurchaseOrderPage /></ProtectedRoute>
+            } />
           </Route>
 
           {/* Auth routes */}
@@ -148,6 +162,8 @@ const App: React.FC = () => {
             <Route path="login" element={<LoginPage />} />
             <Route path="register" element={<RegisterPage />} />
             <Route path="login/otp" element={<LoginPage />} />
+            {/* A new workspace owner's invitation link: set a first password. */}
+            <Route path="invite/:token" element={<InviteAcceptPage />} />
             {/* Landing point for the OAuth2 success redirect from auth-service */}
             <Route path="oauth2/redirect" element={<OAuth2RedirectPage />} />
           </Route>
@@ -158,6 +174,7 @@ const App: React.FC = () => {
           }>
             <Route index element={<AdminDashboard />} />
             <Route path="users" element={<UserManagement />} />
+            <Route path="kyc" element={<KycReviewPage />} />
             <Route path="activity" element={<UserActivityPage />} />
             <Route path="categories" element={<CategoryManagement />} />
             <Route path="services" element={<ServiceCatalogueManagement />} />

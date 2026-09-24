@@ -57,7 +57,7 @@ public class AdminUiConfigController {
         requireSuperAdmin(role);
         log.info("Platform theme changed by {} (#{})", adminName, adminId);
         audit(adminId, "SUPER_ADMIN", PLATFORM, command);
-        return ResponseEntity.ok(uiConfigService.updateTheme(PLATFORM, command));
+        return ResponseEntity.ok(uiConfigService.updateTheme(PLATFORM, command, adminId));
     }
 
     /**
@@ -195,16 +195,17 @@ public class AdminUiConfigController {
         requireSuperAdmin(role);
         log.info("Workspace theme for {} changed by {} (#{})", workspaceRole, adminName, adminId);
         audit(adminId, "SUPER_ADMIN", workspaceRole, command);
-        return ResponseEntity.ok(uiConfigService.updateTheme(workspaceRole, command));
+        return ResponseEntity.ok(uiConfigService.updateTheme(workspaceRole, command, adminId));
     }
 
     @DeleteMapping("/workspaces/{workspaceRole}/theme")
     @Operation(summary = "Drop one workspace's theme override so it inherits the platform theme")
     public ResponseEntity<ResolvedTheme> resetWorkspaceTheme(
             @RequestHeader(value = "X-User-Role", required = false) String role,
+            @RequestHeader(value = "X-User-Id", required = false) Long adminId,
             @PathVariable String workspaceRole) {
         requireSuperAdmin(role);
-        uiConfigService.resetTheme(workspaceRole);
+        uiConfigService.resetTheme(workspaceRole, adminId);
         return ResponseEntity.ok(uiConfigService.theme(workspaceRole));
     }
 

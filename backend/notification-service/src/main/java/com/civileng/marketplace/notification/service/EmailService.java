@@ -10,8 +10,12 @@ import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
+import com.civileng.marketplace.tenant.common.integration.IntegrationCapability;
+import com.civileng.marketplace.tenant.common.integration.ResolvedIntegration;
+import com.civileng.marketplace.tenant.common.integration.TenantIntegrationResolver;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Sends transactional HTML email rendered from the Thymeleaf templates in
@@ -39,6 +43,8 @@ public class EmailService {
     private final EmailTemplateService templateService;
     private final BrevoEmailSender brevoEmailSender;
     private final EmailLogService emailLogService;
+    private final TenantIntegrationResolver integrationResolver;
+    private final TenantMailSenders tenantMailSenders;
 
     /**
      * Where the site is served from, for the links in these mails. Falls back to the dev origin so
@@ -87,8 +93,8 @@ public class EmailService {
         }
 
         String resolvedSubject = templateService.resolveSubject(templateName, subject, variables);
-        String activeProvider = activeProvider();
-        Long logId = emailLogService.open(templateName, to, resolvedSubject, activeProvider, triggeredBy);
+        EmailRoute route = route();
+        Long logId = emailLogService.open(templateName, to, resolvedSubject, route.provider(), triggeredBy);
 
         String htmlContent;
         try {
@@ -100,19 +106,21 @@ public class EmailService {
             return EmailStatus.FAILED;
         }
 
-        return deliver(to, resolvedSubject, templateName, htmlContent, activeProvider, logId);
+        return deliver(to, resolvedSubject, templateName, htmlContent, route, logId);
     }
 
     /** Hands a finished message to the selected provider and closes out its log row. */
     private EmailStatus deliver(String to, String resolvedSubject, String templateName,
-                                String htmlContent, String activeProvider, Long logId) {
+                                String htmlContent, EmailRoute route, Long logId) {
         // Stored before the provider call, so the record of what we composed survives even if the
         // send itself fails — a failed email is exactly when someone wants to read it.
         emailLogService.attachBody(logId, htmlContent);
 
-        if ("brevo".equals(activeProvider)) {
-            BrevoEmailSender.SendResult result =
-                    brevoEmailSender.send(fromAddress, fromName, to, resolvedSubject, htmlContent);
+        if ("brevo".equals(route.provider())) {
+            BrevoEmailSender.SendResult result = route.brevoKey() == null
+                    ? brevoEmailSender.send(route.fromAddress(), route.fromName(), to, resolvedSubject, htmlContent)
+                    : brevoEmailSender.send(route.brevoKey(), route.fromAddress(), route.fromName(), to,
+                            resolvedSubject, htmlContent);
             // SENT, not DELIVERED: Brevo has taken the message, and only its webhook can say
             // whether it landed.
             EmailStatus status = result.accepted() ? EmailStatus.SENT : EmailStatus.FAILED;
@@ -120,22 +128,22 @@ public class EmailService {
             return status;
         }
 
-        if ("log".equals(activeProvider)) {
+        if ("log".equals(route.provider())) {
             log.info("[Email:log] to={} subject={} template={}", to, resolvedSubject, templateName);
-            emailLogService.complete(logId, EmailStatus.SKIPPED, null,
-                    "No email provider configured — message was logged, not sent");
+            emailLogService.complete(logId, EmailStatus.SKIPPED, null, route.skipReason());
             return EmailStatus.SKIPPED;
         }
 
         try {
-            MimeMessage message = mailSender.createMimeMessage();
+            JavaMailSender sender = route.smtp();
+            MimeMessage message = sender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-            helper.setFrom(fromAddress, fromName);
+            helper.setFrom(route.fromAddress(), route.fromName());
             helper.setTo(to);
             helper.setSubject(resolvedSubject);
             helper.setText(htmlContent, true);
 
-            mailSender.send(message);
+            sender.send(message);
             log.info("[Email:smtp] sent to={} subject={}", to, resolvedSubject);
             // The relay accepted it; SMTP gives us no delivery callback, so SENT is where this
             // row rests unless a bounce is investigated by hand.
@@ -149,8 +157,58 @@ public class EmailService {
     }
 
     /**
-     * Which channel this send will actually take: the configured provider, downgraded to
-     * {@code log} when its credentials are missing or still placeholders.
+     * Whose mail account this send goes out on, decided by the tenant the thread is serving.
+     *
+     * <ul>
+     *   <li>No email integration: logged, not sent — never quietly on the platform's account.
+     *   <li>Platform-shared (or the operator tenant): the platform's account, but a shared tenant's
+     *       own sender name.
+     *   <li>The tenant's own SMTP relay or Brevo key.
+     * </ul>
+     */
+    EmailRoute route() {
+        Optional<ResolvedIntegration> resolved = integrationResolver.find(IntegrationCapability.EMAIL);
+        if (resolved.isEmpty()) {
+            return EmailRoute.skipped("Email is not configured for this tenant — message was logged, not sent");
+        }
+        ResolvedIntegration integration = resolved.get();
+        if (integration.usesPlatformCredentials()) {
+            String senderName = integration.setting("fromName") != null
+                    ? integration.setting("fromName") : fromName;
+            String platformProvider = activeProvider();
+            return switch (platformProvider) {
+                case "brevo" -> new EmailRoute("brevo", fromAddress, senderName, null, null, null);
+                case "smtp" -> new EmailRoute("smtp", fromAddress, senderName, mailSender, null, null);
+                default -> EmailRoute.skipped("No email provider configured — message was logged, not sent");
+            };
+        }
+        String from = integration.setting("fromAddress");
+        String name = integration.setting("fromName");
+        if ("brevo".equals(integration.provider())) {
+            return BrevoEmailSender.looksReal(integration.secret("apiKey"))
+                    ? new EmailRoute("brevo", from, name, null, integration.secret("apiKey"), null)
+                    : EmailRoute.skipped("The tenant's Brevo key is not a live key — message was logged, not sent");
+        }
+        return new EmailRoute("smtp", from, name, tenantMailSenders.forTenant(integration), null, null);
+    }
+
+    /** One send's route. {@code toString} leaves the Brevo key out. */
+    record EmailRoute(String provider, String fromAddress, String fromName, JavaMailSender smtp,
+                      String brevoKey, String skipReason) {
+
+        static EmailRoute skipped(String reason) {
+            return new EmailRoute("log", null, null, null, null, reason);
+        }
+
+        @Override
+        public String toString() {
+            return "EmailRoute[" + provider + " from=" + fromAddress + "]";
+        }
+    }
+
+    /**
+     * The platform account's provider: the configured one, downgraded to {@code log} when its
+     * credentials are missing or still placeholders.
      */
     private String activeProvider() {
         if ("brevo".equalsIgnoreCase(provider) && brevoEmailSender.isConfigured()) {
@@ -167,6 +225,16 @@ public class EmailService {
         sendEmail(to, "Your OTP Code - Civil Engineering Marketplace",
                 "otp-template",
                 Map.of("otp", otp, "expiryMinutes", 5));
+    }
+
+    /**
+     * The one-time link a new workspace's owner uses to set their password. Sent synchronously on
+     * the listener thread so a failure is logged against the event, not lost on an executor.
+     */
+    public void sendInvitation(String to, String name, String workspaceName, String link, String expiresAt) {
+        sendNow(to, "You're invited to " + safe(workspaceName), "invitation-template",
+                Map.of("name", safe(name), "workspaceName", safe(workspaceName), "link", safe(link),
+                        "expiresAt", safe(expiresAt)), null);
     }
 
     @Async

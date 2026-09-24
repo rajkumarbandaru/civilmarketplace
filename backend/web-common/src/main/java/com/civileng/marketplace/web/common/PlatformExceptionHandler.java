@@ -1,5 +1,6 @@
 package com.civileng.marketplace.web.common;
 
+import com.civileng.marketplace.web.common.client.MediaUnavailableException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -52,6 +53,19 @@ public class PlatformExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleBadRequest(IllegalArgumentException ex) {
         log.warn("Bad request: {}", ex.getMessage());
         return buildError(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
+    /** A hard plan limit: 402, because the remedy is commercial (upgrade, add-on, grant). */
+    @ExceptionHandler(com.civileng.marketplace.web.common.client.QuotaExceededException.class)
+    public ResponseEntity<Map<String, Object>> handleQuota(com.civileng.marketplace.web.common.client.QuotaExceededException ex) {
+        log.info("Quota {} reached (limit {})", ex.limit(), ex.allowed());
+        return buildError(HttpStatus.PAYMENT_REQUIRED, ex.getMessage());
+    }
+
+    @ExceptionHandler(MediaUnavailableException.class)
+    public ResponseEntity<Map<String, Object>> handleMediaUnavailable(MediaUnavailableException ex) {
+        log.error("media-service unavailable", ex);
+        return buildError(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage());
     }
 
     @ExceptionHandler(AccessDeniedException.class)

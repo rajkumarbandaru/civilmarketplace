@@ -50,4 +50,30 @@ public class SharedClientConfiguration {
     public UserNameResolver userNameResolver(UserNameClient userNameClient) {
         return new UserNameResolver(userNameClient);
     }
+
+    @Bean
+    @ConditionalOnBean(MediaClient.class)
+    @ConditionalOnMissingBean
+    public MediaReferences mediaReferences(MediaClient mediaClient) {
+        return new MediaReferences(mediaClient);
+    }
+
+    /**
+     * Quota checks, where the entitlements client is in use. The current tenant is read by name
+     * from tenant-common's TenantContext, so web-common does not depend on it.
+     */
+    @Bean
+    @ConditionalOnBean(EntitlementsClient.class)
+    @ConditionalOnMissingBean
+    public Quotas quotas(EntitlementsClient client) {
+        java.util.function.Supplier<String> tenant = () -> {
+            try {
+                return (String) Class.forName("com.civileng.marketplace.tenant.common.TenantContext")
+                        .getMethod("get").invoke(null);
+            } catch (ReflectiveOperationException e) {
+                return null;
+            }
+        };
+        return new Quotas(client, tenant, java.time.Clock.systemUTC());
+    }
 }

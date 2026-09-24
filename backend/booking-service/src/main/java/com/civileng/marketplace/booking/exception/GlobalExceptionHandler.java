@@ -51,6 +51,13 @@ public class GlobalExceptionHandler {
     }
 
 
+    /** The plan's monthly booking limit: 402, the remedy is an upgrade or more capacity. */
+    @ExceptionHandler(com.civileng.marketplace.web.common.client.QuotaExceededException.class)
+    public ResponseEntity<Map<String, Object>> handleQuota(com.civileng.marketplace.web.common.client.QuotaExceededException ex) {
+        log.info("Quota {} reached (limit {})", ex.limit(), ex.allowed());
+        return buildErrorResponse(HttpStatus.PAYMENT_REQUIRED, ex.getMessage());
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, Object>> handleIllegalArgument(IllegalArgumentException ex) {
         log.warn("Bad request: {}", ex.getMessage());

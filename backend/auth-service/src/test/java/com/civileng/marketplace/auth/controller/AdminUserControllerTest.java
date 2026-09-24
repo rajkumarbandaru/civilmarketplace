@@ -64,6 +64,9 @@ class AdminUserControllerTest {
     @MockBean
     private RoleRepository roleRepository;
 
+    @MockBean
+    private com.civileng.marketplace.auth.service.RefreshTokenService refreshTokenService;
+
     private Role adminRole;
     private Role customerRole;
     private User sampleUser;
@@ -309,6 +312,22 @@ class AdminUserControllerTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.success").value(true))
                     .andExpect(jsonPath("$.message").value("User status updated to SUSPENDED"));
+
+            verify(refreshTokenService).revokeAllUserTokens("42");
+        }
+
+        @Test
+        @DisplayName("Reactivating a user leaves their sessions alone")
+        void updateUserStatus_Activate_DoesNotRevoke() throws Exception {
+            when(userRepository.findById(42L)).thenReturn(Optional.of(sampleUser));
+            when(userRepository.save(any())).thenReturn(sampleUser);
+
+            mockMvc.perform(put("/api/v1/auth/admin/users/42/status")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(Map.of("status", "ACTIVE"))))
+                    .andExpect(status().isOk());
+
+            verify(refreshTokenService, never()).revokeAllUserTokens(any());
         }
 
         @Test
@@ -351,6 +370,7 @@ class AdminUserControllerTest {
 
             verify(userRepository).save(argThat(u ->
                     u.getIsDeleted() && u.getStatus() == UserStatus.DELETED));
+            verify(refreshTokenService).revokeAllUserTokens("42");
         }
 
         @Test

@@ -12,6 +12,8 @@ export interface Payment {
   razorpayOrderId: string | null;
   razorpayPaymentId: string | null;
   failureReason: string | null;
+  /** The tenant's own Razorpay key id to open Checkout with. Only set on create-order responses. */
+  razorpayKeyId?: string | null;
 }
 
 export interface VerifyPaymentCommand {

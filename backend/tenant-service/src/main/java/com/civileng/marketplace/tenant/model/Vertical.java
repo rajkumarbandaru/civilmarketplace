@@ -15,7 +15,7 @@ public enum Vertical {
     /** The original product: civil-engineering service marketplace. */
     CIVIL_MARKETPLACE(EnumSet.of(
             AUTH, USERS, PAYMENTS, NOTIFICATIONS, SUPPORT, ADMIN, AUDIT, MESSAGING,
-            BOOKINGS, PROJECTS, REVIEWS, SEARCH)),
+            BOOKINGS, PROJECTS, REVIEWS, SEARCH, PROCUREMENT)),
 
     /** Hostel / institutional fee collection: residents, fee plans, invoices, payment chasing. */
     FEE_COLLECTION(EnumSet.of(

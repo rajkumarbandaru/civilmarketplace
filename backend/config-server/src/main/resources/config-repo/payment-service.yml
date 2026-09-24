@@ -54,6 +54,8 @@ escrow:
   auto-release-days: ${ESCROW_AUTO_RELEASE_DAYS:7}
   auto-release-cron: ${ESCROW_AUTO_RELEASE_CRON:0 */10 * * * *}
 
+# The PLATFORM's own Razorpay account (operator tenant only: collecting the platform's fees).
+# Customer tenants never fall back to it - each uses its own merchant account; see platform.integrations.
 razorpay:
   key-id: ${RAZORPAY_KEY_ID:rzp_test_placeholder}
   key-secret: ${RAZORPAY_KEY_SECRET:placeholder_secret}
@@ -97,6 +99,13 @@ springdoc:
 # Schema-per-tenant. Each tenant's rows live in civil_engineer_payments_<tenantKey>; the schema named
 # in the datasource URL is only the connection default and holds no live data once this is on.
 platform:
+  # Per-tenant provider credentials (tenant-common integration layer). Each customer tenant uses
+  # its own payment/mail/SMS/WhatsApp/AI account from tenant-service's tenant_integrations table;
+  # only the operator tenant ("platform") uses the provider keys configured in this file. The master
+  # key seals every tenant's secrets and must be identical across services.
+  integrations:
+    enabled: true
+    master-key: ${INTEGRATION_MASTER_KEY:}
   # Shared HTTP layer (web-common).
   web:
     admin-guard:

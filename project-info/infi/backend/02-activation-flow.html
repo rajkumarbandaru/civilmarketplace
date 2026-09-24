@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Activation Flow Explorer</title>
+<style>
+:root{
+  --bg:#f6f7fb; --surface:#ffffff; --surface-2:#f0f2f7; --text:#1b1f2a; --muted:#5b6475; --border:#dde1ea;
+  --accent:#3b5bdb; --lane-a:#fafbfd; --lane-b:#f3f5f9; --edge:#b7bfcf; --edge-done:#7c8aa5;
+  --sel:#607089; --ins:#2b8a3e; --upd:#b7791f; --pub:#7048e8; --ext:#c2255c; --warn:#c92a2a;
+  --shadow:0 1px 2px rgba(20,30,60,.06),0 4px 14px rgba(20,30,60,.06);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f1218; --surface:#171b24; --surface-2:#1e2330; --text:#e6e9f0; --muted:#98a1b3; --border:#2a3040;
+    --accent:#7b94ff; --lane-a:#141821; --lane-b:#181d27; --edge:#3a4256; --edge-done:#6a7590;
+    --sel:#9aa8c0; --ins:#51cf66; --upd:#fcc419; --pub:#b197fc; --ext:#f06595; --warn:#ff6b6b;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 14px rgba(0,0,0,.3);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f1218; --surface:#171b24; --surface-2:#1e2330; --text:#e6e9f0; --muted:#98a1b3; --border:#2a3040;
+  --accent:#7b94ff; --lane-a:#141821; --lane-b:#181d27; --edge:#3a4256; --edge-done:#6a7590;
+  --sel:#9aa8c0; --ins:#51cf66; --upd:#fcc419; --pub:#b197fc; --ext:#f06595; --warn:#ff6b6b;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 14px rgba(0,0,0,.3);
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px}
+.wrap{max-width:1500px;margin:0 auto;padding:20px 16px 48px}
+header h1{font-size:22px;margin:0 0 4px}
+.home{display:inline-block;margin-bottom:6px;color:var(--accent);text-decoration:none;font-size:13px}
+.home:hover{text-decoration:underline}
+header p{margin:0;color:var(--muted);max-width:900px}
+.toolbar>*{max-width:100%}
+.seg{flex-wrap:wrap}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:16px 0 12px}
+.seg{display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--surface)}
+.seg button{border:0;background:transparent;color:var(--text);padding:7px 12px;cursor:pointer;font:inherit}
+.seg button.on{background:var(--accent);color:#fff}
+.btn{flex:none;border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:8px;padding:7px 12px;cursor:pointer;font:inherit}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;min-width:88px}
+select.btn{padding:6px 8px}
+.progress{flex:1 1 160px;min-width:140px;height:6px;background:var(--surface-2);border-radius:99px;overflow:hidden}
+.progress>i{display:block;height:100%;width:0;background:var(--accent);transition:width .3s}
+.stepcount{color:var(--muted);font-variant-numeric:tabular-nums;min-width:64px;text-align:right}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;align-items:start}
+.grid>*{min-width:0}
+@media (max-width:1060px){.grid{grid-template-columns:1fr}}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow)}
+.diagram{overflow:auto;max-height:calc(100vh - 170px);min-height:420px;position:relative}
+@media (max-width:1060px){.diagram{max-height:70vh}}
+.canvas{position:relative}
+.lane{position:absolute;top:0;bottom:0}
+.lanehead{position:sticky;top:0;z-index:5;height:44px;display:flex}
+.lanehead div{flex:none;display:flex;align-items:center;justify-content:center;text-align:center;font-size:10.5px;font-weight:600;
+  padding:0 6px;border-bottom:1px solid var(--border);background:var(--surface);color:var(--muted);line-height:1.2}
+.lanehead div b{display:block;width:8px;height:8px;border-radius:50%;margin-right:6px;flex:none}
+svg.edges{position:absolute;left:0;top:0;pointer-events:none;overflow:visible}
+.edge{fill:none;stroke:var(--edge);stroke-width:1.6;transition:stroke .3s,opacity .3s}
+.edge.done{stroke:var(--edge-done)}
+.edge.active{stroke:var(--accent);stroke-width:2.6;stroke-dasharray:7 5;animation:dash 0.9s linear infinite}
+@keyframes dash{to{stroke-dashoffset:-24}}
+.token{fill:var(--accent);filter:drop-shadow(0 0 4px var(--accent))}
+.elabel{position:absolute;z-index:4;transform:translate(-50%,-50%);background:var(--accent);color:#fff;font:600 11px/1.3 ui-monospace,Menlo,Consolas,monospace;
+  padding:3px 7px;border-radius:6px;white-space:nowrap;pointer-events:none;box-shadow:var(--shadow);max-width:340px;overflow:hidden;text-overflow:ellipsis}
+.node{position:absolute;z-index:3;border-radius:10px;border:1.5px solid color-mix(in srgb,var(--c) 45%,var(--border));
+  background:color-mix(in srgb,var(--c) 9%,var(--surface));padding:6px 8px;cursor:pointer;transition:opacity .3s,transform .2s,box-shadow .3s;
+  display:flex;flex-direction:column;justify-content:center;gap:2px;overflow:hidden}
+.node .t{font-weight:600;font-size:11.5px;line-height:1.2;overflow-wrap:anywhere}
+.node .s{font-size:10.5px;color:var(--muted);line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.node .chips{display:flex;gap:4px;margin-top:1px}
+.chip{font:600 9.5px/1 ui-monospace,Menlo,Consolas,monospace;padding:2px 4px;border-radius:4px;background:var(--surface-2);color:var(--muted)}
+.node.ui{border-radius:22px}
+.node.ext{border-style:dashed}
+.node.bus{border-radius:4px;transform:skewX(-6deg)}
+.node.bus>*{transform:skewX(6deg)}
+.node.future{opacity:.38}
+.node.done{opacity:1}
+.node.current{opacity:1;box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 35%,transparent),var(--shadow);transform:scale(1.04)}
+.node .num{position:absolute;top:4px;right:6px;font:600 10px/1 ui-monospace,Menlo,monospace;color:var(--muted)}
+.panel{position:sticky;top:12px;padding:16px 16px 18px;max-height:calc(100vh - 24px);overflow:auto}
+@media (max-width:1060px){.panel{position:static;max-height:none}}
+.panel .svc{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--muted)}
+.panel .svc b{width:9px;height:9px;border-radius:50%}
+.panel h2{font-size:18px;margin:6px 0 6px}
+.panel p.desc{margin:0 0 10px;overflow-wrap:anywhere}
+.panel h2,.panel .code,.tbl .n,.tbl .cols{overflow-wrap:anywhere}
+.sec{margin-top:14px}
+.sec h3{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 6px}
+.api{border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.api .line{display:flex;gap:8px;align-items:center;padding:8px 10px;background:var(--surface-2);flex-wrap:wrap}
+.method{font:700 11px/1 ui-monospace,Menlo,monospace;padding:4px 6px;border-radius:5px;color:#fff;background:var(--sel)}
+.method.POST{background:var(--ins)} .method.GET{background:var(--accent)} .method.EVENT{background:var(--pub)} .method.EXT{background:var(--ext)}
+.api dl{margin:0;padding:8px 10px;display:grid;grid-template-columns:78px 1fr;gap:4px 8px}
+.api dt{color:var(--muted);font-size:12px}
+.api dd{margin:0;word-break:break-word}
+.tbl{display:flex;gap:8px;align-items:flex-start;padding:7px 0;border-top:1px solid var(--border)}
+.tbl:first-of-type{border-top:0}
+.op{font:700 10px/1 ui-monospace,Menlo,monospace;padding:4px 5px;border-radius:4px;color:#fff;flex:none;min-width:52px;text-align:center}
+.op.SELECT{background:var(--sel)} .op.INSERT{background:var(--ins)} .op.UPDATE{background:var(--upd)} .op.PUBLISH{background:var(--pub)}
+.tbl .n{font-weight:600}
+.tbl .cols{color:var(--muted);font-size:12px}
+.conf{display:inline-block;font:700 10px/1 ui-monospace,Menlo,monospace;padding:3px 6px;border-radius:4px;border:1px solid var(--border);color:var(--muted)}
+.conf.HIGH{color:var(--ins);border-color:var(--ins)} .conf.MEDIUM{color:var(--upd);border-color:var(--upd)}
+.note{border-left:3px solid var(--upd);background:color-mix(in srgb,var(--upd) 8%,transparent);padding:8px 10px;border-radius:0 6px 6px 0;font-size:13px}
+.note.warn{border-color:var(--warn);background:color-mix(in srgb,var(--warn) 8%,transparent)}
+.code{font-size:12px;color:var(--muted);overflow-wrap:anywhere}
+.legend{display:flex;flex-wrap:wrap;gap:14px;margin:10px 2px 0;color:var(--muted);font-size:12px}
+.legend span{display:inline-flex;gap:6px;align-items:center}
+.lg{display:inline-block;width:22px;height:13px;border:1.5px solid var(--muted);border-radius:4px}
+.lg.ui{border-radius:10px}.lg.ext{border-style:dashed}.lg.bus{transform:skewX(-10deg)}
+h2.block{font-size:17px;margin:28px 0 10px}
+.tablewrap{overflow-x:auto}
+table.sum{border-collapse:collapse;width:100%;font-size:13px}
+table.sum th,table.sum td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+table.sum th{font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);background:var(--surface-2);position:sticky;top:0}
+table.sum tr:hover td{background:var(--surface-2)}
+table.sum td .op{margin:0 4px 4px 0;display:inline-block}
+.kbd{font:600 11px ui-monospace,Menlo,monospace;border:1px solid var(--border);border-bottom-width:2px;border-radius:4px;padding:1px 5px;color:var(--muted)}
+.foot{color:var(--muted);font-size:12.5px;margin-top:18px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a class="home" href="index.html">← All flows</a>
+    <h1>Activation Flow: from SIM in hand to a live phone number</h1>
+    <p>Press <b>Play</b> to watch an activation request travel from the customer through user-management, the event bus and the carrier gateway to the carrier API, or click any box to jump to it. Pick the carrier at the top: activation is asynchronous and each carrier has its own path. Built from <code>billing_micro_services</code> source.</p>
+  </header>
+
+  <div class="toolbar">
+    <div class="seg" id="seg" role="tablist" aria-label="Carrier"></div>
+    <button class="btn" id="b-restart" title="Restart">⟲ Restart</button>
+    <button class="btn" id="b-prev" title="Previous (←)">◀ Prev</button>
+    <button class="btn primary" id="b-play" title="Play / pause (space)">▶ Play</button>
+    <button class="btn" id="b-next" title="Next (→)">Next ▶</button>
+    <select class="btn" id="speed" aria-label="Speed">
+      <option value="3200">Slow</option>
+      <option value="2200" selected>Normal</option>
+      <option value="1300">Fast</option>
+    </select>
+    <div class="progress" aria-hidden="true"><i id="prog"></i></div>
+    <span class="stepcount" id="count">1 / 1</span>
+    <button class="btn" id="b-theme" title="Toggle light / dark">Theme</button>
+  </div>
+
+  <div class="grid">
+    <div>
+      <div class="card diagram" id="diagram">
+        <div class="canvas" id="canvas">
+          <div class="lanehead" id="lanehead"></div>
+          <svg class="edges" id="edges"></svg>
+        </div>
+      </div>
+      <div class="legend">
+        <span><i class="lg ui"></i>UI / customer</span>
+        <span><i class="lg"></i>Service logic</span>
+        <span><i class="lg bus"></i>Event bus</span>
+        <span><i class="lg ext"></i>External API</span>
+        <span><span class="op SELECT">SELECT</span><span class="op INSERT">INSERT</span><span class="op UPDATE">UPDATE</span><span class="op PUBLISH">PUBLISH</span></span>
+        <span>Keys: <span class="kbd">←</span> <span class="kbd">→</span> <span class="kbd">space</span></span>
+      </div>
+    </div>
+    <aside class="card panel" id="panel" aria-live="polite"></aside>
+  </div>
+
+  <h2 class="block">APIs in this path</h2>
+  <div class="card tablewrap"><table class="sum" id="apiTable"></table></div>
+
+  <h2 class="block">Database tables in this path</h2>
+  <div class="card tablewrap"><table class="sum" id="tblTable"></table></div>
+
+  <p class="foot">Confidence: <span class="conf HIGH">HIGH</span> means it was read in the current source; <span class="conf MEDIUM">MEDIUM</span> means it comes from the
+    repo's discovery docs or the internals were not read line by line. Line numbers reflect the source at the time this page was written.</p>
+</div>
+
+<script>
+const LANES = [
+  {k:'ui',   label:'Customer UI',           c:'#3b82f6'},
+  {k:'um',   label:'user-management',       c:'#40c057'},
+  {k:'gw',   label:'mno-gateway-api',       c:'#12b886'},
+  {k:'bus',  label:'Event bus (DB-poll)',   c:'#868e96'},
+  {k:'mno',  label:'mno_mgmt (Verizon)',    c:'#e03131'},
+  {k:'pwg',  label:'pwg-mno-mgmt (T-Mobile)', c:'#d6336c'},
+  {k:'papi', label:'pwg-api',               c:'#ae3ec9'},
+  {k:'gupi', label:'gupi_mgmt (Tata)',      c:'#1c7ed6'},
+  {k:'ext',  label:'Carrier APIs',          c:'#e64980'}
+];
+
+const S = {
+  start: {lane:'ui', kind:'ui', title:'Customer activates SIM', sub:'Web / app / reseller portal',
+    desc:'After receiving the SIM (or eSIM), the customer enters the ICCID, device IMEI, ZIP code and plan, plus a phone number to keep if porting in.', conf:'HIGH'},
+  api: {lane:'um', title:'Activation request', sub:'SubscriptionActivationController.activateUserSubscription()',
+    desc:'Main activation endpoint. Variants exist for API-key partners, reseller portal, bulk and admin direct activation.',
+    api:{m:'POST', path:'/activate_user_subscription/', auth:'SESSIONID header',
+      req:'UserSubscriptionActivationCommand { iccid, simCardType: SIM | ESIM, deviceId (IMEI), zipCode, pgToken (plan), networkType, mdn?, portInRequest?, activationInitiatedOn?, email, referralCode }',
+      res:'{ status, statusMessage } — "success" means the request was submitted, not that the line is active yet'},
+    code:'user-management/…/SubscriptionActivationController.java:529 (also :450 reseller, :600 api-key, :687 bulk, :3062 direct)', conf:'HIGH'},
+  guard: {lane:'um', title:'Permission + duplicate guard', sub:'checkSessionPermissions · activationRuns',
+    desc:'Checks the session has SIMActivation/Create access. It then puts the ICCID into a static ConcurrentHashMap; a second request for the same ICCID gets "Sim activation is in progress" and a CRITICAL error log.',
+    tables:[{n:'session',op:'SELECT',cols:'session_key → user_id'},{n:'user',op:'SELECT',cols:'user_id, user_name'}],
+    code:'SubscriptionActivationController.java:446, :536, :541', conf:'HIGH',
+    note:{warn:true, t:'The duplicate guard is in-JVM only; with several pods, two requests for the same ICCID can both pass. The repo docs also report checkSessionPermissions as currently a no-op.'}},
+  validate: {lane:'um', title:'Validate SIM, device, order', sub:'activateUserSubscriptionDirect() / activateEsimSubscriberDirect()',
+    desc:'Splits pSIM vs eSIM. It checks global channel restrictions for activations, then resolves the SIM and its stock row, warehouse bin, originating order and plan, and checks that the plan tenure is allowed for the SIM\'s carrier.',
+    tables:[{n:'sim_detail',op:'SELECT',cols:'iccid → imsi'},{n:'device_inventory',op:'SELECT',cols:'serial_number, mno_sim_profile, order_id, device_bin_id'},
+            {n:'warehouse_bin',op:'SELECT',cols:'bin_id, bin_ref (reseller)'},{n:'order_table',op:'SELECT',cols:'order_id / order_no'},{n:'order_item',op:'SELECT',cols:'order_id + device_serial_number'},
+            {n:'plan_group',op:'SELECT',cols:'plan_group_token'}],
+    code:'SubscriptionActivationController.java:2324 (pSIM), :1343 (eSIM), :2330 channel restriction', conf:'HIGH'},
+  device: {lane:'gw', title:'Device compatibility', sub:'validate device by IMEI',
+    desc:'user-management asks the Verizon gateway adapter whether the device (IMEI) is compatible.',
+    api:{m:'GET', path:'http://{mno-gateway-api.host}:{port}/validate_device/{deviceId}', auth:'internal', req:'deviceId (IMEI)', res:'compatibility / return code'},
+    code:'SubscriptionActivationController.java:842', conf:'MEDIUM',
+    note:{t:'The call site is confirmed. Whether every activation goes through it was not traced line by line.'}},
+  save: {lane:'um', title:'Create subscription (PreActive)', sub:'saveProcessedSubscriberData()',
+    desc:'Creates the subscription. Its carrier (mnoSimProfile) is copied from the allocated SIM stock row, so the carrier was decided at purchase time. The SIM is marked allocated and PreActive, and addresses saved at purchase time under the ICCID are re-keyed to the real userId.',
+    tables:[{n:'subscription',op:'INSERT',cols:'subscription_id, user_id, account_id, served_IMSI, mno_sim_profile, activation_state = INIT/INPROGRESS'},
+            {n:'user',op:'INSERT',cols:'user_id, full_name, email, phone_number, account_id'},
+            {n:'user_address',op:'UPDATE',cols:'user_id: ICCID → real user_id'},
+            {n:'sim_info',op:'UPDATE',cols:'is_allocated = true, provision_state = Prepaid, lifecycle_state = PreActive, order_id'},
+            {n:'device_inventory',op:'UPDATE',cols:'stock row'},{n:'order_table',op:'UPDATE',cols:'iccid_sub_recharges JSON, user_id'}],
+    code:'SubscriptionActivationController.java:1784, :1868-1873, :2256-2280', conf:'HIGH'},
+  cmsn: {lane:'um', title:'Reseller commission', sub:'ResellerCommissionUtils.recordResellerCommissionsTxn()',
+    desc:'If a reseller sold the activation, the commission is recorded against the reseller and its aggregator (tier chosen by recharge count).',
+    tables:[{n:'reseller_commission_logs',op:'INSERT',cols:'reseller, aggregator, plan token, amount, status = Pending'}],
+    code:'SubscriptionActivationController.java:2288', conf:'HIGH'},
+  publish: {lane:'um', title:'Request MDN from carrier', sub:'sendMnoMDNAllocationRequest(ACTIVATED)',
+    desc:'Publishes a Subscription UPDATE event with flag ACTIVATED; the full activation command travels in extraInfo. It also writes an Activation (or PortIn) billing audit event and returns "submitted" to the UI.',
+    api:{m:'EVENT', path:'Topic.Subscription  UPDATE  flag ACTIVATED', auth:'internal', req:'subscriptionId, mnoSimProfile, extraInfo = activation command JSON', res:'—'},
+    tables:[{n:'events (bus table)',op:'PUBLISH',cols:'SubscriptionEvent'},{n:'events (audit)',op:'INSERT',cols:'BillingEvents.Activation / PortIn'}],
+    code:'SubscriptionActivationController.java:2214 → event-mgmt-utils EventService.java:1441', conf:'HIGH'},
+  poll: {lane:'ui', kind:'ui', title:'"Activation in progress"', sub:'UI polls order inquiry',
+    desc:'The UI does not wait for the carrier. It can poll the order inquiry endpoint, which proxies to the carrier service\'s /order_inquiry.',
+    api:{m:'GET', path:'/order_inquiry_by_session/{referenceType}/{referenceNo}', auth:'SESSIONID header', req:'reference type + number', res:'carrier order status'},
+    code:'SubscriptionActivationController.java:897, proxies at :1045/:1048', conf:'HIGH'},
+  bus: {lane:'bus', kind:'bus', title:'Fan-out ACTIVATED', sub:'Every carrier service receives it',
+    desc:'mno_mgmt, pwg-mno-mgmt and gupi_mgmt all subscribe to Subscription events. Each decides whether the event is for its carrier.',
+    code:'event-mgmt-utils (DB-polling)', conf:'MEDIUM',
+    note:{t:'Per the repo\'s failure docs, a handler that throws is marked processed after one attempt; recovery relies on failed-subscription tables and crons.'}},
+
+  vzHook: {lane:'mno', title:'Verizon handler', sub:'MnoGwEventHooks → activateSubscriber()',
+    desc:'Only acts when mnoSimProfile is Verizon. If a future activation date was requested, it stores the request for a cron; otherwise it allocates now (or runs port-in).',
+    tables:[{n:'future_date_sim_activations',op:'INSERT',cols:'only when activationInitiatedOn is set'}],
+    code:'mno_mgmt/…/MnoGwEventHooks.java:178 · MnoGwEventHooksHelper.java:387', conf:'HIGH'},
+  vzAlloc: {lane:'mno', title:'Build Verizon order', sub:'MnoSubscriberUtils.allocateMnoSubscriptionReference()',
+    desc:'Upserts the carrier-side record, maps the plan to Verizon feature codes, and builds ResellerAddSubscriber (pSIM) or ResellerAddSubscriberByESIM. It requests NextAvailableMDN by ZIP when no number is given. The call is retried up to MnoConfig.subActivationRetires times, and a 5G-device return code re-submits with networkType = 5G.',
+    tables:[{n:'mno_subscription',op:'INSERT',cols:'subscription_id, iccid, status = Inactive, network_type, order_ref_no, failure_cause'},
+            {n:'failed_mno_subscription',op:'UPDATE',cols:'on retry success / failure'}],
+    code:'mno_mgmt/…/MnoSubscriberUtils.java (allocateMnoSubscriptionReference)', conf:'HIGH',
+    note:{warn:true, t:'Retries wrap a non-idempotent carrier order. The short-circuit applies only once order_ref_no has been saved.'}},
+  vzGw: {lane:'gw', title:'Send order XML', sub:'TelecomProvisioningClient → SubscriptionServiceImpl',
+    desc:'mno_mgmt calls its gateway adapter, which serializes the ResellerOrder XML and posts it to Verizon.',
+    api:{m:'POST', path:'{MnoConfig.mnoBaseUrl} activateMnoSubscriber → httpPost(prodOrderGatewayApi)', auth:'Verizon account credentials (VerizonConfig DB row), optional Apigee token', req:'ResellerOrder XML', res:'reply XML → return code, order ref'},
+    code:'mno_mgmt TelecomProvisioningClient.java:51 · mno-gateway-api SubscriptionServiceImpl.java:147', conf:'HIGH'},
+  vzExt: {lane:'ext', kind:'ext', title:'Verizon OAS', sub:'…/xapi/ws/OrderGateway',
+    desc:'Verizon accepts the order and assigns an MDN, synchronously or later via callback or fulfilment cron.',
+    api:{m:'EXT', path:'https://…vzwcorp.com/xapi/ws/OrderGateway', auth:'reseller credentials', req:'ResellerOrder XML', res:'order reference, MDN'},
+    tables:[{n:'verizon_audits / verizon_error_log',op:'INSERT',cols:'request / response trail'}],
+    code:'MnoGlobalConfigController.java:39 (UAT default URL)', conf:'MEDIUM'},
+  vzDone: {lane:'mno', title:'Mark line Active', sub:'MnoUtils.doChangeBillingSubscriptionState()',
+    desc:'On carrier confirmation: SIM → Active, subscription → COMPLETED, and events go out for notifications. This is not one transaction with the carrier call.',
+    tables:[{n:'sim_info',op:'UPDATE',cols:'lifecycle_state = Active'},{n:'subscription',op:'UPDATE',cols:'activation_state = COMPLETED, served_MSISDN'},
+            {n:'events (bus table)',op:'PUBLISH',cols:'Subscription, SimInfo, Email, Sms'}],
+    code:'mno_mgmt/…/MnoUtils.java:2678, :2702, :2706', conf:'HIGH'},
+
+  pwgHook: {lane:'pwg', title:'T-Mobile handler', sub:'PwgMnoGwEventHooks',
+    desc:'Returns early unless mnoSimProfile is TMobile ("PWG"). For a new number it allocates a PWG subscription reference; for port-in it runs the async port-in.',
+    code:'pwg-mno-mgmt/…/PwgMnoGwEventHooks.java:137-160 → PwgMnoSubscriberUtils', conf:'HIGH'},
+  pwgCall: {lane:'papi', title:'Wholesale adapter', sub:'pwg-api',
+    desc:'pwg-mno-mgmt calls pwg-api over internal REST, wrapped in the resilience4j pwgMnoCB circuit breaker. pwg-api builds the WholeSaleApi XML with credentials from PwgGatewayConfig.',
+    api:{m:'POST', path:'{pwgMnoBaseUrl}/… (e.g. /activate_portin for port-in)', auth:'internal', req:'activation / port-in command', res:'status map'},
+    code:'pwg-mno-mgmt TelecomApiClient.java:133', conf:'MEDIUM'},
+  pwgExt: {lane:'ext', kind:'ext', title:'vCare / T-Mobile', sub:'WholeSaleApi XML',
+    desc:'vCare provisions the line on T-Mobile\'s network.',
+    api:{m:'EXT', path:'https://oss.vcarecorporation.com:22712/api/', auth:'PwgGatewayConfig credentials', req:'WholeSaleApi XML', res:'status, MDN'},
+    tables:[{n:'pwg_audits / pwg_error_log',op:'INSERT',cols:'request / response trail'}],
+    code:'pwg-api PwgGlobalConfigController.java:42 (default URL)', conf:'MEDIUM'},
+  pwgDone: {lane:'pwg', title:'Mark line Active', sub:'PwgMnoUtils / CronUtils',
+    desc:'Same pattern as Verizon: subscription COMPLETED and SIM Active together.',
+    tables:[{n:'subscription',op:'UPDATE',cols:'activation_state = COMPLETED'},{n:'sim_info',op:'UPDATE',cols:'lifecycle_state = Active'}],
+    code:'per .claude/context/26-business-processes.md Process 4', conf:'MEDIUM'},
+
+  gupiHook: {lane:'gupi', title:'Tata / GUPI handler', sub:'GupiMnoGwEventHooks',
+    desc:'Rebuilds the activation command and calls createMnoSubscriptionAfterSIMActivationConfirmed().',
+    code:'gupi_mgmt/…/GupiMnoGwEventHooks.java:91-98', conf:'HIGH',
+    note:{warn:true, t:'No mnoSimProfile check before acting, unlike Verizon and PWG. Impact depends on whether gupi_mgmt is deployed; the repo shows no Jenkins deploy path for it.'}},
+  gupiExt: {lane:'ext', kind:'ext', title:'Tata MOVE API', sub:'OAuth2 client credentials',
+    desc:'Carrier-side subscription creation. GUPI production config is not checked into this repo.',
+    api:{m:'EXT', path:'Tata / GUPI API (URL from config)', auth:'OAuth2 client credentials', req:'subscriber details', res:'status'}, conf:'MEDIUM'},
+  gupiDone: {lane:'gupi', title:'MDN setup confirmed', sub:'MNO_MDN_SETUP_SUCCESSFUL',
+    desc:'When the MNO_MDN_SETUP_SUCCESSFUL Subscription event arrives, gupi_mgmt records the successful MDN update.',
+    api:{m:'EVENT', path:'Topic.Subscription flag MNO_MDN_SETUP_SUCCESSFUL', auth:'internal', req:'subscriptionId', res:'—'},
+    code:'GupiMnoGwEventHooks.java:102-105 → updateMDNUpdateSuccessfulStatus()', conf:'HIGH'},
+
+  live: {lane:'ui', kind:'ui', title:'Line is live', sub:'Customer gets number by SMS / email',
+    desc:'The subscriber now has an active MDN. Top-ups continue in the recharge flow.', conf:'HIGH'}
+};
+
+const PATHS = {
+  verizon:['start','api','guard','validate','device','save','cmsn','publish','poll','bus','vzHook','vzAlloc','vzGw','vzExt','vzDone','live'],
+  tmobile:['start','api','guard','validate','save','cmsn','publish','poll','bus','pwgHook','pwgCall','pwgExt','pwgDone','live'],
+  gupi:['start','api','guard','validate','save','publish','poll','bus','gupiHook','gupiExt','gupiDone','live']
+};
+const PATH_LABELS = {verizon:'Verizon', tmobile:'T-Mobile (PWG)', gupi:'Tata (GUPI)'};
+const EDGE_LABEL = {
+  api:'POST /activate_user_subscription/', guard:'checkSessionPermissions()', validate:'pSIM / eSIM branch',
+  device:'GET /validate_device/{deviceId}', save:'saveProcessedSubscriberData()', cmsn:'recordResellerCommissionsTxn()',
+  publish:'sendMnoMDNAllocationRequest()', poll:'200 { status: submitted }', bus:'PUBLISH Subscription ACTIVATED',
+  vzHook:'onSubscriptionEvent (Verizon)', vzAlloc:'allocateMnoSubscriptionReference()', vzGw:'activateMnoSubscriber()',
+  vzExt:'POST ResellerOrder XML', vzDone:'order ref / MDN', live:'SIM Active, COMPLETED',
+  pwgHook:'onSubscriptionEvent (TMobile)', pwgCall:'REST (pwgMnoCB)', pwgExt:'POST WholeSaleApi XML', pwgDone:'status, MDN',
+  gupiHook:'onSubscriptionEvent (any profile)', gupiExt:'create MNO subscription', gupiDone:'MNO_MDN_SETUP_SUCCESSFUL'
+};
+
+// build path buttons
+(()=>{const seg=document.getElementById('seg'); Object.keys(PATHS).forEach((k,i)=>{const b=document.createElement('button');b.dataset.path=k; b.textContent=PATH_LABELS[k]; if(i===0) b.className='on'; seg.append(b);});})();
+
+const LANE_W=124, NODE_W=114, NODE_H=80, ROW_H=102, TOP=62;
+const laneIdx = Object.fromEntries(LANES.map((l,i)=>[l.k,i]));
+const laneColor = Object.fromEntries(LANES.map(l=>[l.k,l.c]));
+
+let path=Object.keys(PATHS)[0], idx=0, playing=false, timer=null, tokenRAF=null;
+const canvas=document.getElementById('canvas'), svg=document.getElementById('edges'), head=document.getElementById('lanehead');
+const NS='http://www.w3.org/2000/svg';
+
+function el(tag, cls, text){const e=document.createElement(tag); if(cls) e.className=cls; if(text!=null) e.textContent=text; return e;}
+
+function pos(id,row){const s=S[id]; const x=laneIdx[s.lane]*LANE_W+(LANE_W-NODE_W)/2; return {x, y:TOP+row*ROW_H};}
+
+function build(){
+  canvas.querySelectorAll('.lane,.node,.elabel').forEach(n=>n.remove());
+  svg.innerHTML='';
+  const ids=PATHS[path];
+  const W=LANES.length*LANE_W, H=TOP+ids.length*ROW_H+10;
+  canvas.style.width=W+'px'; canvas.style.height=H+'px';
+  svg.setAttribute('width',W); svg.setAttribute('height',H);
+  head.style.width=W+'px'; head.innerHTML='';
+  LANES.forEach((l,i)=>{
+    const lane=el('div','lane'); lane.style.left=i*LANE_W+'px'; lane.style.width=LANE_W+'px';
+    lane.style.background=i%2?'var(--lane-b)':'var(--lane-a)'; canvas.insertBefore(lane, svg);
+    const h=el('div'); h.style.width=LANE_W+'px'; const dot=el('b'); dot.style.background=l.c; h.append(dot, el('span',null,l.label.replace('-management','-mgmt'))); h.title=l.label; head.append(h);
+  });
+  const defs=document.createElementNS(NS,'defs');
+  [['arr','var(--edge)'],['arrd','var(--edge-done)'],['arra','var(--accent)']].forEach(([id,col])=>{
+    const m=document.createElementNS(NS,'marker'); m.setAttribute('id',id); m.setAttribute('viewBox','0 0 10 10'); m.setAttribute('refX','9'); m.setAttribute('refY','5');
+    m.setAttribute('markerWidth','7'); m.setAttribute('markerHeight','7'); m.setAttribute('orient','auto-start-reverse');
+    const p=document.createElementNS(NS,'path'); p.setAttribute('d','M0,0 L10,5 L0,10 z'); p.style.fill=col; m.append(p); defs.append(m);
+  });
+  svg.append(defs);
+  ids.forEach((id,row)=>{
+    const s=S[id], p=pos(id,row);
+    if(row>0){
+      const a=pos(ids[row-1],row-1);
+      const x1=a.x+NODE_W/2, y1=a.y+NODE_H, x2=p.x+NODE_W/2, y2=p.y;
+      const d = Math.abs(x1-x2)<1 ? `M${x1},${y1} L${x2},${y2-2}` : `M${x1},${y1} C${x1},${y1+34} ${x2},${y2-34} ${x2},${y2-2}`;
+      const e=document.createElementNS(NS,'path'); e.setAttribute('d',d); e.setAttribute('class','edge'); e.dataset.to=row; svg.append(e);
+    }
+    const n=el('div','node'+(s.kind?' '+s.kind:'')); n.dataset.row=row;
+    n.style.cssText=`left:${p.x}px;top:${p.y}px;width:${NODE_W}px;height:${NODE_H}px;--c:${laneColor[s.lane]}`;
+    n.append(el('span','num',String(row+1)), el('div','t',s.title), el('div','s',s.sub||''));
+    const chips=el('div','chips');
+    if(s.api) chips.append(el('span','chip', s.api.m==='EXT'?'EXT':s.api.m));
+    if(s.tables&&s.tables.length) chips.append(el('span','chip', s.tables.length+' tbl'));
+    if(chips.children.length) n.append(chips);
+    n.title=s.title+' — '+(s.sub||'');
+    n.addEventListener('click',()=>{stop(); go(row);});
+    canvas.append(n);
+  });
+  buildSummary();
+}
+
+function go(i, animate){
+  const ids=PATHS[path];
+  idx=Math.max(0,Math.min(ids.length-1,i));
+  canvas.querySelectorAll('.node').forEach(n=>{const r=+n.dataset.row; n.classList.toggle('current',r===idx); n.classList.toggle('done',r<idx); n.classList.toggle('future',r>idx);});
+  let active=null;
+  svg.querySelectorAll('.edge').forEach(e=>{const r=+e.dataset.to;
+    e.classList.toggle('active',r===idx); e.classList.toggle('done',r<idx);
+    e.setAttribute('marker-end', r===idx?'url(#arra)':(r<idx?'url(#arrd)':'url(#arr)'));
+    if(r===idx) active=e;});
+  canvas.querySelectorAll('.elabel').forEach(n=>n.remove());
+  if(tokenRAF) cancelAnimationFrame(tokenRAF); svg.querySelectorAll('.token').forEach(t=>t.remove());
+  if(active){
+    const L=active.getTotalLength(), mid=active.getPointAtLength(L/2);
+    const lab=el('div','elabel',EDGE_LABEL[ids[idx]]||''); lab.style.left=mid.x+'px'; lab.style.top=mid.y+'px'; canvas.append(lab);
+    if(animate!==false){
+      const dot=document.createElementNS(NS,'circle'); dot.setAttribute('r','5.5'); dot.setAttribute('class','token'); svg.append(dot);
+      const t0=performance.now(), dur=900;
+      const step=t=>{const k=Math.min(1,(t-t0)/dur), pt=active.getPointAtLength(L*(1-Math.pow(1-k,2))); dot.setAttribute('cx',pt.x); dot.setAttribute('cy',pt.y);
+        if(k<1) tokenRAF=requestAnimationFrame(step); else dot.remove();};
+      tokenRAF=requestAnimationFrame(step);
+    }
+  }
+  const cur=canvas.querySelector('.node.current');
+  if(cur){const d=document.getElementById('diagram'); const r=cur.getBoundingClientRect(), dr=d.getBoundingClientRect();
+    if(r.top<dr.top+50||r.bottom>dr.bottom-10||r.left<dr.left||r.right>dr.right) d.scrollTo({top:cur.offsetTop-d.clientHeight/2+NODE_H/2, left:cur.offsetLeft-d.clientWidth/2+NODE_W/2, behavior:'smooth'});}
+  renderPanel(S[ids[idx]], idx, ids.length);
+  document.getElementById('count').textContent=(idx+1)+' / '+ids.length;
+  document.getElementById('prog').style.width=((idx+1)/ids.length*100)+'%';
+}
+
+function renderPanel(s,i,n){
+  const p=document.getElementById('panel'); p.innerHTML='';
+  const lane=LANES[laneIdx[s.lane]];
+  const svc=el('div','svc'); const b=el('b'); b.style.background=lane.c; svc.append(b, document.createTextNode(`Step ${i+1} of ${n} · ${lane.label}`));
+  p.append(svc, el('h2',null,s.title));
+  if(s.sub) p.append(el('div','code mono',s.sub));
+  const d=el('p','desc',s.desc); d.style.marginTop='10px'; p.append(d);
+  if(s.api){
+    const sec=el('div','sec'); sec.append(el('h3',null, s.api.m==='EVENT'?'Event':(s.api.m==='EXT'?'External API':'API')));
+    const box=el('div','api'); const line=el('div','line');
+    line.append(el('span','method '+s.api.m, s.api.m), el('code',null,s.api.path)); box.append(line);
+    const dl=el('dl'); [['Auth',s.api.auth],['Request',s.api.req],['Response',s.api.res]].forEach(([k,v])=>{ if(v){dl.append(el('dt',null,k)); const dd=el('dd','mono',v); dl.append(dd);} });
+    box.append(dl); sec.append(box); p.append(sec);
+  }
+  if(s.tables&&s.tables.length){
+    const sec=el('div','sec'); sec.append(el('h3',null,'Database tables'));
+    s.tables.forEach(t=>{const r=el('div','tbl'); const right=el('div'); right.append(el('div','n mono',t.n), el('div','cols',t.cols)); r.append(el('span','op '+t.op,t.op), right); sec.append(r);});
+    p.append(sec);
+  }
+  if(s.note){const sec=el('div','sec'); sec.append(el('div','note'+(s.note.warn?' warn':''), s.note.t)); p.append(sec);}
+  const meta=el('div','sec'); meta.append(el('h3',null,'Source'));
+  if(s.code) meta.append(el('div','code mono',s.code));
+  const c=el('span','conf '+s.conf,'Confidence: '+s.conf); c.style.marginTop='8px'; meta.append(c); p.append(meta);
+}
+
+function buildSummary(){
+  const ids=PATHS[path];
+  const at=document.getElementById('apiTable'); at.innerHTML='';
+  const th=at.insertRow(); ['#','Type','Endpoint / call','Service','Auth','Request','Response'].forEach(h=>{const c=el('th',null,h); th.append(c);});
+  ids.forEach((id,i)=>{const s=S[id]; if(!s.api) return; const r=at.insertRow();
+    [String(i+1), s.api.m, s.api.path, LANES[laneIdx[s.lane]].label, s.api.auth, s.api.req, s.api.res].forEach((v,j)=>{const c=r.insertCell();
+      if(j===1){c.append(el('span','method '+v,v));} else {c.textContent=v; if(j===2||j>=5) c.className='mono';}});
+    r.style.cursor='pointer'; r.onclick=()=>{stop(); go(i); document.getElementById('diagram').scrollIntoView({behavior:'smooth',block:'start'});};});
+  const tt=document.getElementById('tblTable'); tt.innerHTML='';
+  const agg=new Map();
+  ids.forEach((id,i)=>{const s=S[id]; (s.tables||[]).forEach(t=>{ if(!agg.has(t.n)) agg.set(t.n,{ops:new Set(),svc:new Set(),steps:[],cols:new Set()});
+    const a=agg.get(t.n); a.ops.add(t.op); a.svc.add(LANES[laneIdx[s.lane]].label); a.steps.push(i+1); a.cols.add(t.cols);});});
+  const h2=tt.insertRow(); ['Table','Operations','Written / read by','Steps','Key columns'].forEach(h=>h2.append(el('th',null,h)));
+  agg.forEach((a,n)=>{const r=tt.insertRow(); const c0=r.insertCell(); c0.className='mono'; c0.textContent=n;
+    const c1=r.insertCell(); ['SELECT','INSERT','UPDATE','PUBLISH'].forEach(o=>{ if(a.ops.has(o)) c1.append(el('span','op '+o,o));});
+    r.insertCell().textContent=[...a.svc].join(', '); r.insertCell().textContent=a.steps.join(', ');
+    const c4=r.insertCell(); c4.textContent=[...a.cols].join(' · '); c4.style.color='var(--muted)';});
+}
+
+function next(){ if(idx<PATHS[path].length-1) go(idx+1); else stop(); }
+function schedule(){ clearTimeout(timer); if(playing) timer=setTimeout(()=>{ next(); if(playing&&idx<PATHS[path].length-1) schedule(); else stop(); }, +document.getElementById('speed').value); }
+function play(){ if(idx>=PATHS[path].length-1) go(0); playing=true; document.getElementById('b-play').textContent='❚❚ Pause'; schedule(); }
+function stop(){ playing=false; clearTimeout(timer); document.getElementById('b-play').textContent='▶ Play'; }
+
+document.getElementById('b-play').onclick=()=>playing?stop():play();
+document.getElementById('b-next').onclick=()=>{stop(); next();};
+document.getElementById('b-prev').onclick=()=>{stop(); go(idx-1);};
+document.getElementById('b-restart').onclick=()=>{stop(); go(0);};
+document.getElementById('speed').onchange=()=>{ if(playing) schedule(); };
+document.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{
+  stop(); document.querySelectorAll('.seg button').forEach(x=>x.classList.toggle('on',x===b)); path=b.dataset.path;
+  try{localStorage.setItem('af-path',path);}catch(e){}
+  build(); go(0,false); document.getElementById('diagram').scrollTo({top:0,left:0});
+});
+document.getElementById('b-theme').onclick=()=>{
+  const r=document.documentElement; const dark=r.dataset.theme?r.dataset.theme==='dark':matchMedia('(prefers-color-scheme: dark)').matches;
+  r.dataset.theme=dark?'light':'dark'; try{localStorage.setItem('pf-theme',r.dataset.theme);}catch(e){} go(idx,false);
+};
+document.addEventListener('keydown',e=>{ if(['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName)) return;
+  if(e.key==='ArrowRight'){stop(); next(); e.preventDefault();}
+  else if(e.key==='ArrowLeft'){stop(); go(idx-1); e.preventDefault();}
+  else if(e.key===' '){playing?stop():play(); e.preventDefault();} });
+
+try{ const t=localStorage.getItem('pf-theme'); if(t) document.documentElement.dataset.theme=t;
+     const p=localStorage.getItem('af-path'); if(p&&PATHS[p]){path=p; document.querySelectorAll('.seg button').forEach(x=>x.classList.toggle('on',x.dataset.path===p));} }catch(e){}
+build(); go(0,false);
+</script>
+</body>
+</html>

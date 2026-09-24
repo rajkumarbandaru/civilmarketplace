@@ -1,5 +1,10 @@
 package com.civileng.marketplace.auth.security;
 
+import com.civileng.marketplace.auth.dto.AuthResponse;
+import com.civileng.marketplace.auth.entity.User;
+import com.civileng.marketplace.auth.repository.UserRepository;
+import com.civileng.marketplace.auth.service.MfaService;
+import com.civileng.marketplace.auth.service.SessionIssuer;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import com.civileng.marketplace.tenant.common.TenantContext;
@@ -21,7 +26,9 @@ import java.util.Objects;
 @RequiredArgsConstructor
 public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
 
-    private final JwtTokenProvider jwtTokenProvider;
+    private final UserRepository userRepository;
+    private final SessionIssuer sessionIssuer;
+    private final MfaService mfaService;
 
     @Value("${app.oauth2.authorized-redirect-uris}")
     private String[] authorizedRedirectUris;
@@ -44,23 +51,31 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         String userId = asString(attributes.get("userId"));
         String role = asString(attributes.get("role"));
 
-        String accessToken = jwtTokenProvider.generateAccessToken(userId, email, role, name, TenantContext.require());
-        String refreshToken = jwtTokenProvider.generateRefreshToken(userId, TenantContext.require());
+        User user = userRepository.findById(Long.parseLong(userId))
+                .orElseThrow(() -> new IllegalStateException("Social sign-in resolved to no user"));
 
-        String targetUrl = UriComponentsBuilder
-                .fromUriString(primaryRedirectUri())
-                .queryParam("accessToken", accessToken)
-                .queryParam("refreshToken", refreshToken)
-                .queryParam("userId", userId)
-                .queryParam("email", email)
-                .queryParam("name", name)
-                .queryParam("role", role)
-                .queryParam("provider", provider)
-                // Let the builder do the escaping — hand-encoding the values first
-                // double-encodes them (a space arrives as %2520).
-                .encode()
-                .build()
-                .toUriString();
+        UriComponentsBuilder target = UriComponentsBuilder.fromUriString(primaryRedirectUri());
+        if (mfaService.required(user)) {
+            // The provider proved who they are, not the second factor: hand over an MFA ticket,
+            // never tokens, and let the frontend finish sign-in.
+            AuthResponse challenge = mfaService.challenge(user);
+            target.queryParam("mfaToken", challenge.getMfaToken())
+                    .queryParam("mfaSetup", challenge.getMfaSetupRequired());
+        } else {
+            // Through the SessionIssuer so the refresh token is registered for rotation; a token
+            // minted here directly was unknown to the rotation store and failed its first refresh.
+            AuthResponse session = sessionIssuer.issue(user, "Login successful");
+            target.queryParam("accessToken", session.getAccessToken())
+                    .queryParam("refreshToken", session.getRefreshToken())
+                    .queryParam("userId", userId)
+                    .queryParam("email", email)
+                    .queryParam("name", name)
+                    .queryParam("role", role)
+                    .queryParam("provider", provider);
+        }
+        // Let the builder do the escaping — hand-encoding the values first double-encodes them
+        // (a space arrives as %2520).
+        String targetUrl = target.encode().build().toUriString();
 
         log.info("OAuth2 login succeeded for {} via {}", email, provider);
         getRedirectStrategy().sendRedirect(request, response, targetUrl);

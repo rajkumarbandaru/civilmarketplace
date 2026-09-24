@@ -72,6 +72,18 @@ public class User {
     @Builder.Default
     private Boolean twoFactorEnabled = false;
 
+    /** AES-GCM ciphertext of the TOTP secret; see MfaSecretCipher. */
+    @Column(name = "two_factor_secret", length = 512)
+    private String twoFactorSecret;
+
+    /** Last accepted TOTP time step: a code is good once. */
+    @Column(name = "two_factor_last_step")
+    private Long twoFactorLastStep;
+
+    /** JSON array of SHA-256 hashes of the unused recovery codes. */
+    @Column(name = "two_factor_recovery_codes", columnDefinition = "TEXT")
+    private String twoFactorRecoveryCodes;
+
     @Column(name = "last_login_at")
     private LocalDateTime lastLoginAt;
 

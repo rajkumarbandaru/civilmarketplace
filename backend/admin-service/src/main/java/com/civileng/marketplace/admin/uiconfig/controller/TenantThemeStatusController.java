@@ -7,6 +7,8 @@ import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.ResponseEntity;
+import com.civileng.marketplace.admin.config.ConfigScope;
+import com.civileng.marketplace.admin.config.ConfigService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -35,7 +37,7 @@ public class TenantThemeStatusController {
 
     private static final String OPERATOR_TENANT = "platform";
 
-    private final ThemeConfigRepository themeRepository;
+    private final ConfigService configService;
 
     /** @param customised true once the tenant has saved its own theme at least once. */
     public record TenantThemeStatus(String tenantKey, int version, boolean customised) {
@@ -55,12 +57,10 @@ public class TenantThemeStatusController {
                     "Only a Super Admin of the platform tenant may read another tenant's theme state");
         }
 
-        int version = TenantContext.callAs(tenantKey, () -> themeRepository
-                .findById(ThemeConfig.PLATFORM_SCOPE)
-                .map(ThemeConfig::getVersion)
-                .orElse(0));
-
-        // Version 1 is the row Flyway seeds for every tenant; anything above it means a save.
-        return ResponseEntity.ok(new TenantThemeStatus(tenantKey, version, version > 1));
+        // Customised means the workspace's own admin has published (or rolled back) its theme —
+        // onboarding and operator edits do not count as the tenant's choice.
+        return ResponseEntity.ok(TenantContext.callAs(tenantKey, () -> new TenantThemeStatus(tenantKey,
+                (int) configService.releaseCount(ConfigScope.TENANT),
+                configService.customisedByWorkspace(ConfigScope.TENANT))));
     }
 }

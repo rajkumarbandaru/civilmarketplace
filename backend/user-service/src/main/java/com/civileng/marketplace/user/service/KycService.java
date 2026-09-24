@@ -1,5 +1,8 @@
 package com.civileng.marketplace.user.service;
 
+import com.civileng.marketplace.user.dto.MediaDtos;
+import com.civileng.marketplace.web.common.client.MediaRef;
+import com.civileng.marketplace.web.common.client.MediaReferences;
 import com.civileng.marketplace.user.model.KycDocument;
 import com.civileng.marketplace.user.model.UserProfile;
 import com.civileng.marketplace.audit.common.AuditAction;
@@ -24,30 +27,62 @@ public class KycService {
 
     private static final String SOURCE = "user-service";
     private static final String ENTITY = "KycDocument";
+    static final String KYC_PURPOSE = "KYC_DOCUMENT";
 
     private final KycDocumentRepository kycDocumentRepository;
     private final UserProfileRepository userProfileRepository;
     private final AuditPublisher auditPublisher;
+    private final MediaReferences mediaReferences;
 
+    /** Submits an uploaded file for review. It must be a KYC_DOCUMENT upload by the same user. */
     @Transactional
-    public KycDocument submitDocument(Long userId, KycDocument document) {
+    public KycDocument submitDocument(Long userId, MediaDtos.KycSubmitRequest request) {
         if (kycDocumentRepository.existsByUserIdAndDocumentTypeAndStatus(
-                userId, document.getDocumentType(), KycDocument.KycStatus.PENDING)) {
+                userId, request.documentType(), KycDocument.KycStatus.PENDING)) {
             throw new IllegalArgumentException(
-                    "A " + document.getDocumentType() + " document is already pending review");
+                    "A " + request.documentType() + " document is already pending review");
         }
-        document.setId(null);
-        document.setUserId(userId);
-        document.setStatus(KycDocument.KycStatus.PENDING);
-        document.setReviewedBy(null);
-        document.setReviewedAt(null);
-        document.setRejectionReason(null);
-        KycDocument saved = kycDocumentRepository.save(document);
+        MediaRef file = mediaReferences.requireOwned(request.mediaId(), KYC_PURPOSE, userId);
+        KycDocument saved = kycDocumentRepository.save(KycDocument.builder()
+                .userId(userId)
+                .documentType(request.documentType())
+                .documentNumber(request.documentNumber() == null || request.documentNumber().isBlank()
+                        ? null : request.documentNumber().trim())
+                .mediaId(file.id())
+                .status(KycDocument.KycStatus.PENDING)
+                .build());
         log.info("KYC document {} submitted for user {}", saved.getDocumentType(), userId);
 
         audit(AuditAction.CREATE, userId, null, String.valueOf(saved.getId()), userId,
                 null, "status=PENDING,type=" + saved.getDocumentType(), null, null);
         return saved;
+    }
+
+    /** A link for the document's owner. Someone else's document id answers as not found. */
+    @Transactional(readOnly = true)
+    public MediaDtos.FileLink ownFileLink(Long documentId, Long userId) {
+        KycDocument document = kycDocumentRepository.findByIdAndUserId(documentId, userId)
+                .orElseThrow(() -> new IllegalArgumentException("KYC document not found"));
+        return fileLink(document, userId);
+    }
+
+    /** A link for a reviewer. Opening someone's identity document is audited. */
+    @Transactional(readOnly = true)
+    public MediaDtos.FileLink reviewerFileLink(Long documentId, Long reviewerId, String reviewerRole) {
+        KycDocument document = kycDocumentRepository.findById(documentId)
+                .orElseThrow(() -> new IllegalArgumentException("KYC document not found"));
+        audit(AuditAction.READ, reviewerId, reviewerRole, String.valueOf(documentId),
+                document.getUserId(), null, null, "opened KYC document file", 1);
+        return fileLink(document, reviewerId);
+    }
+
+    private MediaDtos.FileLink fileLink(KycDocument document, Long onBehalfOf) {
+        if (document.getMediaId() == null) {
+            // Submitted before uploads went through media-service: all there is is the stored URL.
+            return new MediaDtos.FileLink(document.getDocumentUrl(), null, null, null);
+        }
+        MediaRef file = mediaReferences.fresh(document.getMediaId(), onBehalfOf);
+        return new MediaDtos.FileLink(file.url(), file.urlExpiresAt(), file.originalFilename(), file.contentType());
     }
 
     @Transactional(readOnly = true)

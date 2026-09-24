@@ -21,9 +21,15 @@ public final class ThemePresets {
     private ThemePresets() {
     }
 
-    public static final List<String> UI_STYLES = List.of("default", "flat", "elevated");
+    /**
+     * These lists mirror frontend/src/experience/registry-manifest.json — the keys the deployed
+     * frontend can render. ThemePresetsRegistryContractTest fails the build if they drift apart.
+     */
+    public static final List<String> UI_STYLES = List.of(
+            "default", "flat", "elevated", "material", "glass", "luxury", "brutalist");
     public static final List<String> BUTTON_STYLES = List.of("gradient", "solid", "outlined");
     public static final List<String> LAYOUT_STYLES = List.of("sidebar-left", "sidebar-right", "topbar");
+    public static final List<String> SITE_LAYOUTS = List.of("marketplace", "corporate", "ecommerce");
 
     private static final List<ThemePreset> PRESETS = List.of(
             shipped("civeng", "CivEng Default",
@@ -61,7 +67,18 @@ public final class ThemePresets {
             shipped("orchid", "Orchid",
                     "Magenta and violet on near-black, with the navigation across the top.",
                     topbarCommand("dark", "#d946ef", "#8b5cf6", "#18181b", "#09090b", 14,
-                            "elevated", "gradient", "comfortable")));
+                            "elevated", "gradient", "comfortable")),
+            // The architecture's reference experiences (05 §1): colour, style pack and layout are
+            // independent axes, and these three combinations must all render from one build.
+            shipped("aurora-marketplace", "A · Aurora Marketplace",
+                    "Blue + Glass + Marketplace: frosted cards over a brand gradient, search-led home page.",
+                    experience("light", "#0057ff", "#00a3ff", 20, "glass", "topbar", "marketplace")),
+            shipped("evergreen-corporate", "B · Evergreen Corporate",
+                    "Green + Material + Corporate: crisp elevation, sidebar console, story-led home page.",
+                    experience("light", "#0b8043", "#1a73e8", 8, "material", "sidebar-left", "corporate")),
+            shipped("onyx-boutique", "C · Onyx Boutique",
+                    "Black + Luxury + E-commerce: serif headings, hairline gold edges, catalogue first.",
+                    experience("dark", "#111111", "#c9a227", 2, "luxury", "topbar", "ecommerce")));
 
     /** Every preset in this file is shipped with the service, hence {@code builtIn = true}. */
     private static ThemePreset shipped(String key, String label, String description,
@@ -87,7 +104,7 @@ public final class ThemePresets {
                                               String surface, String sidebar, int radius,
                                               String uiStyle, String buttonStyle, String density) {
         return new ThemeUpdateCommand(mode, primary, accent, surface, sidebar, radius,
-                null, null, null, uiStyle, buttonStyle, null, density);
+                null, null, null, uiStyle, buttonStyle, null, density, null);
     }
 
     /**
@@ -100,6 +117,13 @@ public final class ThemePresets {
                                                     String uiStyle, String buttonStyle,
                                                     String density) {
         return new ThemeUpdateCommand(mode, primary, accent, surface, sidebar, radius,
-                null, null, null, uiStyle, buttonStyle, "topbar", density);
+                null, null, null, uiStyle, buttonStyle, "topbar", density, null);
+    }
+
+    /** A full experience: colour, style pack, shell layout and site layout together. */
+    private static ThemeUpdateCommand experience(String mode, String primary, String accent, int radius,
+                                                 String uiStyle, String shell, String siteLayout) {
+        return new ThemeUpdateCommand(mode, primary, accent, null, null, radius, null, null, null,
+                uiStyle, "solid", shell, "comfortable", siteLayout);
     }
 }

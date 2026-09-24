@@ -4,9 +4,12 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { landingPathFor } from '../components/AdminRoute';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
+import { Box, Button } from '@mui/material';
 import { useAppSelector } from '../hooks';
 import { buildTheme } from '../theme';
 import {
+  fetchPreviewTheme,
+  fetchPublicTheme,
   fetchUiConfig,
   ResolvedMenuItem,
   ResolvedTheme,
@@ -110,10 +113,33 @@ export const UiConfigProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   // Signed out there is no config to fetch, but the visitor may still have picked light or dark in
   // the header — so the shipped theme is built with that mode and nothing else overridden.
+  // A preview link (?preview=…) shows an unpublished theme for this tab until it is exited; it wins
+  // over everything else, which is the point of it.
+  const previewToken = usePreviewToken();
+  const preview = useQuery({
+    queryKey: ['ui-config', 'preview', previewToken],
+    queryFn: () => fetchPreviewTheme(previewToken!),
+    enabled: !!previewToken,
+    retry: false,
+    staleTime: Infinity,
+  });
+  // Anonymous visitors see the workspace's published look too (05 §7.2 public bundle), not the
+  // shipped default: the home page and sign-in are where a tenant's brand matters most.
+  const publicTheme = useQuery({
+    queryKey: ['ui-config', 'public-theme'],
+    queryFn: fetchPublicTheme,
+    enabled: !isAuthenticated,
+    retry: false,
+    staleTime: 60 * 1000,
+  });
+
   const muiTheme = useMemo(() => {
+    if (preview.data) return buildTheme(preview.data);
     if (data?.theme) return buildTheme(data.theme);
-    return buildTheme(guestMode === 'dark' ? ({ mode: 'dark' } as ResolvedTheme) : null);
-  }, [data?.theme, guestMode]);
+    const base = publicTheme.data ?? null;
+    // A guest's own light/dark toggle still applies over the workspace's look.
+    return buildTheme(guestMode === 'dark' ? ({ ...(base ?? {}), mode: 'dark' } as ResolvedTheme) : base);
+  }, [preview.data, data?.theme, publicTheme.data, guestMode]);
 
   const value = useMemo<UiConfigContextValue>(
     () => ({
@@ -136,6 +162,7 @@ export const UiConfigProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       <ThemeProvider theme={muiTheme}>
         <CssBaseline />
         <TenantLandingRedirect landingPath={value.landingPath} role={user?.role} />
+        {previewToken && <PreviewBanner failed={preview.isError} />}
         {children}
       </ThemeProvider>
     </UiConfigContext.Provider>
@@ -200,3 +227,37 @@ export const useDateTime = () => {
 };
 
 export default UiConfigProvider;
+
+const PREVIEW_KEY = 'themePreview';
+
+/** The preview token from ?preview=, remembered for this tab so navigating keeps the preview. */
+const usePreviewToken = (): string | null => {
+  const location = useLocation();
+  return useMemo(() => {
+    const fromUrl = new URLSearchParams(location.search).get('preview');
+    try {
+      if (fromUrl) sessionStorage.setItem(PREVIEW_KEY, fromUrl);
+      return fromUrl ?? sessionStorage.getItem(PREVIEW_KEY);
+    } catch {
+      return fromUrl;
+    }
+  }, [location.search]);
+};
+
+/** Says, on every page, that what is shown is not live — and how to get out of it. */
+const PreviewBanner: React.FC<{ failed: boolean }> = ({ failed }) => (
+  <Box role="status" data-testid="preview-banner" sx={{
+    position: 'fixed', bottom: 16, left: '50%', transform: 'translateX(-50%)', zIndex: 2000,
+    bgcolor: failed ? 'error.main' : '#111827', color: '#fff', px: 2.5, py: 1, borderRadius: 999,
+    boxShadow: 6, display: 'flex', gap: 1.5, alignItems: 'center', fontSize: 14,
+  }}>
+    {failed ? 'This preview link has expired.' : 'Preview — this theme is not published.'}
+    <Button size="small" variant="outlined" sx={{ color: '#fff', borderColor: 'rgba(255,255,255,0.5)', py: 0 }}
+      onClick={() => {
+        try { sessionStorage.removeItem(PREVIEW_KEY); } catch { /* storage unavailable */ }
+        window.location.assign(window.location.pathname);
+      }}>
+      Exit preview
+    </Button>
+  </Box>
+);

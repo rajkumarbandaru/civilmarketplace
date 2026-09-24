@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>B. AryaDash Designer (AI config generator)</title>
+<style>
+:root{--bg:#f6f7f9;--fg:#1f2933;--muted:#5b6770;--card:#fff;--line:#e3e6ea;--accent:#3730a3;--accent-bg:#eef2ff;--head:#0f172a;--code:#f1f3f6}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1115;--fg:#e6e8eb;--muted:#9aa4ad;--card:#171a20;--line:#2a2f37;--accent:#a5b4fc;--accent-bg:#1e2240;--head:#05070b;--code:#1f232b}}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.6 system-ui,-apple-system,Segoe UI,sans-serif;background:var(--bg);color:var(--fg)}
+header{background:var(--head);color:#fff;padding:18px 16px}
+header .in{max-width:1200px;margin:0 auto}
+header h1{margin:0;font-size:22px;line-height:1.3} header p{margin:4px 0 0;opacity:.75;font-size:13px}
+header a{color:#c7d2fe}
+.wrap{max-width:1200px;margin:0 auto;padding:0 16px 60px;display:flex;gap:24px;align-items:flex-start}
+nav.toc{position:sticky;top:12px;flex:0 0 250px;max-height:calc(100vh - 24px);overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:16px;font-size:13px}
+nav.toc ul{list-style:none;margin:0;padding-left:10px} nav.toc>ul{padding-left:0}
+nav.toc a{color:var(--accent);text-decoration:none;display:block;padding:2px 0}
+main{flex:1;min-width:0}
+main h1{display:none}
+h2{font-size:20px;margin:32px 0 10px;padding-top:8px;border-top:1px solid var(--line)}
+h3{font-size:16px;margin:20px 0 8px}
+a{color:var(--accent)}
+blockquote{margin:12px 0;padding:10px 14px;background:var(--accent-bg);border-left:4px solid var(--accent);border-radius:6px}
+blockquote p{margin:4px 0}
+table{border-collapse:collapse;width:100%;background:var(--card);font-size:14px;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:6px 10px;text-align:left;vertical-align:top}
+th{background:var(--accent-bg)}
+code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:13px}
+pre{background:var(--code);padding:12px;border-radius:8px;overflow-x:auto;font-size:13px;line-height:1.45}
+pre code{background:none;padding:0}
+pre.mermaid{background:var(--card);border:1px solid var(--line);text-align:center}
+hr{border:0;border-top:1px solid var(--line);margin:24px 0}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin:12px 0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px}
+.card h3{margin:0 0 6px;font-size:16px}.card p{margin:0;color:var(--muted);font-size:13px}
+.card .meta{margin-top:8px;font-size:12px;color:var(--muted)}
+@media (max-width:900px){.wrap{display:block}nav.toc{position:static;max-height:none;margin-top:16px}}
+</style></head><body>
+<header><div class="in"><h1>B. AryaDash Designer (AI config generator)</h1><p><a href="index.html">All projects</a> &middot; <a href="../index.html">Interview guide</a></p></div></header>
+<div class="wrap"><nav class="toc"><b>Contents</b><div class="toc">
+<ul>
+<li><a href="#what-it-is">What it is</a></li>
+<li><a href="#key-facts">Key facts</a></li>
+<li><a href="#files">Files</a></li>
+<li><a href="#flow">Flow</a></li>
+<li><a href="#connection-to-the-dashboard">Connection to the Dashboard</a></li>
+<li><a href="#modes">Modes</a></li>
+<li><a href="#how-to-run">How to run</a></li>
+<li><a href="#interview-angle">Interview angle</a></li>
+</ul>
+</div>
+</nav><main><h1 id="b-aryadash-designer-ai-config-generator">B. AryaDash Designer (AI config generator)</h1>
+<blockquote>
+<p>Folder: <code>~/VIPLine-billing/aryadash-designer</code> · Angular 21.1 · standalone + signals ·
+<a href="index.html">All projects</a> · <a href="../index.html">Interview guide</a></p>
+</blockquote>
+<h2 id="what-it-is">What it is</h2>
+<p>A small internal tool that lets a developer describe a screen in plain English and get back an
+AryaDash JSON config (table, form, wizard…), explain an existing config, or modify one. It uses
+Claude either directly from the browser (<code>@anthropic-ai/sdk</code>) or through AWS Bedrock via a small
+Node server. Generated configs can be copied, downloaded, or saved with one click - and because
+<code>src/assets/config</code> is a <strong>symlink to <code>aryadash-dashboard/src/config</code></strong>, saving writes the file
+straight into the Dashboard product it belongs to (see <a href="#connection-to-the-dashboard">Connection to the Dashboard</a>).</p>
+<h2 id="key-facts">Key facts</h2>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Angular</td>
+<td>21.1, <code>@angular/build</code> (esbuild), Vitest</td>
+</tr>
+<tr>
+<td>Bootstrapping</td>
+<td><code>bootstrapApplication</code> + <code>app.config.ts</code> (<code>provideRouter</code>, <code>provideHttpClient</code>, <code>provideBrowserGlobalErrorListeners</code>)</td>
+</tr>
+<tr>
+<td>Routes</td>
+<td><code>''</code> → <code>designer</code>; <code>designer</code> and <code>settings</code> lazy via <code>loadComponent</code>; <code>**</code> → <code>designer</code></td>
+</tr>
+<tr>
+<td>Dev URL</td>
+<td><code>http://localhost:4201</code> (<code>npm start</code>)</td>
+</tr>
+<tr>
+<td>Helper server</td>
+<td><code>node server.js</code> on <code>http://localhost:3001</code></td>
+</tr>
+<tr>
+<td>Source size</td>
+<td>~1,300 lines of TypeScript + <code>schema/element-types.json</code></td>
+</tr>
+<tr>
+<td>AI</td>
+<td><code>@anthropic-ai/sdk</code> (default model <code>claude-sonnet-4-6</code>, <code>max_tokens</code> 8096) or Bedrock <code>InvokeModelWithResponseStream</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="files">Files</h2>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Job</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ai/ai-panel/ai-panel.component.ts</code></td>
+<td>Chat UI; signals <code>messages</code>, <code>isStreaming</code>, <code>currentStreamText</code>, <code>saveStates</code>; <code>computed</code> <code>hasApiKey</code>, <code>currentApp</code>; Ctrl/Cmd+Enter to send</td>
+</tr>
+<tr>
+<td><code>ai/config-generator.service.ts</code></td>
+<td><code>generate</code> / <code>explain</code> / <code>modify</code> → <code>Observable&lt;StreamEvent&gt;</code> (<code>token</code>, <code>done</code>, <code>error</code>); Anthropic stream or Bedrock SSE</td>
+</tr>
+<tr>
+<td><code>ai/prompt-builder.service.ts</code></td>
+<td>Builds the system prompt: element schema + app examples + app <code>global.json</code> + table component source</td>
+</tr>
+<tr>
+<td><code>ai/example-loader.service.ts</code></td>
+<td>Picks relevant element types from the request text and loads matching example configs</td>
+</tr>
+<tr>
+<td><code>schema/schema-registry.service.ts</code></td>
+<td>Loads <code>element-types.json</code> once (<code>shareReplay(1)</code>)</td>
+</tr>
+<tr>
+<td><code>schema/element-types.json</code></td>
+<td>Schema: <code>elementTypes</code>, <code>tableFieldTypes</code>, <code>formFieldTypes</code>, <code>filterTypes</code>, <code>chartTypes</code>, <code>dataSourceConfig</code>, <code>globalConfigStructure</code>, <code>namingConventions</code></td>
+</tr>
+<tr>
+<td><code>shared/settings/settings.service.ts</code></td>
+<td>API key, model, Bedrock region/model, current app — kept in <code>localStorage</code></td>
+</tr>
+<tr>
+<td><code>shared/services/designer-server.service.ts</code></td>
+<td>Calls <code>server.js</code> on <code>http://localhost:3001/api</code> (list apps, list app files, save config, read dashboard source)</td>
+</tr>
+<tr>
+<td><code>server.js</code></td>
+<td><code>GET /api/apps</code>, <code>GET /api/app-files/:app</code>, <code>POST /api/save-config</code>, <code>GET /api/dashboard-source</code> (read-only, path-traversal guarded), <code>POST /api/generate</code> (Bedrock SSE)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="flow">Flow</h2>
+<pre class="mermaid">sequenceDiagram
+    participant U as Developer
+    participant P as AiPanelComponent
+    participant PB as PromptBuilderService
+    participant SR as SchemaRegistryService
+    participant EX as ExampleLoaderService
+    participant S as server.js (3001)
+    participant G as ConfigGeneratorService
+    participant AI as Claude (SDK or Bedrock)
+
+    U-&gt;&gt;P: &quot;Table of customer accounts with search and date filter&quot;
+    P-&gt;&gt;P: messages.update(add user + streaming placeholder)
+    P-&gt;&gt;G: generate(text)
+    G-&gt;&gt;PB: buildSystemPrompt(text)
+    PB-&gt;&gt;EX: inferRelevantTypes(text) e.g. table
+    PB-&gt;&gt;SR: getSchema() (shareReplay 1)
+    par forkJoin
+        PB-&gt;&gt;EX: loadAppExamples(currentApp, types)
+        PB-&gt;&gt;EX: loadGlobalConfig(currentApp)
+        PB-&gt;&gt;S: GET /api/dashboard-source (table component)
+    end
+    PB--&gt;&gt;G: system prompt
+    G-&gt;&gt;AI: stream(system, user)
+    loop each text delta
+        AI--&gt;&gt;G: token
+        G--&gt;&gt;P: StreamEvent token
+        P-&gt;&gt;P: currentStreamText.update(t + token)
+    end
+    G--&gt;&gt;P: StreamEvent done (parsed GeneratedConfig)
+    U-&gt;&gt;P: Save
+    P-&gt;&gt;S: POST /api/save-config {app, filename, content}
+    S--&gt;&gt;P: ok -&gt; saveStates set 'saved' (reset after 3 s)
+</pre>
+<h2 id="connection-to-the-dashboard">Connection to the Dashboard</h2>
+<p>The link is <strong>one-way</strong>: the Designer depends on the Dashboard, the Dashboard has no reference to
+the Designer, and the two running apps never call each other.</p>
+<table>
+<thead>
+<tr>
+<th>Connection</th>
+<th>Kind</th>
+<th>Where</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>src/assets/config</code> -&gt; <code>../../../aryadash-dashboard/src/config</code></td>
+<td>Symlink, committed to git</td>
+<td><code>src/assets/config</code></td>
+</tr>
+<tr>
+<td>Reads a product's <code>global.json</code> and screen JSON as AI examples</td>
+<td>Through the symlink (<code>HttpClient</code>)</td>
+<td><code>example-loader.service.ts</code></td>
+</tr>
+<tr>
+<td>"Save" writes <code>assets/config/&lt;app&gt;/&lt;key&gt;.json</code> - i.e. directly into that Dashboard product</td>
+<td>Through the symlink (<code>fs.writeFileSync</code>)</td>
+<td><code>server.js</code> -&gt; <code>/api/save-config</code></td>
+</tr>
+<tr>
+<td>Reads <code>aryadash-dashboard/src/app/table/table.component.ts</code> read-only for prompt context</td>
+<td>Hard-coded path <code>DASHBOARD_SRC</code></td>
+<td><code>server.js</code> -&gt; <code>/api/dashboard-source</code></td>
+</tr>
+<tr>
+<td><code>src/assets/examples/*.json</code> copied from product configs</td>
+<td>Copies (2 of 6 have since drifted from the originals)</td>
+<td><code>src/assets/examples/</code></td>
+</tr>
+</tbody>
+</table>
+<pre class="mermaid">flowchart LR
+    subgraph DES[&quot;aryadash-designer (:4201 + server.js :3001)&quot;]
+        AP[&quot;AiPanelComponent&quot;]
+        EL[&quot;ExampleLoaderService&quot;]
+        SV[&quot;server.js&quot;]
+        EXA[&quot;src/assets/examples/ (copies)&quot;]
+    end
+    subgraph DASH[&quot;aryadash-dashboard (:4200)&quot;]
+        CFG[&quot;src/config/{product}/*.json&quot;]
+        SRC[&quot;src/app/table/table.component.ts&quot;]
+    end
+    EL -- &quot;read examples + global.json&quot; --&gt; LINK[&quot;src/assets/config&lt;br/&gt;(symlink)&quot;]
+    LINK --&gt; CFG
+    AP -- &quot;Save&quot; --&gt; SV
+    SV -- &quot;fs.writeFileSync&quot; --&gt; LINK
+    SV -- &quot;read-only source for prompts&quot; --&gt; SRC
+    EXA -. &quot;copied earlier from&quot; .-&gt; CFG
+</pre>
+<p>Consequences worth knowing: saving in the Designer changes the Dashboard's config immediately (no
+copy step, <code>ng serve</code> picks it up), and the Designer only works when both folders sit side by side
+as they do in <code>~/VIPLine-billing/</code>.</p>
+<h2 id="modes">Modes</h2>
+<table>
+<thead>
+<tr>
+<th>Mode</th>
+<th>Input</th>
+<th>What is sent</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Generate</td>
+<td>Plain-English description</td>
+<td>Full system prompt (schema + examples + global config + source)</td>
+</tr>
+<tr>
+<td>Explain</td>
+<td>A JSON config</td>
+<td>"Explain section by section: element, data source, fields, filters/actions"</td>
+</tr>
+<tr>
+<td>Modify</td>
+<td>JSON config + a line starting <code>CHANGE:</code></td>
+<td>"Apply the change, keep all other keys, return only JSON"</td>
+</tr>
+</tbody>
+</table>
+<h2 id="how-to-run">How to run</h2>
+<pre><code class="language-bash">cd ~/VIPLine-billing/aryadash-designer
+npm install
+node server.js        # needs AWS credentials only if you use Bedrock
+npm start             # http://localhost:4201, open Settings to add API key / Bedrock model
+</code></pre>
+<h2 id="interview-angle">Interview angle</h2>
+<ul>
+<li>Modern Angular: standalone, <code>inject()</code>, signals/<code>computed</code>, lazy <code>loadComponent</code>, functional providers.</li>
+<li>Wrapping an async iterator / <code>ReadableStream</code> in an RxJS <code>Observable</code> to stream tokens into the UI.</li>
+<li>Prompt building with <code>switchMap</code> + <code>forkJoin</code> to fetch context in parallel.</li>
+<li>Cross-app design: the Designer edits the Dashboard's real configs through a symlink, so there is no import/export step - and no runtime coupling between the two apps.</li>
+<li>Security talking point: the direct SDK path uses <code>dangerouslyAllowBrowser: true</code> with a key in
+  <code>localStorage</code> — fine for a local dev tool, not for production; the Bedrock path keeps
+  credentials on the server.</li>
+</ul></main></div>
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+mermaid.initialize({ startOnLoad: false, theme: dark ? 'dark' : 'default', securityLevel: 'loose', flowchart: { htmlLabels: true } });
+const blocks = [...document.querySelectorAll('pre.mermaid')];
+for (let i = 0; i < blocks.length; i++) {
+  const el = blocks[i];
+  const src = el.textContent;
+  try {
+    const { svg } = await mermaid.render('mmd' + i, src);
+    el.innerHTML = svg;
+    el.setAttribute('data-processed', 'true');
+  } catch (e) {
+    el.setAttribute('data-error', 'true');
+    el.textContent = 'Diagram error: ' + e.message + ' --- ' + src;
+  }
+}
+</script>
+</body></html>

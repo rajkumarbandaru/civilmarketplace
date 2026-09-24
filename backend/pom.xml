@@ -39,6 +39,8 @@
         <module>audit-service</module>
         <module>messaging-service</module>
         <module>support-service</module>
+        <module>media-service</module>
+        <module>procurement-service</module>
     </modules>
 
     <properties>

@@ -1,0 +1,526 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Arya CMS — 5-Years-Experience Interview Playbook</title>
+<style>
+:root{--bg:#f6f7f9;--fg:#1f2933;--muted:#5b6770;--card:#fff;--line:#e3e6ea;--accent:#3730a3;--accent-bg:#eef2ff;--head:#0f172a;--code:#f1f3f6}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1115;--fg:#e6e8eb;--muted:#9aa4ad;--card:#171a20;--line:#2a2f37;--accent:#a5b4fc;--accent-bg:#1e2240;--head:#05070b;--code:#1f232b}}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.6 system-ui,-apple-system,Segoe UI,sans-serif;background:var(--bg);color:var(--fg)}
+header{background:var(--head);color:#fff;padding:18px 16px}
+header .in{max-width:1200px;margin:0 auto}
+header h1{margin:0;font-size:22px;line-height:1.3} header p{margin:4px 0 0;opacity:.75;font-size:13px}
+header a{color:#c7d2fe}
+.wrap{max-width:1200px;margin:0 auto;padding:0 16px 60px;display:flex;gap:24px;align-items:flex-start}
+nav.toc{position:sticky;top:12px;flex:0 0 250px;max-height:calc(100vh - 24px);overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:16px;font-size:13px}
+nav.toc ul{list-style:none;margin:0;padding-left:10px} nav.toc>ul{padding-left:0}
+nav.toc a{color:var(--accent);text-decoration:none;display:block;padding:2px 0}
+main{flex:1;min-width:0}
+main h1{display:none}
+h2{font-size:20px;margin:32px 0 10px;padding-top:8px;border-top:1px solid var(--line)}
+h3{font-size:16px;margin:20px 0 8px}
+a{color:var(--accent)}
+blockquote{margin:12px 0;padding:10px 14px;background:var(--accent-bg);border-left:4px solid var(--accent);border-radius:6px}
+blockquote p{margin:4px 0}
+table{border-collapse:collapse;width:100%;background:var(--card);font-size:14px;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:6px 10px;text-align:left;vertical-align:top}
+th{background:var(--accent-bg)}
+code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:13px}
+pre{background:var(--code);padding:12px;border-radius:8px;overflow-x:auto;font-size:13px;line-height:1.45}
+pre code{background:none;padding:0}
+pre.mermaid{background:var(--card);border:1px solid var(--line);text-align:center}
+hr{border:0;border-top:1px solid var(--line);margin:24px 0}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin:12px 0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px}
+.card h3{margin:0 0 6px;font-size:16px}.card p{margin:0;color:var(--muted);font-size:13px}
+.card .meta{margin-top:8px;font-size:12px;color:var(--muted)}
+@media (max-width:900px){.wrap{display:block}nav.toc{position:static;max-height:none;margin-top:16px}}
+</style></head><body>
+<header><div class="in"><h1>Arya CMS — 5-Years-Experience Interview Playbook</h1><p>Source: ~/june-24/arya-cms/jc-cms · generated from <code style="color:#fff;background:none">01-five-years-experience-playbook.md</code></p></div></header>
+<div class="wrap"><nav class="toc"><b>Contents</b><div class="toc">
+<ul>
+<li><a href="#1-what-5-years-means-to-the-interviewer">1. What 5 years means to the interviewer</a></li>
+<li><a href="#2-your-positioning-numbers-to-have-on-the-tip-of-your-tongue">2. Your positioning: numbers to have on the tip of your tongue</a></li>
+<li><a href="#3-resume-cv-bullets-copy-these">3. Resume / CV bullets (copy these)</a></li>
+<li><a href="#4-the-3-minute-project-walkthrough-rehearse-out-loud">4. The 3-minute project walkthrough (rehearse out loud)</a></li>
+<li><a href="#5-depth-ladder-how-far-each-topic-must-go-at-5-years">5. Depth ladder — how far each topic must go at 5 years</a></li>
+<li><a href="#6-senior-level-star-stories-four-with-impact-framed">6. Senior-level STAR stories (four, with impact framed)</a></li>
+<li><a href="#7-architecture-questions-you-will-get-at-this-level">7. Architecture questions you will get at this level</a></li>
+<li><a href="#8-behavioural-questions-the-5-year-versions">8. Behavioural questions — the 5-year versions</a></li>
+<li><a href="#9-rapid-fire-knowledge-they-still-spot-check-answer-in-one-or-two-sentences">9. Rapid-fire knowledge they still spot-check (answer in one or two sentences)</a></li>
+<li><a href="#10-questions-to-ask-them-a-5-year-candidate-is-expected-to-interview-back">10. Questions to ask them (a 5-year candidate is expected to interview back)</a></li>
+<li><a href="#11-red-flags-to-avoid">11. Red flags to avoid</a></li>
+<li><a href="#12-seven-day-prep-plan">12. Seven-day prep plan</a></li>
+<li><a href="#13-live-coding-take-home-what-theyd-hand-you-and-how-to-use-this-project">13. Live-coding / take-home: what they'd hand you, and how to use this project</a></li>
+</ul>
+</div>
+</nav><main><p style="font-size:13px"><a href="index.html">Interview guide</a> · <a href="five-years-experience-playbook.html">5-yr playbook</a> · <a href="projects/index.html">All projects</a></p><h1 id="how-to-handle-this-interview-with-5-years-of-experience">How to Handle This Interview With 5 Years of Experience</h1>
+<p>A senior-leaning UI developer is not judged on "do you know React" — that is assumed. At 5 years
+you are judged on <strong>ownership, depth, trade-offs, and impact</strong>. This page is the playbook for
+presenting Arya CMS (<code>jc-cms</code>) at that level: what to claim, how deep each answer must go, the
+stories to tell, the questions you will get back, and what to prepare in the last week.</p>
+<blockquote>
+<p>Companion pages: <a href="index.html">the full project guide</a> ·
+<a href="projects/index.html">all projects</a></p>
+</blockquote>
+<hr />
+<h2 id="1-what-5-years-means-to-the-interviewer">1. What 5 years means to the interviewer</h2>
+<pre class="mermaid">flowchart LR
+  A[&quot;0-2 yrs&lt;br/&gt;Executes tickets&lt;br/&gt;'I built this screen'&quot;] --&gt; B[&quot;2-4 yrs&lt;br/&gt;Owns features&lt;br/&gt;'I built this flow end to end'&quot;]
+  B --&gt; C[&quot;5+ yrs — YOU&lt;br/&gt;Owns systems &amp; decisions&lt;br/&gt;'I designed how all screens are built,&lt;br/&gt;and here is why, and what it cost'&quot;]
+  C --&gt; D[&quot;Lead / Staff&lt;br/&gt;Owns direction &amp; people&quot;]
+</pre>
+<p>At 5 years they expect four things in every answer:</p>
+<table>
+<thead>
+<tr>
+<th>They listen for</th>
+<th>Weak (2-yr) answer</th>
+<th>Your answer</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Scope</strong></td>
+<td>"I worked on the reseller dashboard."</td>
+<td>"I own the shared rendering engine that four production sites are built on, plus the reseller portal built on top of it."</td>
+</tr>
+<tr>
+<td><strong>Why</strong></td>
+<td>"We used Context."</td>
+<td>"We split state into global and per-section contexts, and split state from setters, because every keystroke otherwise re-rendered the whole page tree."</td>
+</tr>
+<tr>
+<td><strong>Cost</strong></td>
+<td>"It works."</td>
+<td>"It cost us debuggability — a typo in a JSON path fails silently — so I added a fixed triage checklist and I would add JSON Schema validation next."</td>
+</tr>
+<tr>
+<td><strong>Impact</strong></td>
+<td>"I fixed a bug."</td>
+<td>"A reload lost the session data, so every KPI hung on a skeleton; the fix was in the shared provider and fixed that class of bug for every localStorage-backed field on all four sites."</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The one-line frame to open with:</strong> <em>"I'm the engineer for a config-driven UI platform — one React
+engine, four production sites, two brands — and most of my work is in the engine, so a fix or a
+feature lands on all four sites at once."</em></p>
+<hr />
+<h2 id="2-your-positioning-numbers-to-have-on-the-tip-of-your-tongue">2. Your positioning: numbers to have on the tip of your tongue</h2>
+<table>
+<thead>
+<tr>
+<th>Fact</th>
+<th>Number</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Sites rendered by one codebase</td>
+<td><strong>4</strong> (InfiMobile &amp; Xmobee websites, two reseller portals), <strong>2 brands</strong></td>
+</tr>
+<tr>
+<td>Code projects in the repo</td>
+<td><strong>7</strong> (5 Next.js apps, 1 Express API, 1 shared engine)</td>
+</tr>
+<tr>
+<td>Shared engine</td>
+<td>~<strong>174</strong> component files, <strong>24</strong> hooks, ≈<strong>35</strong> registered component types</td>
+</tr>
+<tr>
+<td>Total JS/JSX</td>
+<td>≈<strong>39.5k</strong> lines across apps + engine</td>
+</tr>
+<tr>
+<td>Page configs</td>
+<td><strong>96 / 39 / 97 / 53</strong> pages per site, plus 39-58 modals each</td>
+</tr>
+<tr>
+<td>API surface</td>
+<td><strong>100-116</strong> endpoint definitions per site, 22-25 backends</td>
+</tr>
+<tr>
+<td>Per-site scripts</td>
+<td>~<strong>215-225</strong> small ES modules driven by config</td>
+</tr>
+<tr>
+<td>Repo history</td>
+<td>≈<strong>2,400</strong> commits</td>
+</tr>
+</tbody>
+</table>
+<p>Do not recite the table. Use one number per claim: <em>"about 35 component types cover 96 pages on
+the main site — that ratio is the whole argument for the config-driven approach."</em></p>
+<hr />
+<h2 id="3-resume-cv-bullets-copy-these">3. Resume / CV bullets (copy these)</h2>
+<ul>
+<li>Built and own a <strong>JSON-configuration-driven UI engine</strong> (React 18, Next.js 14) that renders
+  <strong>4 production telecom sites across 2 brands</strong> from one codebase — ~35 reusable components and a
+  declarative event/action system replace hand-coded pages.</li>
+<li>Designed the <strong>runtime data layer</strong>: global + per-section React contexts with opt-in
+  <code>localStorage</code> persistence and cross-tab sync via <code>BroadcastChannel</code>; fixed a persistence race
+  that silently dropped session data on reload across every site.</li>
+<li>Built a <strong>generic API execution layer</strong> driven by a per-site <code>api.json</code> contract — URL/body/header
+  mapping, debouncing, in-flight coalescing, write serialization, rate limiting, and centralized
+  session-expiry handling with return-to-page redirect.</li>
+<li>Implemented a <strong>config-driven page-level auth gate</strong> reusable by any tenant (<code>authentication.required</code>),
+  removing hardcoded login/dashboard routes from engine code.</li>
+<li>Delivered a <strong>reseller portal</strong> (dashboard, single and bulk SIM activations, stock requests,
+  staff/retailer management, wallet and commission reports) entirely as configuration on that engine.</li>
+<li>Shipped a <strong>light/dark theme system</strong> using CSS custom-property tokens with pre-hydration theme
+  application (no flash), opted into per site from config.</li>
+<li>Improved perceived performance: viewport-lazy section mounting, <code>next/dynamic</code> for heavy widgets,
+  critical-CSS inlining, and a single loading overlay per event chain instead of one per API call.</li>
+<li>Hardened the <strong>build/deploy pipeline</strong> (CleanCSS bundling with content-hash cache busting,
+  encrypted API config, packaging fixes that were silently dropping files from the release zip).</li>
+</ul>
+<hr />
+<h2 id="4-the-3-minute-project-walkthrough-rehearse-out-loud">4. The 3-minute project walkthrough (rehearse out loud)</h2>
+<pre class="mermaid">flowchart TD
+  A[&quot;1. Problem (20s)&lt;br/&gt;2 brands, 4 sites, ~100 pages each,&lt;br/&gt;marketing changes weekly&quot;] --&gt; B[&quot;2. Idea (20s)&lt;br/&gt;Pages become data:&lt;br/&gt;JSON tree + registry of components&quot;]
+  B --&gt; C[&quot;3. Architecture (60s)&lt;br/&gt;SSR resolves JSON → engine renders →&lt;br/&gt;events run action chains → api.json calls REST&quot;]
+  C --&gt; D[&quot;4. My part (40s)&lt;br/&gt;engine: data layer, event system, API layer,&lt;br/&gt;auth gate, theming + the reseller portal&quot;]
+  D --&gt; E[&quot;5. Hard bit (30s)&lt;br/&gt;one real trade-off or bug,&lt;br/&gt;told with cause and fix&quot;]
+  E --&gt; F[&quot;6. What's next (10s)&lt;br/&gt;TypeScript + JSON Schema,&lt;br/&gt;tests on the engine hooks&quot;]
+</pre>
+<p>Script for step 3, word for word:</p>
+<blockquote>
+<p>"A request hits one catch-all route. <code>getServerSideProps</code> reads that site's <code>cms-config.json</code>,
+finds the page's JSON file, loads it with the API contract and the data-source manifest, builds
+the SEO tags, and returns it all as props. On the client, <code>PageRenderer</code> walks
+sections → columns → components; a registry maps each <code>type</code> string to a React component, and
+container components recurse into their children. Nothing has an <code>onClick</code> in code — a component
+declares <code>actions: { click: 'doLogin' }</code>, and the page's <code>events.doLogin</code> is an ordered list of
+steps like hash the password, call this API, run this script. One capture-phase listener per
+section catches the DOM event, finds the JSON node, and runs that chain."</p>
+</blockquote>
+<hr />
+<h2 id="5-depth-ladder-how-far-each-topic-must-go-at-5-years">5. Depth ladder — how far each topic must go at 5 years</h2>
+<p>For every row: they will ask the surface question, then push. Be ready for the third column.</p>
+<table>
+<thead>
+<tr>
+<th>Topic</th>
+<th>Surface answer</th>
+<th>Where they push, and what you say</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Context API</strong></td>
+<td>"We use Context for global and local data."</td>
+<td>"Context re-renders every consumer on any change. We split <code>LocalDataContext</code> from <code>LocalDataActionContext</code> so components that only write don't re-render when the data changes, and section state is scoped to a section rather than the page. If a page grew hot, the next step is a selector-based store (Zustand/<code>useSyncExternalStore</code>) — Context is a dependency-injection tool, not a performance-optimised store."</td>
+</tr>
+<tr>
+<td><strong>Re-render control</strong></td>
+<td>"<code>React.memo</code> on SectionRenderer."</td>
+<td>"<code>memo</code> only helps if props are stable — our section config objects come from props, so they're referentially stable per page; but <code>sourcesConfig</code> was a fresh object each navigation, which re-ran an effect and caused a real persistence bug. Identity, not just value, is what you must reason about."</td>
+</tr>
+<tr>
+<td><strong>useEffect</strong></td>
+<td>"For data loading."</td>
+<td>"Effects that depend on freshly created objects re-run every render/navigation. We also avoid conditional hooks — the auth gate computes its route unconditionally and decides afterwards, because hook order must not vary between renders."</td>
+</tr>
+<tr>
+<td><strong>Stale closures</strong></td>
+<td>"Use refs."</td>
+<td>"The interceptor holds <code>localDataRef/globalDataRef</code> updated on every render, so an async chain reads current values without re-subscribing DOM listeners. But refs don't fix ordering: our chain ran on capture phase and the input's own <code>onChange</code> ran later on bubble, so merging the whole snapshot back reverted the user's change — the fix was diffing and merging only the keys the chain touched."</td>
+</tr>
+<tr>
+<td><strong>SSR/hydration</strong></td>
+<td>"Next.js does SSR."</td>
+<td>"Anything that depends on browser-only state (<code>sessionStorage</code> auth, theme) must not render differently on server and client. We gate protected pages on an <code>authReady</code> flag and render <code>null</code> until we know, and apply the theme in a blocking script in <code>_document</code> before hydration so there's no flash and no mismatch."</td>
+</tr>
+<tr>
+<td><strong>Code splitting</strong></td>
+<td>"<code>next/dynamic</code>."</td>
+<td>"Tables, Charts, Carousel and Accordion are <code>ssr:false</code> dynamic imports because they're heavy and below the fold; per-site scripts are lazy <code>import()</code> chunks. We also prefetch every script in a chain in parallel when the chain starts, because a cold import used to resolve <em>after</em> the API result it depended on."</td>
+</tr>
+<tr>
+<td><strong>Rendering perf</strong></td>
+<td>"Lazy load."</td>
+<td>"Only the first section renders eagerly; the rest mount on IntersectionObserver with a 50% root margin. The placeholder <code>minHeight</code> must be released once mounted, otherwise you reserve dead space forever — that was a real bug."</td>
+</tr>
+<tr>
+<td><strong>Network layer</strong></td>
+<td>"We call fetch."</td>
+<td>"One executor: config-driven URL/body/header mapping, 300ms debounce, in-flight coalescing on a method+URL+body key, serialization of writes, rate-limit windows, errors returned as values rather than thrown, and one central place that detects 403/'Invalid session', clears the session, remembers the URL and redirects to login."</td>
+</tr>
+<tr>
+<td><strong>Auth</strong></td>
+<td>"sessionStorage flag."</td>
+<td>"That's the client gate — it prevents anonymous navigation and flashing protected chrome. Real authorisation is server-side: every call carries <code>SESSIONID</code> and the backend rejects it. I'd be explicit in the interview that a client flag is UX, not security."</td>
+</tr>
+<tr>
+<td><strong>Security</strong></td>
+<td>"We don't store secrets."</td>
+<td>"The API contract is AES-encrypted at build time and decrypted per definition at runtime with a key from env. Passwords are SHA-256 hashed client-side <em>in addition to</em> TLS, not instead of it. And I'd call out the debt: credentials that shouldn't be in source, which belong in env/IAM."</td>
+</tr>
+<tr>
+<td><strong>CSS at scale</strong></td>
+<td>"We use tokens."</td>
+<td>"28+ <code>--rp-*</code> custom properties, light values under <code>[data-rp-theme='light']</code>. The traps I hit: <code>!important</code> beats specificity so a themed override silently loses; <code>color-scheme: dark</code> restyles native controls with no author rule to grep for; and a stale rule inlined in generated <code>critical.css</code> beats your stylesheet — if a rule is <em>absent</em> from <code>document.styleSheets</code> rather than overridden, suspect a broken comment."</td>
+</tr>
+<tr>
+<td><strong>Testing</strong></td>
+<td>"We test manually."</td>
+<td>Don't stop there: "The engine's pure parts — <code>getConfigByEventId</code>, <code>readData</code>, the changed-key diff, <code>buildUrlAndBody</code> — are perfect unit-test targets and that's the gap I'd close first, then a couple of Playwright journeys for login → dashboard and checkout. I've been verifying with headless browser scripts, which is a symptom of that missing layer."</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="6-senior-level-star-stories-four-with-impact-framed">6. Senior-level STAR stories (four, with impact framed)</h2>
+<p>Pick two or three; don't tell all four. Every one ends with <em>what it changed beyond the bug</em>.</p>
+<p><strong>A. The silent data loss (debugging depth).</strong>
+<em>Situation:</em> Reseller dashboard KPIs worked after login but hung on a loading shimmer after a
+page reload. <em>Task:</em> Nobody could tell whether it was the API, the config or the UI.
+<em>Action:</em> Ruled it out layer by layer — confirmed the field names against the live API response,
+confirmed the call fired, then found the data was missing from React state on reload. Root cause
+was in the shared global-data provider: an effect re-ran on every navigation and overwrote the
+"last persisted" snapshot, so a deep-equality check concluded the value was already saved and
+skipped the actual <code>localStorage</code> write forever. <em>Result:</em> One-line class of fix in the provider
+restored persistence for <strong>every</strong> localStorage-backed field on all four sites, and I registered
+another field that had never been declared as persistent. I also wrote down a three-step triage
+order for "value never resolves" so the next person doesn't re-derive it.
+<em>Senior lesson to say out loud:</em> "Shared-state caches must have exactly one writer. Two code paths
+updating the same bookkeeping is how you get a bug that only appears on reload."</p>
+<p><strong>B. The checkbox that couldn't be unticked (systems thinking).</strong>
+A checkbox could be ticked once, never unticked. Cause was ordering, not logic: the engine's event
+interceptor runs on the <strong>capture</strong> phase and awaits an async chain, while the component's own
+model write happens later on the <strong>bubble</strong> phase — so the chain merged its stale snapshot over the
+newer state. <em>Result:</em> Changed the merge to diff and apply only the keys the chain actually
+changed. This was an engine fix affecting every component that has both a data binding and a click
+action; I also removed the redundant action from the config, since the binding already recorded the
+value — and made that a convention: <em>don't add an action just to record an input's own value.</em></p>
+<p><strong>C. Light theme on a dark-only product (scoping and saying no).</strong>
+The ask was "add light mode". Instead of patching each reported element, I tokenised the palette,
+added light values in one block, and swept ~130 hardcoded colours with a script — but deliberately
+<strong>not</strong> white text on permanently-red buttons, because that text is correct in both themes. That
+judgement call is the answer to "how do you decide the boundary of a refactor": <em>convert what is
+theme-reactive, leave what is brand-fixed, and write down the rule so the next sweep doesn't
+over-apply.</em></p>
+<p><strong>D. The deploy that shipped nothing (ownership beyond your layer).</strong>
+A stray <code>;</code> in a CSS file made the minifier emit a warning; the compressor treats warnings as fatal
+and exits, so no new zip was produced — and because the failure skipped cleanup, a stale zip from
+an earlier build stayed in place and looked shippable. <em>Result:</em> Fixed the CSS in two sites, then
+audited what the package actually contained versus what the app needs — found <code>robots.txt</code> and a
+production env file that were never being shipped, and a dev-only symlink that made a missing asset
+folder look fine locally while 404ing in production. <em>Lesson:</em> "Verify the artifact, not the
+build log."</p>
+<hr />
+<h2 id="7-architecture-questions-you-will-get-at-this-level">7. Architecture questions you will get at this level</h2>
+<p><strong>"Design this from scratch — how would you build a config-driven CMS?"</strong>
+Draw this, then talk through the numbered decisions:</p>
+<pre class="mermaid">flowchart TB
+  subgraph Contract
+    SCH[&quot;Schema: page = sections[] → columns[] → component{type, props, actions}&lt;br/&gt;events = name → action[]&lt;br/&gt;api contract = backends + endpoints&quot;]
+  end
+  subgraph Runtime
+    RES[&quot;Resolver (server): route → config files → props + SEO&quot;]
+    REN[&quot;Renderer: registry type → component, recursive containers&quot;]
+    STA[&quot;State: app-scoped + section-scoped, declarative bindings&quot;]
+    EVT[&quot;Behaviour: delegated listener → action interpreter&quot;]
+    NET[&quot;Transport: contract-driven executor (retry, dedupe, auth)&quot;]
+  end
+  subgraph Authoring
+    ED[&quot;Visual editor writes the same schema&quot;]
+    VAL[&quot;Schema validation + preview + versioned publish&quot;]
+  end
+  SCH --&gt; RES --&gt; REN --&gt; STA --&gt; EVT --&gt; NET
+  SCH --&gt; ED --&gt; VAL --&gt; SCH
+</pre>
+<p>Decisions to defend: (1) <strong>interpreter over code generation</strong> — configs are data you can validate,
+diff and publish without a build; (2) <strong>escape hatch on purpose</strong> — a <code>scriptUrl</code> step runs real
+JavaScript, because pure config never covers the last 10%; (3) <strong>contract for the network</strong> so
+backend changes don't touch React; (4) <strong>versioned publish with validation</strong>, which is the part we
+under-invested in and the first thing I'd add.</p>
+<p><strong>"Where does this architecture break?"</strong> Be honest and specific: debuggability (silent failures on
+a mistyped path), no compile-time safety, large page JSON files (one is 527 KB — you <code>grep</code> for an
+anchor string instead of opening it), an event resolver that must understand every container type
+(repeaters, layers, tabs each needed special handling), and config drift between sites that only a
+side-by-side diff catches.</p>
+<p><strong>"How would you migrate to the App Router / Server Components?"</strong>
+"Marketing pages first — they're content-only, so server components cut client JS with no behaviour
+change. The portals stay on the client for a long time: the whole engine is event- and state-driven.
+I'd do it per route group, keep the same config schema, and measure bundle size before and after
+rather than migrating for fashion."</p>
+<p><strong>"How do you add a fifth site?"</strong> "Create <code>config/&lt;site&gt;/</code>, declare pages, the API contract and the
+data sources, set the layout and auth flags — and ideally ship nothing in <code>packages/</code>. When a new
+site <em>does</em> need engine code, that's my signal something site-specific leaked into the engine, like
+the hardcoded route names I pulled out into per-instance props."</p>
+<p><strong>"How would you scale the team on this?"</strong> "Schema validation in CI so a bad config can't merge, a
+component catalogue with prop docs, ownership split between engine and site configs, and a
+convention doc — most of our recurring bugs were conventions people couldn't have known."</p>
+<hr />
+<h2 id="8-behavioural-questions-the-5-year-versions">8. Behavioural questions — the 5-year versions</h2>
+<table>
+<thead>
+<tr>
+<th>Question</th>
+<th>Frame to use</th>
+<th>Concrete hook from this project</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>"Tell me about a technical decision you made."</td>
+<td>Decision → alternatives → constraint that decided it → what it cost</td>
+<td>Auth gate as config vs. per-site code; cost is that a client flag is UX-only, so the backend must still enforce</td>
+</tr>
+<tr>
+<td>"A disagreement with a teammate or PM."</td>
+<td>Disagree on approach, align on outcome, make the trade-off visible</td>
+<td>A "rebuild the login page as a new React + Tailwind app" request: I proposed rebuilding it inside the existing engine instead — same visual result, no second stack to maintain, and the real wiring (hashing, API, session) stayed untouched</td>
+</tr>
+<tr>
+<td>"Something you shipped that broke."</td>
+<td>Own it, explain detection, explain the systemic fix</td>
+<td>The loader flicker / stale-zip deploy: fixes were "make the bad state impossible", not "be more careful"</td>
+</tr>
+<tr>
+<td>"How do you review code?"</td>
+<td>Correctness → data flow → identity/ordering → conventions → tests</td>
+<td>I look for shared state with two writers, effects depending on fresh objects, <code>!important</code> added to win a cascade fight instead of fixing specificity</td>
+</tr>
+<tr>
+<td>"How do you mentor?"</td>
+<td>Write the rule down where it will be found</td>
+<td>I keep a running conventions + gotchas log in the repo, so "why doesn't my themed override apply" is answered before it's asked</td>
+</tr>
+<tr>
+<td>"How do you estimate?"</td>
+<td>Split known from unknown, timebox the unknown</td>
+<td>Porting a feature between the two portals: the copy is hours, the divergence audit is the risk — so I diff configs and scripts first, then estimate</td>
+</tr>
+<tr>
+<td>"Working with backend?"</td>
+<td>Contract-first</td>
+<td>Field names are checked against the live response, not assumed; several "UI bugs" were fields the backend never returned, which I raised as a product gap rather than faking</td>
+</tr>
+<tr>
+<td>"Priorities with a deadline?"</td>
+<td>Cut scope, not correctness</td>
+<td>Ship the theme tokens sitewide (one place) before chasing individual reported elements</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="9-rapid-fire-knowledge-they-still-spot-check-answer-in-one-or-two-sentences">9. Rapid-fire knowledge they still spot-check (answer in one or two sentences)</h2>
+<ul>
+<li><strong><code>useMemo</code> vs <code>useCallback</code> vs <code>memo</code></strong> — value, function identity, component; all three are only
+  useful when identity stability actually feeds a comparison somewhere downstream.</li>
+<li><strong>Why keys matter</strong> — reconciliation identity; index keys corrupt state in reorderable lists. We
+  also use <code>key</code> deliberately to <em>force</em> a remount (<code>ValidationProvider key={pageId}</code>) so stale
+  validators don't leak across pages.</li>
+<li><strong>Strict mode double-invoke</strong> — effects run twice in dev; effects must be idempotent, which is
+  exactly why an effect that overwrote a persistence snapshot was dangerous.</li>
+<li><strong><code>flushSync</code></strong> — commits state synchronously when the next step in an imperative chain must see
+  it; used sparingly in the executor because it forces a synchronous re-render.</li>
+<li><strong>Event delegation</strong> — one listener per section instead of hundreds; capture vs bubble decides
+  who runs first, which caused a real ordering bug.</li>
+<li><strong>Debounce vs throttle</strong> — debounce waits for quiet (our 300 ms API debounce and typing commits),
+  throttle caps rate.</li>
+<li><strong>SSR vs SSG vs ISR</strong> — our portals are SSR (per-user, auth-gated), landing/blog are static
+  exports (campaign and content pages, cheap and CDN-friendly).</li>
+<li><strong>Deep vs shallow equality</strong> — we use <code>fast-deep-equal</code> before writing to <code>localStorage</code>; the cost
+  is that a wrong "already equal" conclusion silently skips the write, which is what bit us.</li>
+<li><strong>Error handling</strong> — the executor returns <code>{error: true}</code> instead of throwing so a chain can
+  branch; a thrown error in an async chain is easy to swallow.</li>
+<li><strong>Accessibility</strong> — the honest answer: semantic elements and Bootstrap defaults, but a
+  config-driven engine makes it a <em>platform</em> opportunity — enforce labels and focus order in the
+  component layer once and every page inherits it. Say that; it scores well.</li>
+</ul>
+<hr />
+<h2 id="10-questions-to-ask-them-a-5-year-candidate-is-expected-to-interview-back">10. Questions to ask them (a 5-year candidate is expected to interview back)</h2>
+<ol>
+<li>Who owns the platform layer versus feature teams here, and how are breaking changes coordinated?</li>
+<li>What does your release pipeline look like end to end, and what's your rollback story?</li>
+<li>What's the current split of server versus client rendering, and is there an App Router migration
+   in flight?</li>
+<li>How is UI quality enforced — types, schema validation, component tests, visual regression?</li>
+<li>What is the most painful part of your frontend codebase right now? (Then say how you'd approach it.)</li>
+<li>What would you want me to have shipped in my first 90 days?</li>
+</ol>
+<hr />
+<h2 id="11-red-flags-to-avoid">11. Red flags to avoid</h2>
+<ul>
+<li><strong>Over-claiming.</strong> Say "I own the engine and the reseller portal", not "I built everything".
+  If something wasn't verified end to end (a flow that needs a real payment or backend), say so —
+  senior engineers distinguish "verified" from "believed correct by construction".</li>
+<li><strong>Config-driven evangelism.</strong> If you can't name three downsides of your own architecture, you
+  sound junior.</li>
+<li><strong>Blaming tools or people.</strong> "The backend's field was misspelled" is a fact; the senior version is
+  "I mapped it, flagged it, and we kept the mapping in one place".</li>
+<li><strong>Vague performance talk.</strong> Never say "we optimised it" without the mechanism and the observation.</li>
+<li><strong>Silence on testing.</strong> Don't pretend; name the gap and the plan.</li>
+<li><strong>Reciting file names.</strong> Names support a point, they aren't a point.</li>
+</ul>
+<hr />
+<h2 id="12-seven-day-prep-plan">12. Seven-day prep plan</h2>
+<pre class="mermaid">flowchart LR
+  D1[&quot;Day 1&lt;br/&gt;Re-read the engine:&lt;br/&gt;renderer, interceptor,&lt;br/&gt;event router, executor&quot;] --&gt; D2[&quot;Day 2&lt;br/&gt;Draw all flows&lt;br/&gt;from memory, then check&quot;]
+  D2 --&gt; D3[&quot;Day 3&lt;br/&gt;Write 4 STAR stories,&lt;br/&gt;time them at 90s each&quot;]
+  D3 --&gt; D4[&quot;Day 4&lt;br/&gt;Depth ladder drills:&lt;br/&gt;push every answer 3 levels&quot;]
+  D4 --&gt; D5[&quot;Day 5&lt;br/&gt;System design:&lt;br/&gt;build the CMS on a whiteboard,&lt;br/&gt;twice, under 10 min&quot;]
+  D5 --&gt; D6[&quot;Day 6&lt;br/&gt;Rapid-fire React/Next&lt;br/&gt;+ behavioural rehearsal&quot;]
+  D6 --&gt; D7[&quot;Day 7&lt;br/&gt;Mock interview out loud,&lt;br/&gt;recorded; fix filler + hedging&quot;]
+</pre>
+<p>Daily rule: every answer must end with a <strong>cost or a trade-off</strong>. That single habit is what makes
+5 years sound like 5 years.</p>
+<hr />
+<h2 id="13-live-coding-take-home-what-theyd-hand-you-and-how-to-use-this-project">13. Live-coding / take-home: what they'd hand you, and how to use this project</h2>
+<table>
+<thead>
+<tr>
+<th>Likely exercise</th>
+<th>Use this project to shine</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>"Render this JSON as components"</td>
+<td>You've built exactly this — talk registry, recursion, unknown-type fallback, and keys</td>
+</tr>
+<tr>
+<td>"Build a form with validation"</td>
+<td>Controlled inputs, a validation context that components register into, validate-before-submit</td>
+</tr>
+<tr>
+<td>"Fetch with loading/error/retry"</td>
+<td>Debounce, coalescing identical in-flight requests, errors as values, one loading counter for a whole chain</td>
+</tr>
+<tr>
+<td>"Make this list fast"</td>
+<td>Virtualisation or IntersectionObserver mounting, stable identities, split contexts, memo where it's measurable</td>
+</tr>
+<tr>
+<td>"Add dark mode"</td>
+<td>Tokens over per-component colours, pre-hydration script, and the native-control <code>color-scheme</code> trap</td>
+</tr>
+<tr>
+<td>"Review this PR"</td>
+<td>Call out two-writer state, effects on unstable deps, <code>!important</code> used to win a cascade fight, missing cleanup</td>
+</tr>
+</tbody>
+</table>
+<p>Whatever the task: <strong>narrate the trade-off as you code</strong>. At 5 years, thinking out loud is the
+deliverable.</p></main></div>
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+mermaid.initialize({ startOnLoad: false, theme: dark ? 'dark' : 'default', securityLevel: 'loose', flowchart: { htmlLabels: true } });
+const blocks = [...document.querySelectorAll('pre.mermaid')];
+for (let i = 0; i < blocks.length; i++) {
+  const el = blocks[i];
+  const src = el.textContent;
+  try {
+    const { svg } = await mermaid.render('mmd' + i, src);
+    el.innerHTML = svg;
+    el.setAttribute('data-processed', 'true');
+  } catch (e) {
+    el.setAttribute('data-error', 'true');
+    el.textContent = 'Diagram error: ' + e.message + ' --- ' + src;
+  }
+}
+</script>
+</body></html>

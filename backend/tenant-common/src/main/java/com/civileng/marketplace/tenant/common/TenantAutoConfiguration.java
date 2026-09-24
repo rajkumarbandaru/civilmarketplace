@@ -53,6 +53,12 @@ public class TenantAutoConfiguration {
         return registration;
     }
 
+    /** Binds {@code @Async} work to the tenant that submitted it; see {@link TenantTaskDecorator}. */
+    @Bean
+    public TenantTaskDecorator tenantTaskDecorator() {
+        return new TenantTaskDecorator();
+    }
+
     /** Lets {@code @Scheduled} jobs sweep every tenant instead of just the bootstrap one. */
     @Bean
     public CrossTenantRunner crossTenantRunner(TenantRegistry registry) {
@@ -68,9 +74,25 @@ public class TenantAutoConfiguration {
     @ConditionalOnProperty(prefix = "spring.kafka", name = "bootstrap-servers")
     public TenantProvisioningListener tenantProvisioningListener(
             ObjectProvider<TenantSchemaMigrator> migrator,
-            ObjectProvider<TenantProvisionedCallback> callbacks) {
+            ObjectProvider<TenantProvisionedCallback> callbacks,
+            TenantProvisioningAcks acks) {
         return new TenantProvisioningListener(migrator.getIfAvailable(),
-                callbacks.orderedStream().toList());
+                callbacks.orderedStream().toList(), acks);
+    }
+
+    @Bean
+    @ConditionalOnProperty(prefix = "spring.kafka", name = "bootstrap-servers")
+    public TenantProvisioningAcks tenantProvisioningAcks(
+            @Value("${spring.kafka.bootstrap-servers}") String bootstrapServers,
+            @Value("${spring.application.name:unknown-service}") String service) {
+        Map<String, Object> config = new HashMap<>();
+        config.put(org.apache.kafka.clients.producer.ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        config.put(org.apache.kafka.clients.producer.ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
+                org.apache.kafka.common.serialization.StringSerializer.class);
+        config.put(org.apache.kafka.clients.producer.ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
+                org.apache.kafka.common.serialization.StringSerializer.class);
+        return new TenantProvisioningAcks(new org.springframework.kafka.core.KafkaTemplate<>(
+                new org.springframework.kafka.core.DefaultKafkaProducerFactory<>(config)), service);
     }
 
     /**
@@ -125,8 +147,8 @@ public class TenantAutoConfiguration {
     static class FeignTenantPropagation {
 
         @Bean
-        public TenantFeignInterceptor tenantFeignInterceptor() {
-            return new TenantFeignInterceptor();
+        public TenantFeignInterceptor tenantFeignInterceptor(InternalContextAutoConfiguration.InternalSigningKey key) {
+            return new TenantFeignInterceptor(key.bytes(), java.time.Clock.systemUTC());
         }
     }
 }

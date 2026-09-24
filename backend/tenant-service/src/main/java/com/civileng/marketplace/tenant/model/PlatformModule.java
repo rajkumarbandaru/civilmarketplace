@@ -29,6 +29,13 @@ public enum PlatformModule {
     REVIEWS("reviews"),
     SEARCH("search"),
 
+    /**
+     * B2B trade between organizations in the tenant: RFQ → quotation → purchase order → goods
+     * receipt → invoice (procurement-service). Marketplace tenants sell it alongside bookings, so
+     * a contractor firm can be the seller to a homeowner and the buyer from a supplier at once.
+     */
+    PROCUREMENT("procurement"),
+
     // Fee-collection vertical (hostels, institutions).
     RESIDENTS("residents"),
     FEE_PLANS("feeplans"),

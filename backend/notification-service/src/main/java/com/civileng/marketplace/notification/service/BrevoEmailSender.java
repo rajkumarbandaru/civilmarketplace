@@ -35,8 +35,13 @@ public class BrevoEmailSender {
     @Value("${app.email.brevo.api-key:}")
     private String apiKey;
 
+    /** Whether the platform's own Brevo key is a real one. */
     public boolean isConfigured() {
-        return apiKey != null && apiKey.startsWith(KEY_PREFIX);
+        return looksReal(apiKey);
+    }
+
+    public static boolean looksReal(String key) {
+        return key != null && key.startsWith(KEY_PREFIX);
     }
 
     /**
@@ -56,7 +61,14 @@ public class BrevoEmailSender {
         }
     }
 
+    /** Sends on the platform's own Brevo account. */
     public SendResult send(String fromAddress, String fromName, String to,
+                           String subject, String htmlContent) {
+        return send(apiKey, fromAddress, fromName, to, subject, htmlContent);
+    }
+
+    /** Sends on the given account — a tenant's own key, when it brings one. */
+    public SendResult send(String accountKey, String fromAddress, String fromName, String to,
                            String subject, String htmlContent) {
         Map<String, Object> body = Map.of(
                 "sender", Map.of("email", fromAddress, "name", fromName),
@@ -67,7 +79,7 @@ public class BrevoEmailSender {
         try {
             String response = restClient.post()
                     .uri(ENDPOINT)
-                    .header("api-key", apiKey)
+                    .header("api-key", accountKey)
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(body)
                     .retrieve()

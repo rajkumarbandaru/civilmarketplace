@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Engineer's Guide</title>
+<style>
+:root{
+  --bg:#f6f7fb; --surface:#ffffff; --surface-2:#f0f2f7; --text:#1b1f2a; --muted:#5b6475; --border:#dde1ea;
+  --accent:#3b5bdb; --ok:#2b8a3e; --warn:#c92a2a; --amber:#b7791f; --info:#1c7ed6;
+  --shadow:0 1px 2px rgba(20,30,60,.06),0 4px 14px rgba(20,30,60,.06);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f1218; --surface:#171b24; --surface-2:#1e2330; --text:#e6e9f0; --muted:#98a1b3; --border:#2a3040;
+    --accent:#7b94ff; --ok:#51cf66; --warn:#ff6b6b; --amber:#fcc419; --info:#74c0fc;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 14px rgba(0,0,0,.3);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f1218; --surface:#171b24; --surface-2:#1e2330; --text:#e6e9f0; --muted:#98a1b3; --border:#2a3040;
+  --accent:#7b94ff; --ok:#51cf66; --warn:#ff6b6b; --amber:#fcc419; --info:#74c0fc;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 14px rgba(0,0,0,.3);
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font:15px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;background:var(--surface-2);padding:1px 5px;border-radius:4px}
+a{color:var(--accent)}
+.wrap{max-width:1180px;margin:0 auto;padding:22px 16px 64px}
+.home{display:inline-block;margin-bottom:6px;color:var(--accent);text-decoration:none;font-size:13px}
+.top{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:flex-start}
+h1{font-size:25px;margin:0 0 6px}
+.lead{margin:0;color:var(--muted);max-width:800px}
+.btn{flex:none;border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:8px;padding:7px 12px;cursor:pointer;font:inherit;font-size:14px}
+.btn:hover{border-color:var(--accent)}
+.layout{display:grid;grid-template-columns:216px minmax(0,1fr);gap:26px;margin-top:22px;align-items:start}
+.layout>*{min-width:0}
+@media (max-width:900px){.layout{grid-template-columns:minmax(0,1fr)}}
+nav.toc{position:sticky;top:14px;font-size:14px}
+@media (max-width:900px){nav.toc{position:static;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px}}
+nav.toc ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px;counter-reset:s}
+nav.toc a{display:block;padding:6px 10px;border-radius:7px;text-decoration:none;color:var(--muted);border-left:3px solid transparent}
+nav.toc a:hover{background:var(--surface-2);color:var(--text)}
+nav.toc a.on{color:var(--text);font-weight:600;background:var(--surface-2);border-left-color:var(--accent)}
+section{background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow);padding:20px 22px;margin-bottom:18px;scroll-margin-top:14px}
+section>h2{font-size:20px;margin:0 0 4px;display:flex;gap:10px;align-items:baseline}
+section>h2 .num{font:700 13px/1 ui-monospace,Menlo,monospace;color:var(--accent);padding-top:4px}
+.sub{color:var(--muted);margin:0 0 14px}
+h3{font-size:16px;margin:18px 0 8px}
+p{margin:0 0 12px}
+ul,ol{margin:0 0 12px;padding-left:22px}
+li{margin:5px 0}
+table{border-collapse:collapse;width:100%;font-size:14px;margin:6px 0 14px;display:block;overflow-x:auto}
+th,td{text-align:left;padding:9px 11px;border-bottom:1px solid var(--border);vertical-align:top}
+th{font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);background:var(--surface-2);white-space:nowrap}
+.callout{border-left:4px solid var(--info);background:color-mix(in srgb,var(--info) 8%,transparent);padding:10px 14px;border-radius:0 8px 8px 0;margin:0 0 14px}
+.callout.warn{border-color:var(--warn);background:color-mix(in srgb,var(--warn) 8%,transparent)}
+.callout.ok{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 8%,transparent)}
+.callout b{display:block;margin-bottom:3px}
+.risk b,.quote strong{display:block}
+.checks{display:flex;flex-direction:column;gap:8px;margin:10px 0 6px}
+.chk{display:flex;gap:10px;align-items:flex-start;background:var(--surface-2);border:1px solid var(--border);border-radius:9px;padding:9px 12px;cursor:pointer}
+.chk input{margin:4px 0 0;flex:none;width:16px;height:16px;accent-color:var(--accent)}
+.chk.done{opacity:.6}
+.chk.done .ct{text-decoration:line-through}
+.chk .ct{display:block;font-weight:600;font-size:14px}
+.chk .cd{display:block}
+.chk .cd{color:var(--muted);font-size:13.5px}
+.bar{display:flex;align-items:center;gap:10px;margin:4px 0 10px}
+.bar .track{flex:1;height:6px;background:var(--surface-2);border-radius:99px;overflow:hidden}
+.bar .track i{display:block;height:100%;width:0;background:var(--ok);transition:width .3s}
+.bar span{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+details{border:1px solid var(--border);border-radius:10px;margin:0 0 10px;background:var(--surface-2);overflow:hidden}
+details>summary{cursor:pointer;padding:11px 14px;font-weight:600;list-style:none;display:flex;justify-content:space-between;gap:10px;align-items:center}
+details>summary::-webkit-details-marker{display:none}
+details>summary::after{content:'+';color:var(--muted);font-weight:700}
+details[open]>summary::after{content:'−'}
+details .body{padding:0 14px 12px;background:var(--surface)}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin:8px 0 12px}
+.risk{border:1px solid var(--border);border-left:4px solid var(--warn);border-radius:10px;padding:11px 13px;background:var(--surface)}
+.risk b{display:block;font-size:14.5px;margin-bottom:3px}
+.risk span{color:var(--muted);font-size:13.5px}
+.pill{display:inline-block;font:700 10.5px/1 ui-monospace,Menlo,monospace;padding:4px 7px;border-radius:5px;border:1px solid var(--border);color:var(--muted);margin-right:6px}
+.pill.day{color:var(--accent);border-color:var(--accent)}
+.quote{border-left:3px solid var(--accent);padding:2px 0 2px 14px;margin:0 0 12px;color:var(--text)}
+.quote em{color:var(--muted);font-style:normal;display:block;font-size:13.5px;margin-top:3px}
+.foot{color:var(--muted);font-size:13px;margin-top:20px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="home" href="index.html">← All flows</a>
+  <div class="top">
+    <div>
+      <h1>Engineer's guide: owning this system at ~5 years' experience</h1>
+      <p class="lead">A practical handbook for working in <code>billing_micro_services</code>: getting oriented, shipping changes safely,
+        debugging production, and explaining the system. It assumes you've seen the flow walkthroughs. The checklists remember what you tick.</p>
+    </div>
+    <button class="btn" id="b-theme">Theme</button>
+  </div>
+
+  <div class="layout">
+    <nav class="toc" id="toc" aria-label="Contents"></nav>
+    <main id="main">
+
+      <section id="s1">
+        <h2><span class="num">01</span>What's different here</h2>
+        <p class="sub">You already know Spring Boot. These seven differences are what actually decide whether your change is safe.</p>
+        <div class="callout warn"><b>The one thing to internalize</b>This codebase will not stop you from breaking production: almost no tests, no schema migrations,
+          no rollback, and the main permission check is reported as a no-op. Your investigation is the safety net.</div>
+        <table>
+          <thead><tr><th>You'd expect</th><th>Reality here</th><th>So you…</th></tr></thead>
+          <tbody>
+            <tr><td>Feign + service discovery</td><td>Hand-rolled Apache HttpClient wrappers, configured host names, no gateway</td><td>Trace calls by grepping the host property, e.g. <code>mno.mgmt.host</code></td></tr>
+            <tr><td>Kafka / RabbitMQ</td><td>A MySQL table (<code>rmq_events</code>) each service polls. MQTT and Rabbit exist but are dormant</td><td>Assume no retry and no dead-letter: a handler that throws loses the event</td></tr>
+            <tr><td>Flyway migrations</td><td><code>ddl-auto=update</code> everywhere, no migration tool</td><td>Keep schema changes additive; they hit production on deploy</td></tr>
+            <tr><td>Roll back a bad deploy</td><td>No image versioning, no rollback stage</td><td>Plan fix-forward, always</td></tr>
+            <tr><td>Tests catch regressions</td><td>4 trivial test classes across ~117 modules, no CI test stage</td><td>Read "green build" as "it compiled"</td></tr>
+            <tr><td>Spring Security</td><td>Custom <code>SESSIONID</code> + <code>@ApiScope</code>, wired into a minority of services</td><td>Verify an endpoint is actually protected before assuming it is</td></tr>
+            <tr><td>4xx / 5xx on failure</td><td>Mostly HTTP 200 with a <code>status</code> field in the body</td><td>Treat "returning a proper status code" as a breaking change</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="s2">
+        <h2><span class="num">02</span>Your first week</h2>
+        <p class="sub">~117 modules and ~49 services. Don't read them: learn one vertical slice and the rest becomes pattern-matching.</p>
+        <p><span class="pill day">DAY 1-2</span><b>Follow the money.</b> Read the purchase and recharge walkthroughs, then
+          <code>CustomerSelfRechargeController</code> (skim, ~9,000 lines) → <code>PaymentFacade</code> (the newer, clean design) →
+          <code>OrderFulfillmentServiceImpl</code>. This one path shows both generations of style side by side.</p>
+        <p><span class="pill day">DAY 3</span><b>Learn the event bus.</b> <code>event-mgmt-utils</code>'s <code>EventService</code>, any
+          <code>*EventHooks</code> class, and <code>RMQEventRepository</code>'s polling query. A producer writes a row; every subscriber polls and filters.</p>
+        <p><span class="pill day">DAY 4</span><b>Learn one carrier path.</b> <code>mno_mgmt</code> is the most complete:
+          <code>activateSubscriber</code> → <code>allocateMnoSubscriptionReference</code> → <code>mno-gateway-api</code>. Every carrier integration is shaped like it.</p>
+        <p><span class="pill day">DAY 5</span><b>Learn where truth lives.</b> <code>.claude/INDEX.md</code> routes you to discovery docs per topic —
+          a map, not gospel. They're dated snapshots and some claims are stale (see section 08).</p>
+        <div class="callout ok"><b>The habit that matters</b>Before you rely on a fact, confirm it with grep: every caller of a method, every reader and writer of a table.</div>
+      </section>
+
+      <section id="s3">
+        <h2><span class="num">03</span>The change protocol</h2>
+        <p class="sub">What "senior" looks like here. Tick these off as you work — progress is saved in this browser.</p>
+        <h3>Before you write code</h3>
+        <div class="bar"><div class="track"><i data-bar="pre"></i></div><span data-lbl="pre"></span></div>
+        <div class="checks" data-group="pre">
+          <label class="chk"><input type="checkbox"><span><span class="ct">Find every caller</span><span class="cd">grep the symbol repo-wide, not just the file in the ticket</span></span></label>
+          <label class="chk"><input type="checkbox"><span><span class="ct">Decide if it's shared code</span><span class="cd">billing-util, billing-common-repository, billing-repostiory, event-mgmt-utils = platform-wide change; list the consuming services</span></span></label>
+          <label class="chk"><input type="checkbox"><span><span class="ct">Check for a carrier branch</span><span class="cd">grep mnoSimProfile, MobileNetworkOperators, Verizon, PWG, TMobile, gupi — never assume the Verizon pattern holds for GUPI</span></span></label>
+          <label class="chk"><input type="checkbox"><span><span class="ct">Check the config axis</span><span class="cd">carrier (mnoSimProfile, DB column) and brand (billing.mode, deploy-time) are independent</span></span></label>
+          <label class="chk"><input type="checkbox"><span><span class="ct">Look for a compiled constant overriding your flag</span><span class="cd">a known pattern: a Java constant silently neuters a DB flag or request parameter</span></span></label>
+          <label class="chk"><input type="checkbox"><span><span class="ct">Write down the blast radius</span><span class="cd">services, tables, APIs, events, carriers, brands — before editing</span></span></label>
+        </div>
+        <h3>While you write</h3>
+        <div class="bar"><div class="track"><i data-bar="mid"></i></div><span data-lbl="mid"></span></div>
+        <div class="checks" data-group="mid">
+          <label class="chk"><input type="checkbox"><span><span class="ct">Smallest safe change, no drive-by refactors</span><span class="cd">with no tests, an incidental change is indistinguishable from the intended one</span></span></label>
+          <label class="chk"><input type="checkbox"><span><span class="ct">Preserve the response shape</span><span class="cd">including the HTTP 200 + status field convention</span></span></label>
+          <label class="chk"><input type="checkbox"><span><span class="ct">No new static mutable state</span><span class="cd">correct on one pod, wrong on two — several money bugs here come from exactly this</span></span></label>
+          <label class="chk"><input type="checkbox"><span><span class="ct">Retry only what's idempotent</span><span class="cd">around a carrier order, a retry can double-provision</span></span></label>
+        </div>
+        <h3>Before you ship</h3>
+        <div class="bar"><div class="track"><i data-bar="post"></i></div><span data-lbl="post"></span></div>
+        <div class="checks" data-group="post">
+          <label class="chk"><input type="checkbox"><span><span class="ct">Re-read the diff against your blast-radius list</span><span class="cd">anything new in the diff means redoing the analysis</span></span></label>
+          <label class="chk"><input type="checkbox"><span><span class="ct">State what you tested and what you couldn't</span><span class="cd">"no automated test covers this; here's what I checked manually" is the correct answer here</span></span></label>
+          <label class="chk"><input type="checkbox"><span><span class="ct">For schema changes, say it out loud</span><span class="cd">this applies to production on deploy and cannot be undone</span></span></label>
+        </div>
+      </section>
+
+      <section id="s4">
+        <h2><span class="num">04</span>Task recipes</h2>
+        <p class="sub">The six changes you'll most often be asked for, and the trap in each.</p>
+        <details><summary>Add a field to an API response</summary><div class="body">
+          <p>Find the DTO, add the field, check every consumer (mobile app, web, another service, marketplace integration). There is no API versioning,
+            so the change hits 100% of traffic at deploy. <b>Additive is safe; renaming or removing is not.</b></p></div></details>
+        <details><summary>Add a column to an entity</summary><div class="body">
+          <p>Additive only. On deploy, Hibernate adds the column to production; removing a field later leaves an orphaned column forever.
+            Check whether another service maps the same table — several are shared, and both entity definitions must agree.</p></div></details>
+        <details><summary>Add a new event consumer</summary><div class="body">
+          <p>Implement the relevant <code>on*Event</code> in your service's <code>EventHooks</code>, register the topic in its subscription list, and
+            <b>filter by <code>mnoSimProfile</code></b> if the event is carrier-specific — this is exactly where the GUPI handler goes wrong.
+            Assume your handler can be called twice, and that if it throws, the event is gone.</p></div></details>
+        <details><summary>Add a new payment product type</summary><div class="body">
+          <p>Follow the existing shape: add to <code>SelfPaymentTypes</code>, add a case to <code>PaymentFacade</code>'s dispatch switch, implement the
+            fulfilment method in <code>OrderFulfillmentService</code>. Reuse the validator chain instead of adding inline checks.</p></div></details>
+        <details><summary>Add a scheduled job</summary><div class="body">
+          <p>There's no distributed lock (no ShedLock, no clustered Quartz). With more than one replica your cron runs on all of them.
+            Either make the work idempotent, or claim it in the database (a status update with a <code>WHERE</code> on the previous status).</p></div></details>
+        <details><summary>Change a carrier's behaviour</summary><div class="body">
+          <p>Put it in that carrier's module (<code>mno_mgmt</code>, <code>pwg-mno-mgmt</code>, <code>gupi_mgmt</code>), never in shared code.
+            A carrier fix applied to a shared module is the exact pattern that has caused cross-carrier regressions here.</p></div></details>
+      </section>
+
+      <section id="s5">
+        <h2><span class="num">05</span>Debugging playbooks</h2>
+        <p class="sub">There is no correlation ID and no tracing. You follow business keys: transaction token, recharge token, ICCID, MSISDN, order number.</p>
+        <details><summary>"The customer paid but got nothing"</summary><div class="body">
+          <ol><li>Find <code>gateway_transaction</code> by transaction token or gateway reference; read <code>transaction_status</code>.</li>
+          <li><code>transactionStarted</code> → the webhook never arrived or failed. Check <code>webhook_events</code>.</li>
+          <li><code>transactionComplete</code> but no order → fulfilment after confirmation failed. For a card SIM purchase the order is created by
+            user-management from the <code>SUBMIT_ORDER</code> event: check <code>payment_order_info</code> (<code>is_ordersubmitted</code>, <code>failure_cause</code>) and whether the event row exists in <code>rmq_events</code>.</li>
+          <li>No event row, or a row nobody consumed → nothing will retry it. Manual intervention or a replay endpoint is needed.</li></ol></div></details>
+        <details><summary>"Activation is stuck"</summary><div class="body">
+          <ol><li><code>subscription.activation_state</code> + <code>sim_info.lifecycle_state</code> show how far it got. PreActive = the platform did its part, the carrier hasn't confirmed.</li>
+          <li>Check <code>mno_subscription</code> for <code>order_ref_no</code> and <code>failure_cause</code>, then <code>failed_mno_subscription</code>.</li>
+          <li>Check routing: handlers filter on carrier, so a wrong <code>mno_sim_profile</code> on the stock row means no carrier service acted.</li>
+          <li>Remember the duplicate guard is per-pod: two activations for one ICCID can both proceed.</li></ol></div></details>
+        <details><summary>"The event didn't get processed"</summary><div class="body">
+          <p>Check <code>rmq_events</code> for the row and its timestamp. Consumers poll by a time window, so a slow or restarted consumer can miss it.
+            There's no DLQ: if a handler threw, the event is marked processed and gone. Fix forward by re-publishing or via an admin endpoint.</p></div></details>
+        <details><summary>"Usage / CDR data is missing"</summary><div class="body">
+          <p>Collection is a chain of scheduled jobs with a pod-local folder in the middle. Check in order: did the collector cron run, is the file in the folder,
+            did the parse cron move it, did the insert cron write to MongoDB, is there a record-index row. A pod restart mid-chain can strand files.</p></div></details>
+        <details><summary>What you have to work with</summary><div class="body">
+          <p>Logs are mostly unstructured log4j and <code>System.out</code>. JavaMelody (<code>/monitoring</code>) is the per-service APM.
+            Python verifier scripts detect problems after the fact (duplicate charges, stuck CDRs, failed activations). Actuator/Prometheus endpoints are exposed but have no confirmed scraper and no business metrics.</p></div></details>
+      </section>
+
+      <section id="s6">
+        <h2><span class="num">06</span>Risk radar</h2>
+        <p class="sub">Things that should make you slow down and widen the analysis.</p>
+        <div class="cards">
+          <div class="risk"><b>Shared/common modules</b><span>billing-util, billing-common-repository, billing-repostiory, event-mgmt-utils. High fan-in: any change is platform-wide.</span></div>
+          <div class="risk"><b>SubscriptionEvent.UpdateFlag</b><span>An ordinal-positional bitmask. Inserting or reordering a value anywhere but the end silently corrupts every consumer, with no compile error.</span></div>
+          <div class="risk"><b>Money paths</b><span>Wallet debit and the local insert aren't atomic; wallet and ledger can disagree.</span></div>
+          <div class="risk"><b>SIM allocation</b><span>No locking: concurrent orders can take the same stock.</span></div>
+          <div class="risk"><b>Static mutable state</b><span>Correct on one pod, wrong on two. Duplicate guards, rate limiters and idempotency maps are all in-JVM.</span></div>
+          <div class="risk"><b>Security-adjacent changes</b><span>"Fixing" the no-op permission check changes behaviour at ~1,000 call sites at once. That's a project, not a bug fix.</span></div>
+          <div class="risk"><b>Duplicated classes</b><span>Two CryptoHelpers, two carrier enums, two UserAddressCommands. Assume a duplicate drifted for a reason; check both.</span></div>
+        </div>
+      </section>
+
+      <section id="s7">
+        <h2><span class="num">07</span>Operating in production</h2>
+        <ul>
+          <li><b>Deploys:</b> a manually parameterized Jenkins job per service. Build (<code>mvn -pl &lt;module&gt; -am clean install</code>) → Deploy (<code>build_run.sh</code> on a Docker host, then <code>kubectl</code> from a jump host).</li>
+          <li><b>Config:</b> comes from config-server at boot; if it's down, services don't start. Two carrier modules bypass it with their own properties.</li>
+          <li><b>Rollback:</b> not a pipeline step. Plan fix-forward and keep schema changes additive.</li>
+          <li><b>Recovery:</b> for a stuck cron, failed CDR batch or lost event it's largely manual, sometimes a database edit. If that's the honest answer for your change, put it in the ticket.</li>
+          <li><b>Monitoring:</b> JavaMelody plus after-the-fact Python verifiers. No business metrics, no tracing.</li>
+        </ul>
+      </section>
+
+      <section id="s8">
+        <h2><span class="num">08</span>Don't trust documentation — including this</h2>
+        <p class="sub">Everything here was verified against source. Doing that verification found several wrong claims in the repo's own notes.</p>
+        <table>
+          <thead><tr><th>The notes said</th><th>The source says</th></tr></thead>
+          <tbody>
+            <tr><td>Card orders are created by <code>createNewOrderForTransaction</code></td><td>That method has no live caller; user-management creates them from the <code>SUBMIT_ORDER</code> event</td></tr>
+            <tr><td>Invoice due date = generation + 15 days</td><td>It comes from <code>DunningConfig.duePeriod</code>, or an account-level cutoff</td></tr>
+            <tr><td>130 active Maven modules</td><td>117 active, plus 6 commented out</td></tr>
+            <tr><td>Verizon completion writes at <code>MnoUtils.java:2426/2431</code></td><td>Line numbers had drifted by hundreds of lines</td></tr>
+          </tbody>
+        </table>
+        <div class="callout"><b>The habit</b>Cite file:line, and re-check before relying on it. When you correct something, correct it everywhere it's repeated —
+          otherwise the stale copy misleads the next person.</div>
+      </section>
+
+      <section id="s9">
+        <h2><span class="num">09</span>Explaining this system</h2>
+        <p class="sub">For interviews and design reviews. These land because they show judgement, not a feature list.</p>
+        <div class="quote">"A telecom BSS: ~117 Maven modules, ~49 Spring Boot services, MySQL per domain, MongoDB for call records, on Kubernetes. I owned the subscriber journey end to end — purchase, activation, recharge."
+          <em>Scale and shape, in one breath.</em></div>
+        <div class="quote">"Async between services is a polled MySQL table rather than a broker. Events are durable and easy to inspect, but there's no retry or dead-letter, so consumers must be idempotent and failures need a replay path."
+          <em>A non-obvious design decision, with its trade-off.</em></div>
+        <div class="quote">"Payment confirmation is idempotent through a state check plus a durable webhook dedup key. The in-process lock only protects one pod, so the database state check is what actually makes it safe across replicas."
+          <em>A concrete correctness problem you can reason about.</em></div>
+        <div class="quote">"One activation event fans out to three carrier services, each filtering on the subscriber's carrier — which was decided earlier, by which SIM stock was allocated."
+          <em>Integration design.</em></div>
+        <div class="quote">"No migration tool and ddl-auto=update, so schema changes are additive and irreversible; no rollback stage, so we plan fix-forward; near-zero tests, so changes are scoped tightly and verified manually against named consumers."
+          <em>Operating under constraint.</em></div>
+        <div class="quote">"What I'd fix first: idempotency and a retry/DLQ path on the event bus; a distributed lock for crons and SIM allocation; enforcing the API-key check that's currently computed and ignored; correlation IDs."
+          <em>Specific, defensible improvements with a blast radius you can describe.</em></div>
+        <div class="callout ok"><b>The signal at this level</b>Not "I know Spring Boot", but: "I can tell you exactly what happens if this call fails, who else depends on it,
+          and how I'd verify it in a codebase with no tests."</div>
+      </section>
+
+      <p class="foot">Companion document: <a href="06-engineer-guide.md">06-engineer-guide.md</a>. Flow walkthroughs:
+        <a href="01-purchase-flow.html">purchase</a>, <a href="02-activation-flow.html">activation</a>, <a href="03-recharge-flow.html">recharge</a>,
+        <a href="04-cdr-flow.html">usage/CDR</a>, <a href="05-postpaid-billing-flow.html">postpaid billing</a>.
+        System map: <a href="architecture.html">architecture</a> · <a href="tech-stack.html">tech stack</a>.</p>
+    </main>
+  </div>
+</div>
+
+<script>
+const secs=[...document.querySelectorAll('section')].map(s=>({id:s.id,t:s.querySelector('h2').textContent.replace(/^\d+/,'').trim()}));
+const ol=document.createElement('ol');
+secs.forEach(s=>{const li=document.createElement('li'); const a=document.createElement('a'); a.href='#'+s.id; a.textContent=s.t; a.dataset.id=s.id; li.append(a); ol.append(li);});
+document.getElementById('toc').append(ol);
+const links=[...document.querySelectorAll('nav.toc a')];
+const io=new IntersectionObserver(es=>{es.forEach(e=>{ if(e.isIntersecting) links.forEach(l=>l.classList.toggle('on',l.dataset.id===e.target.id)); });},{rootMargin:'-10% 0px -70% 0px'});
+document.querySelectorAll('section').forEach(s=>io.observe(s));
+
+// checklists with saved progress
+document.querySelectorAll('.checks').forEach(g=>{
+  const key='eg-'+g.dataset.group, boxes=[...g.querySelectorAll('input')];
+  let saved=[]; try{saved=JSON.parse(localStorage.getItem(key)||'[]');}catch(e){}
+  const upd=()=>{const done=boxes.filter(b=>b.checked).length;
+    boxes.forEach(b=>b.closest('.chk').classList.toggle('done',b.checked));
+    const bar=document.querySelector(`[data-bar="${g.dataset.group}"]`), lbl=document.querySelector(`[data-lbl="${g.dataset.group}"]`);
+    if(bar) bar.style.width=(done/boxes.length*100)+'%'; if(lbl) lbl.textContent=done+' / '+boxes.length;
+    try{localStorage.setItem(key,JSON.stringify(boxes.map(b=>b.checked)));}catch(e){}};
+  boxes.forEach((b,i)=>{b.checked=!!saved[i]; b.addEventListener('change',upd);});
+  upd();
+});
+try{const t=localStorage.getItem('pf-theme'); if(t) document.documentElement.dataset.theme=t;}catch(e){}
+document.getElementById('b-theme').onclick=()=>{const r=document.documentElement; const dark=r.dataset.theme?r.dataset.theme==='dark':matchMedia('(prefers-color-scheme: dark)').matches;
+  r.dataset.theme=dark?'light':'dark'; try{localStorage.setItem('pf-theme',r.dataset.theme);}catch(e){}};
+</script>
+</body>
+</html>

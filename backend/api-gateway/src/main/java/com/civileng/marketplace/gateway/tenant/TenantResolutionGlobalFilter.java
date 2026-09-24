@@ -38,6 +38,7 @@ import java.util.Optional;
 public class TenantResolutionGlobalFilter implements GlobalFilter, Ordered {
 
     public static final String TENANT_HEADER = "X-Tenant-Id";
+    static final String CURRENT_TENANT_PATH = "/api/v1/tenant-resolution/current";
     public static final String TENANT_ATTRIBUTE = "platform.tenant";
 
     /**
@@ -50,6 +51,7 @@ public class TenantResolutionGlobalFilter implements GlobalFilter, Ordered {
             Map.entry("/api/v1/projects", "projects"),
             Map.entry("/api/v1/reviews", "reviews"),
             Map.entry("/api/v1/search", "search"),
+            Map.entry("/api/v1/procurement", "procurement"),
             Map.entry("/api/v1/residents", "residents"),
             Map.entry("/api/v1/fee-plans", "feeplans"),
             Map.entry("/api/v1/invoices", "invoices"),
@@ -83,8 +85,21 @@ public class TenantResolutionGlobalFilter implements GlobalFilter, Ordered {
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         String path = exchange.getRequest().getURI().getPath();
 
-        if (path.startsWith("/actuator") || path.startsWith("/api/v1/tenant-resolution")) {
+        // The by-host lookup is answered for any host, so it needs no tenant of its own. /current
+        // is the opposite: "which workspace is this address?", resolved exactly as every other
+        // request is — fallback, 404 for an unknown host, 503 for a suspended one.
+        if (path.startsWith("/actuator")
+                || (path.startsWith("/api/v1/tenant-resolution") && !path.equals(CURRENT_TENANT_PATH))) {
             return chain.filter(exchange);
+        }
+
+        // Provider webhooks arrive on the platform's API host, not a tenant's, so the Host header
+        // names no tenant. The service resolves the tenant from the opaque token in the path
+        // instead — and must never be handed one the caller chose, so the header is dropped.
+        if (path.startsWith("/webhooks/")) {
+            return chain.filter(exchange.mutate()
+                    .request(r -> r.headers(headers -> headers.remove(TENANT_HEADER)))
+                    .build());
         }
 
         String host = hostWithoutPort(exchange.getRequest().getHeaders().getFirst(HttpHeaders.HOST));

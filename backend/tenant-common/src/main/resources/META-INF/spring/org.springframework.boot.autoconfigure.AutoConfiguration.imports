@@ -1,2 +1,4 @@
 com.civileng.marketplace.tenant.common.TenantAutoConfiguration
 com.civileng.marketplace.tenant.common.TenantSchemaAutoConfiguration
+com.civileng.marketplace.tenant.common.integration.TenantIntegrationAutoConfiguration
+com.civileng.marketplace.tenant.common.InternalContextAutoConfiguration

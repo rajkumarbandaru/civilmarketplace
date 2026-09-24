@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>System Architecture Map</title>
+<style>
+:root{
+  --bg:#f6f7fb; --surface:#ffffff; --surface-2:#f0f2f7; --text:#1b1f2a; --muted:#5b6475; --border:#dde1ea;
+  --accent:#3b5bdb; --edge:#c3c9d6; --rest:#3b5bdb; --event:#7048e8; --db:#b7791f; --ext:#c2255c; --ops:#a9744f;
+  --ok:#2b8a3e; --part:#b7791f; --warn:#c92a2a; --group:#fbfcfe;
+  --shadow:0 1px 2px rgba(20,30,60,.06),0 4px 14px rgba(20,30,60,.06);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f1218; --surface:#171b24; --surface-2:#1e2330; --text:#e6e9f0; --muted:#98a1b3; --border:#2a3040;
+    --accent:#7b94ff; --edge:#343c50; --rest:#7b94ff; --event:#b197fc; --db:#fcc419; --ext:#f06595; --ops:#d0a27c;
+    --ok:#51cf66; --part:#fcc419; --warn:#ff6b6b; --group:#141821;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 14px rgba(0,0,0,.3);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f1218; --surface:#171b24; --surface-2:#1e2330; --text:#e6e9f0; --muted:#98a1b3; --border:#2a3040;
+  --accent:#7b94ff; --edge:#343c50; --rest:#7b94ff; --event:#b197fc; --db:#fcc419; --ext:#f06595; --ops:#d0a27c;
+  --ok:#51cf66; --part:#fcc419; --warn:#ff6b6b; --group:#141821;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 14px rgba(0,0,0,.3);
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px}
+.wrap{max-width:1560px;margin:0 auto;padding:20px 16px 48px}
+.home{display:inline-block;margin-bottom:6px;color:var(--accent);text-decoration:none;font-size:13px}
+.home:hover{text-decoration:underline}
+h1{font-size:22px;margin:0 0 4px}
+.lead{margin:0;color:var(--muted);max-width:980px}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:14px 0 12px}
+.seg{display:inline-flex;flex-wrap:wrap;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--surface)}
+.seg button{border:0;background:transparent;color:var(--text);padding:7px 11px;cursor:pointer;font:inherit}
+.seg button.on{background:var(--accent);color:#fff}
+.btn{flex:none;border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:8px;padding:7px 12px;cursor:pointer;font:inherit}
+.btn:hover{border-color:var(--accent)} .btn:disabled{opacity:.45;cursor:default}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;min-width:88px}
+select.btn{padding:6px 8px}
+.count{color:var(--muted);font-variant-numeric:tabular-nums;min-width:56px}
+.grid{display:grid;grid-template-columns:1fr;gap:14px}
+.grid>*{min-width:0}
+.caption{display:flex;gap:10px;align-items:flex-start;background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--accent);border-radius:10px;padding:9px 12px;margin:0 0 10px;min-height:42px;box-shadow:var(--shadow)}
+.caption .k{flex:none;font:700 11px/1.6 ui-monospace,Menlo,monospace;color:var(--muted)}
+.caption .v{overflow-wrap:anywhere}
+.sizer{position:relative}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow)}
+.map{overflow:auto;min-height:420px}
+.map.scroll{max-height:78vh}
+.canvas{position:relative;transform-origin:0 0}
+.grp{position:absolute;border:1px dashed var(--border);border-radius:12px;background:var(--group)}
+.grp>span{position:absolute;top:-10px;left:10px;background:var(--surface);padding:0 6px;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);border-radius:4px}
+svg.edges{position:absolute;left:0;top:0;pointer-events:none;overflow:visible}
+.e{fill:none;stroke:var(--edge);stroke-width:1.2;opacity:.55;transition:opacity .3s,stroke .3s}
+.e.hide{opacity:0}
+.e.seen{opacity:.9;stroke-width:1.8}
+.e.active{opacity:1;stroke-width:2.8;stroke-dasharray:7 5;animation:dash .9s linear infinite}
+@keyframes dash{to{stroke-dashoffset:-24}}
+.e.rest{stroke:var(--rest)} .e.event{stroke:var(--event)} .e.db{stroke:var(--db)} .e.ext{stroke:var(--ext)} .e.ops{stroke:var(--ops)}
+.overview .e{stroke-width:1.1}
+.token{filter:drop-shadow(0 0 4px currentColor)}
+.elabel{position:absolute;z-index:6;transform:translate(-50%,-50%);color:#fff;font:600 11px/1.3 ui-monospace,Menlo,Consolas,monospace;padding:3px 7px;border-radius:6px;white-space:nowrap;pointer-events:none;box-shadow:var(--shadow)}
+.node{position:absolute;z-index:3;width:164px;min-height:44px;border-radius:9px;border:1.5px solid color-mix(in srgb,var(--c) 50%,var(--border));
+  background:color-mix(in srgb,var(--c) 10%,var(--surface));padding:5px 8px;cursor:pointer;transition:opacity .3s,box-shadow .3s,transform .2s;display:flex;flex-direction:column;justify-content:center}
+.node .t{font-weight:600;font-size:12px;line-height:1.2;overflow-wrap:anywhere}
+.node .s{font-size:10.5px;color:var(--muted);line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.node.dash{border-style:dashed}
+.node.ext{border-radius:20px}
+.node.big{border-width:2px}
+.node.dim{opacity:.3}
+.node.hot{opacity:1;box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 35%,transparent),var(--shadow);transform:scale(1.04);z-index:4}
+.node.sel{box-shadow:0 0 0 3px color-mix(in srgb,var(--c) 55%,transparent),var(--shadow)}
+.panel{padding:16px 18px;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:4px 28px;align-items:start}
+.panel>.full{grid-column:1/-1}
+@media (max-width:900px){.panel{grid-template-columns:1fr}}
+.panel h2{font-size:18px;margin:4px 0 6px;overflow-wrap:anywhere}
+.panel .kick{font-size:12px;font-weight:600;color:var(--muted)}
+.panel p{margin:0 0 10px;overflow-wrap:anywhere}
+.sec{margin-top:12px}
+.sec h3{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 6px}
+.badge{display:inline-block;font:700 10.5px/1 ui-monospace,Menlo,monospace;padding:4px 6px;border-radius:5px;color:#fff;margin-right:6px}
+.badge.rest{background:var(--rest)} .badge.event{background:var(--event)} .badge.db{background:var(--db)} .badge.ext{background:var(--ext)} .badge.ops{background:var(--ops)}
+.conf{display:inline-block;font:700 10px/1 ui-monospace,Menlo,monospace;padding:3px 6px;border-radius:4px;border:1px solid}
+.conf.HIGH{color:var(--ok);border-color:var(--ok)} .conf.MEDIUM{color:var(--part);border-color:var(--part)}
+.links{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px}
+.links li{font-size:13px;display:flex;gap:6px;align-items:baseline;overflow-wrap:anywhere}
+.links li button{all:unset;cursor:pointer;color:var(--accent)}
+.links li button:hover{text-decoration:underline}
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+.chip{font:600 11px/1 ui-monospace,Menlo,monospace;padding:4px 6px;border-radius:5px;background:var(--surface-2)}
+.warn{font-size:13px;border-left:3px solid var(--warn);background:color-mix(in srgb,var(--warn) 8%,transparent);padding:7px 10px;border-radius:0 6px 6px 0}
+.stepslist{margin:0;padding-left:20px;font-size:13px}
+.stepslist li{margin:3px 0;cursor:pointer;color:var(--muted)}
+.stepslist li.cur{color:var(--text);font-weight:600}
+.stepslist li.done{color:var(--text)}
+.legend{display:flex;flex-wrap:wrap;gap:14px;margin:10px 2px 0;color:var(--muted);font-size:12px}
+.legend span{display:inline-flex;gap:6px;align-items:center}
+.sw{display:inline-block;width:22px;height:0;border-top:3px solid}
+.box{display:inline-block;width:20px;height:12px;border:1.5px solid var(--muted);border-radius:3px}
+.box.dash{border-style:dashed}.box.ext{border-radius:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="home" href="index.html">← All flows</a>
+  <h1>Whole-system map: how <code>billing_micro_services</code> fits together</h1>
+  <p class="lead">Every major service, data store and external system on one map. Pick a journey and press <b>Play</b> to watch it move across services,
+    the event bus, databases and third-party APIs. <b>Overview</b> shows every connection at once; click any box to see what it does and what it talks to.</p>
+
+  <div class="toolbar">
+    <div class="seg" id="seg" role="tablist" aria-label="Journey"></div>
+  </div>
+  <div class="toolbar">
+    <button class="btn" id="b-restart">⟲ Restart</button>
+    <button class="btn" id="b-prev">◀ Prev</button>
+    <button class="btn primary" id="b-play">▶ Play</button>
+    <button class="btn" id="b-next">Next ▶</button>
+    <select class="btn" id="speed" aria-label="Speed"><option value="3200">Slow</option><option value="2300" selected>Normal</option><option value="1400">Fast</option></select>
+    <span class="count" id="count"></span>
+    <button class="btn" id="b-theme">Theme</button>
+  </div>
+
+  <div class="grid">
+    <div>
+      <div class="caption" id="caption"><span class="k" id="capk">OVERVIEW</span><span class="v" id="capv">Click a journey above, or any box on the map.</span></div>
+      <div class="card map" id="map"><div class="sizer" id="sizer"><div class="canvas" id="canvas"><svg class="edges" id="edges"></svg></div></div></div>
+      <div class="legend">
+        <span><i class="sw" style="border-color:var(--rest)"></i>REST call</span>
+        <span><i class="sw" style="border-color:var(--event)"></i>Event (DB-poll bus)</span>
+        <span><i class="sw" style="border-color:var(--db)"></i>Database read/write</span>
+        <span><i class="sw" style="border-color:var(--ext)"></i>External API</span>
+        <span><i class="sw" style="border-color:var(--ops)"></i>Build / deploy</span>
+        <span><i class="box"></i>Jenkins-deployed</span>
+        <span><i class="box dash"></i>Deploy path unconfirmed</span>
+        <span><i class="box ext"></i>External / channel</span>
+      </div>
+    </div>
+    <aside class="card panel" id="panel" aria-live="polite"></aside>
+  </div>
+</div>
+
+<script>
+const W=176, H=46;
+const GROUPS=[
+  {t:'Channels',               x:10,  y:30,  w:196, h:360},
+  {t:'Platform',               x:10,  y:420, w:196, h:150},
+  {t:'Delivery (CI/CD)',       x:10,  y:600, w:196, h:290},
+  {t:'MVNO business services', x:230, y:30,  w:390, h:560},
+  {t:'Shared infrastructure',  x:645, y:30,  w:196, h:560},
+  {t:'MNO carrier gateways',   x:865, y:30,  w:390, h:350},
+  {t:'Usage / CDR collection', x:865, y:410, w:390, h:180},
+  {t:'External systems',       x:1280,y:30,  w:196, h:690}
+];
+const C={ch:'#3b82f6',mvno:'#40c057',inf:'#868e96',mno:'#e03131',cdr:'#fd7e14',ext:'#e64980',ops:'#a9744f',plat:'#12b886'};
+const N={
+  cust:{x:20,y:50,  t:'Customer web / app', s:'Self-care, checkout', g:C.ch, ext:1, d:'Consumer storefront and self-care app: buy SIMs, activate, recharge, view usage.'},
+  res: {x:20,y:110, t:'Reseller portal', s:'Retail / dealer sales', g:C.ch, ext:1, d:'Resellers sell SIMs and plans, pay from pre-funded e-balance, and earn commission.'},
+  admin:{x:20,y:170,t:'Admin / CSR portal', s:'Back office', g:C.ch, ext:1, d:'Operations and customer-care staff: approvals, manual actions, reports.'},
+  wh:  {x:20,y:230, t:'Warehouse staff', s:'Pack & ship', g:C.ch, ext:1, d:'Pack orders and trigger courier pickup.'},
+  mkt: {x:20,y:290, t:'Amazon / Temu', s:'Marketplace orders', g:C.ch, ext:1, d:'Marketplace SIM orders flow in through seller-api-gw.'},
+  kyc: {x:20,y:440, t:'user-kyc', s:'Login · session · KYC', g:C.plat, d:'LoginController issues opaque session tokens (SESSIONID header) stored in the session table, and handles identity/KYC. Other services validate the token through the billing-sessions interceptor.', tech:['Spring Boot','MySQL'], tables:['user','session']},
+  cfg: {x:20,y:505, t:'config-server', s:'config-hub:8094', g:C.plat, dash:1, d:'Spring Cloud Config Server. About 38 service property files import their configuration from it at boot, with {cipher}-encrypted passwords. No Jenkins deploy entry exists for it.', tech:['Spring Cloud Config'], warn:'Startup single point of failure for most services.'},
+  git: {x:20,y:620, t:'GitHub', s:'Source · PR merges', g:C.ops, ext:1, d:'Git repository with PR-based merges.'},
+  jen: {x:20,y:685, t:'Jenkins', s:'Parameterized pipeline', g:C.ops, d:'Stages: Validate Deployment Request → Setup → Release Input → Validate Tag → Build (mvn -pl <module> -am clean install) → Deploy → Git Tag. 24 service keys; environments test_env1 / stage_env1 / live.', tech:['Jenkins','Maven']},
+  dock:{x:20,y:750, t:'Docker host', s:'build_run.sh', g:C.ops, d:'The Deploy stage runs build_run.sh on a remote Docker host to build the image. Most Dockerfiles are outside the repo.', tech:['Docker']},
+  k8s: {x:20,y:815, t:'Kubernetes', s:'kubectl via jump host', g:C.ops, d:'Jenkins reaches a jump host over SSH and applies static manifests with kubectl (no Helm). Pods boot and pull config from config-server.', tech:['Kubernetes'], warn:'JVM-local locks and static maps are not safe across replicas.'},
+
+  cat: {x:240,y:50,  t:'catalogue-management', s:'Plans · bundles · add-ons', g:C.mvno, d:'Product catalogue: plan groups, add-ons and carrier plan mapping (/mno_plan_groups, /plan_detail_by_group_id).', tech:['Spring Boot','JPA','AWS SDK'], tables:['plan_group','plan_addon']},
+  ssp: {x:240,y:110, t:'self-service-payment', s:'Payments · fulfilment', g:C.mvno, big:1, d:'The payment hub. PaymentFacade runs the validator chain, GatewayRoutingEngine picks the gateway, Stripe/PayPal webhooks confirm, and fulfilment dispatch creates bundle records and publishes events. Every purchase and recharge goes through it.', tech:['Spring Boot','Stripe SDK','JPA','Gson'], tables:['gateway_transaction','payment_order_info','prepaid_subscription_records','webhook_events','voucher_redeem_log']},
+  wal: {x:240,y:170, t:'wallet-management', s:'Wallet ledger', g:C.mvno, d:'Prepaid and reseller wallet balances. ConnectorApplication exposes /deduct_account_balance/ and /add_account_deposit/, called through AccountBalanceInterface.', tech:['Spring Boot','JPA'], tables:['wallet account','account_balance_transaction'], warn:'Debits are not atomic with the caller\'s own DB writes.'},
+  um:  {x:240,y:230, t:'user-management', s:'Users · orders · activation', g:C.mvno, big:1, d:'Subscriber lifecycle: creates orders and users on SUBMIT_ORDER, activates SIMs (/activate_user_subscription/), SIM swap, churn and change carrier. It publishes Subscription ACTIVATED to the carriers.', tech:['Spring Boot','JPA','Gson'], tables:['order_table','order_item','user','user_address','subscription','sim_info']},
+  inv: {x:240,y:290, t:'inventory-management', s:'SIM / device stock', g:C.mvno, d:'SIM and device stock, ICCID validation (/validate_iccid), SIM block allocation (carrier chosen by stock mno_sim_profile), and the warehouse pickup trigger.', tech:['Spring Boot','JPA','Resilience4j'], tables:['sim_info','device_inventory','sim_detail','warehouse_bin'], warn:'SIM allocation has no locking.'},
+  ship:{x:240,y:350, t:'shipment-management', s:'Labels · tracking', g:C.mvno, d:'USPS/UPS labels, pickup and an hourly tracking cron. Called by inventory-management at shipment-mgmt:8099. It publishes no events.', tech:['Spring Boot','JPA','Resilience4j'], tables:['order_track_info']},
+  tax: {x:240,y:410, t:'tax-management', s:'Tax engine', g:C.mvno, d:'Tax rules and calculation; it can call an external CSI tax engine for the InfiMobile brand.', tech:['Spring Boot','Resilience4j']},
+  svc: {x:240,y:470, t:'service_management', s:'Service / plan mgmt', g:C.mvno, d:'Service and plan administration.', tech:['Spring Boot']},
+  valid:{x:240,y:530,t:'validation-mgmt', s:'Data quality / fraud', g:C.mvno, d:'Data-quality and fraud alerting; it listens to some order events.', tech:['Spring Boot']},
+  integ:{x:430,y:50, t:'billing-integ', s:'Notifications · invoices', g:C.mvno, big:1, d:'Notification and integration hub (two instances). Consumes Email/Sms/Invoice events, raises postpaid invoices in a SERIALIZABLE transaction, sends email through AWS SES and SMS through a carrier-specific SMSMediaService.', tech:['Spring Boot','AWS SES','Activiti'], tables:['invoice']},
+  rep: {x:430,y:110, t:'billing-reports', s:'Reporting', g:C.mvno, d:'Read-side aggregation and reporting over MySQL and CDR data. Not on any write path.', tech:['Spring Boot','Apache POI','AWS SDK']},
+  rev: {x:430,y:170, t:'revenue-issuance-mgmt', s:'Stripe/PayPal reconcile', g:C.mvno, d:'Payment reconciliation against Stripe/PayPal. Repo docs report the nightly reconciliation as a stub.', tech:['Spring Boot','Stripe SDK','MongoDB']},
+  post:{x:430,y:230, t:'postpaid-service', s:'Monthly invoices', g:C.mvno, dash:1, d:'Monthly postpaid invoice generation (cron at midnight on the 1st), publishing Topic.Invoice. Compiled, but no Jenkins deploy entry.', tech:['Spring Boot','JPA']},
+  gl:  {x:430,y:290, t:'general-ledger-mgmt', s:'Accounting (GL)', g:C.mvno, dash:1, d:'General-ledger postings from payment and ledger events. Compiled, but no Jenkins deploy entry.', tech:['Spring Boot','JPA']},
+  loy: {x:430,y:350, t:'billing-loyalty', s:'Promotions · commission', g:C.mvno, dash:1, d:'Promotion matching on AirtimeRecharge / PrepaidSubscriptionRecord events; credits reseller commission through wallet-management.', tech:['Spring Boot','Activiti']},
+  seller:{x:430,y:410,t:'seller-api-gw', s:'Marketplace sync', g:C.mvno, d:'Syncs Amazon SP-API / Temu orders into the order pipeline.', tech:['Spring Boot','Resilience4j'], warn:'Repo docs report JVM-local idempotency maps on money paths.'},
+  bus: {x:655,y:180, t:'Event bus', s:'rmq_events · DB polling', g:C.inf, big:1, d:'The real async backbone: producers insert rows into the rmq_events MySQL table (event-mgmt-utils), and each service polls its topics by time window and dispatches to EventHooks. MQTT and RabbitMQ transports exist but are dormant.', tech:['MySQL','event-mgmt-utils'], tables:['rmq_events','events'], warn:'A failed handler is marked processed after one attempt (no retry / DLQ).'},
+  mysql:{x:655,y:380,t:'MySQL', s:'One host per domain', g:C.inf, big:1, d:'System of record for orders, users, subscriptions, payments, wallets and inventory. Several tables are shared across services. ddl-auto=update, with no migration tool.', tech:['MySQL','Hibernate','HikariCP']},
+  mongo:{x:655,y:450,t:'MongoDB', s:'CDR collections', g:C.inf, d:'High-volume raw call detail records (Voice / SMS / Data) for Verizon, T-Mobile and Tata.', tech:['MongoDB']},
+  cache:{x:655,y:520,t:'EhCache', s:'Per-pod local cache', g:C.inf, d:'Local, non-distributed cache in each pod (27 ehcache.xml files). There is no Redis.', tech:['EhCache']},
+
+  mno: {x:875,y:50,  t:'mno_mgmt', s:'Verizon · + mno-gateway-api', g:C.mno, big:1, d:'Verizon integration. Consumes ACTIVATED / BUNDLE_ACTIVATION for Verizon subscribers, builds ResellerOrder XML, and calls OAS through the bundled mno-gateway-api (circuit breaker mnoCB). About 50 fulfilment crons. Also serves validate_device to user-management.', tech:['Spring Boot','JAXB/XML','Resilience4j'], tables:['mno_subscription','failed_mno_subscription','future_date_sim_activations']},
+  pwgm:{x:875,y:130, t:'pwg-mno-mgmt', s:'T-Mobile subscriber mgmt', g:C.mno, d:'T-Mobile (via vCare/PWG) integration. Consumes ACTIVATED / BUNDLE_ACTIVATION for TMobile subscribers and calls pwg-api internally (pwgMnoCB).', tech:['Spring Boot','Resilience4j'], tables:['pwg_recharge_flow_logs']},
+  pwga:{x:1065,y:130,t:'pwg-api', s:'Wholesale adapter', g:C.mno, d:'Builds WholeSaleApi XML with PwgGatewayConfig credentials and posts it to vCare. Its config bypasses config-server.', tech:['Spring Boot','JAXB/XML'], tables:['pwg_audits','pwg_error_log']},
+  gupi:{x:875,y:210, t:'gupi_mgmt', s:'Tata (GUPI)', g:C.mno, dash:1, d:'Tata MOVE integration. Consumes ACTIVATED and creates the carrier subscription. No Jenkins deploy entry.', tech:['Spring Boot'], warn:'Its ACTIVATED handler has no mnoSimProfile filter, and there is no circuit breaker, timeout or retry.'},
+  ild: {x:875,y:290, t:'ild-service-mgmt', s:'NetworkIP (intl. calling)', g:C.mno, d:'International-calling account and recharge through NetworkIP REST, with a step-by-step flow log and an hourly retry cron.', tech:['Spring Boot','Resilience4j']},
+  netgw:{x:1065,y:290,t:'netip-gw', s:'NetworkIP SOAP', g:C.mno, d:'A second, independent NetworkIP client (SOAP), not shared with ild-service-mgmt.', tech:['Spring Boot','SOAP']},
+  prrc:{x:875,y:430, t:'prr-collector', s:'Verizon usage pull', g:C.cdr, d:'Every minute, pulls Verizon PRR usage reports from the ReportGateway (HTTPS REST).', tech:['Spring Boot','@Scheduled']},
+  prr: {x:1065,y:430,t:'prr-cdr', s:'Verizon CDR rating', g:C.cdr, d:'A rating cron (every 10-15 s) picks up downloaded PRR files and stores CDRs in MongoDB.', tech:['Spring Boot','MongoDB']},
+  pwgcdr:{x:875,y:510,t:'pwg-cdr', s:'T-Mobile CDRs', g:C.cdr, d:'File discovery every 15 s; T-Mobile CDR ingestion into MongoDB.', tech:['Spring Boot','MongoDB']},
+  intl:{x:1065,y:510,t:'international-cdrs', s:'NetworkIP CDRs', g:C.cdr, d:'Every 25 s; NetworkIP CDR collection and rating into MySQL.', tech:['Spring Boot','JPA']},
+
+  stripe:{x:1290,y:50, t:'Stripe / PayPal', s:'Card payments', g:C.ext, ext:1, d:'Checkout Sessions / PaymentIntents and signed webhooks back to /api/webhooks/{gateway}.'},
+  vz:  {x:1290,y:120, t:'Verizon', s:'OAS OrderGateway · ReportGateway', g:C.ext, ext:1, d:'Activation and plan changes (XML ResellerOrder); usage reports pulled by prr-collector.'},
+  vc:  {x:1290,y:190, t:'vCare / T-Mobile', s:'WholeSaleApi XML', g:C.ext, ext:1, d:'Wholesale provisioning and balance adjustment for T-Mobile subscribers.'},
+  tata:{x:1290,y:260, t:'Tata MOVE', s:'REST · OAuth2', g:C.ext, ext:1, d:'GUPI carrier API. Production config is not in the repo.'},
+  nip: {x:1290,y:330, t:'NetworkIP', s:'Intl. calling', g:C.ext, ext:1, d:'PIN-based international calling accounts and recharge.'},
+  usps:{x:1290,y:400, t:'USPS / UPS', s:'Labels · tracking', g:C.ext, ext:1, d:'Shipping labels, pickup and tracking (OAuth2 REST and legacy XML).'},
+  ses: {x:1290,y:470, t:'AWS SES / Secrets Mgr', s:'Email · secrets', g:C.ext, ext:1, d:'Transactional email (invoices, purchase confirmations) and a secrets store read at boot.'},
+  tw:  {x:1290,y:540, t:'Twilio', s:'DID numbers', g:C.ext, ext:1, d:'DID provisioning, used by the separate DMI module (deploy path unconfirmed; not drawn as a connection here).'},
+  ura: {x:1290,y:610, t:'URA (Uganda)', s:'e-invoice', g:C.ext, ext:1, d:'Tax-authority e-invoicing, used by the LycaUGA brand on recharge.'}
+};
+
+// edges: id: [from, to, type, label]
+const E={
+  login:['cust','kyc','rest','POST login → SESSIONID'],
+  plans:['cust','cat','rest','GET /mno_plan_groups'],
+  pay:['cust','ssp','rest','POST /api/v1/session/payments/'],
+  respay:['res','ssp','rest','POST payments (EBALANCE)'],
+  stripeOut:['ssp','stripe','ext','Checkout Session'],
+  stripeIn:['stripe','ssp','ext','webhook /api/webhooks/stripe'],
+  sspDb:['ssp','mysql','db','gateway_transaction …'],
+  sspBus:['ssp','bus','event','publish'],
+  busUm:['bus','um','event','onOrderEvent'],
+  umDb:['um','mysql','db','order_table, user …'],
+  busGl:['bus','gl','event','ledger / GatewayTransaction'],
+  umBus:['um','bus','event','publish'],
+  busInteg:['bus','integ','event','Email / Sms / Invoice'],
+  integSes:['integ','ses','ext','send email'],
+  whInv:['wh','inv','rest','POST /schedule_order_pickup/{orderNo}'],
+  invShip:['inv','ship','rest','labels/v2/label (shipment-mgmt:8099)'],
+  shipUsps:['ship','usps','ext','label · pickup · tracking'],
+  invDb:['inv','mysql','db','sim_info, device_inventory'],
+  act:['cust','um','rest','POST /activate_user_subscription/'],
+  umMno:['um','mno','rest','GET /validate_device/{imei}'],
+  busMno:['bus','mno','event','Verizon events'],
+  mnoVz:['mno','vz','ext','ResellerOrder XML'],
+  busPwg:['bus','pwgm','event','TMobile events'],
+  pwgApi:['pwgm','pwga','rest','internal REST (pwgMnoCB)'],
+  pwgVc:['pwga','vc','ext','WholeSaleApi XML'],
+  busGupi:['bus','gupi','event','ACTIVATED (no filter)'],
+  gupiTata:['gupi','tata','ext','create subscription'],
+  mnoDb:['mno','mysql','db','sim_info Active, subscription COMPLETED'],
+  mnoBus:['mno','bus','event','Subscription / SimInfo / Sms'],
+  sspWal:['ssp','wal','rest','POST /deduct_account_balance/'],
+  busLoy:['bus','loy','event','AirtimeRecharge → promotions'],
+  loyWal:['loy','wal','rest','credit commission'],
+  sspUra:['ssp','ura','ext','raise customer invoice (LycaUGA)'],
+  prrVz:['prrc','vz','ext','ReportGateway pull (1 min)'],
+  prrPrr:['prrc','prr','rest','downloaded PRR files'],
+  prrMongo:['prr','mongo','db','Voice / SMS / Data CDR'],
+  pwgcdrMongo:['pwgcdr','mongo','db','CDR ingest (15 s)'],
+  intlNip:['intl','nip','ext','CDR files'],
+  intlDb:['intl','mysql','db','CdrRecords (25 s)'],
+  repDb:['rep','mongo','db','read for reports'],
+  postBus:['post','bus','event','Topic.Invoice (1st of month)'],
+  integDb:['integ','mysql','db','invoice → InvoiceRaised'],
+  integBus:['integ','bus','event','Sms (carrier SMSMediaService)'],
+  gitJen:['git','jen','ops','select service + env'],
+  jenDock:['jen','dock','ops','mvn -pl <module> -am clean install → build_run.sh'],
+  dockK8s:['dock','k8s','ops','SSH jump host → kubectl apply'],
+  k8sCfg:['k8s','cfg','ops','boot: configserver:config-hub:8094'],
+  mktSeller:['mkt','seller','ext','SP-API / Temu order sync'],
+  sellerUm:['seller','um','rest','marketplace orders → order pipeline'],
+  ildNip:['ild','nip','ext','intl. recharge REST'],
+  adminUm:['admin','um','rest','approvals · manual actions'],
+  cfgKyc:['cfg','kyc','ops','properties'],
+  revStripe:['rev','stripe','ext','reconciliation']
+};
+
+// journeys: steps = [edgeId, caption, conf, labelOverride?]
+const J={
+  purchase:{n:'Purchase', steps:[
+    ['login','Customer signs in. user-kyc returns a session token that later calls send as the SESSIONID header.','MEDIUM'],
+    ['plans','Browse plans from catalogue-management.','HIGH'],
+    ['pay','Checkout: UserSelfPaymentCommand with entityType ConsumerOrderPayment and the cart (OrderCommand).','HIGH'],
+    ['sspDb','PaymentFacade validates, inserts gateway_transaction (transactionStarted) and parks the cart in payment_order_info. No order row yet.','HIGH','gateway_transaction, payment_order_info'],
+    ['stripeOut','GatewayRoutingEngine picks Stripe and a Checkout Session is created.','HIGH'],
+    ['stripeIn','Customer pays; the Stripe webhook arrives and confirmPayment marks transactionComplete.','HIGH'],
+    ['sspBus','fulfillProductFulfillment publishes Order SUBMIT_ORDER plus a ledger event (SimPurchase).','HIGH','SUBMIT_ORDER + Ledger'],
+    ['busGl','general-ledger-mgmt receives the ledger posting.','MEDIUM'],
+    ['busUm','user-management consumes SUBMIT_ORDER → OrderHelper.submitAndFulfilOrder.','HIGH'],
+    ['umDb','Creates order_table, order items and the user; OrderUtils.fulfillOrder writes order_check_points.','HIGH','order_table, order_item, user'],
+    ['umBus','Publishes SUBMIT_ORDER_COMPLETED and the CustomerSIMPurchase email event.','HIGH','SUBMIT_ORDER_COMPLETED + Email'],
+    ['busInteg','billing-integ picks up the email event.','MEDIUM'],
+    ['integSes','The purchase confirmation email goes out through AWS SES.','MEDIUM'],
+    ['invDb','inventory-management allocates SIM stock; the carrier is fixed by the stock row\'s mno_sim_profile.','MEDIUM','sim_info PreActive, device_inventory'],
+    ['whInv','Warehouse packs the order and triggers pickup.','HIGH'],
+    ['invShip','inventory-management calls shipment-management for a label.','HIGH'],
+    ['shipUsps','USPS/UPS label and pickup; an hourly cron tracks delivery.','MEDIUM']
+  ]},
+  activation:{n:'Activation', steps:[
+    ['act','Customer submits ICCID, IMEI, ZIP and plan to user-management.','HIGH'],
+    ['umMno','Device compatibility check through the Verizon gateway adapter.','MEDIUM'],
+    ['umDb','Creates the subscription (carrier copied from stock), sim_info → PreActive, re-keys addresses from ICCID to userId.','HIGH','subscription, sim_info PreActive'],
+    ['umBus','Publishes Subscription UPDATE ACTIVATED with the full activation command.','HIGH','Subscription ACTIVATED'],
+    ['busMno','Verizon subscriber: mno_mgmt handles it (it filters on mnoSimProfile).','HIGH','ACTIVATED (Verizon)'],
+    ['mnoVz','Builds ResellerOrder XML, retried up to subActivationRetires, and posts it to the Verizon OrderGateway.','HIGH'],
+    ['mnoDb','On confirmation: sim_info → Active, subscription → COMPLETED.','HIGH'],
+    ['busPwg','T-Mobile subscriber: pwg-mno-mgmt handles it instead.','HIGH','ACTIVATED (TMobile)'],
+    ['pwgApi','pwg-mno-mgmt → pwg-api (circuit breaker pwgMnoCB).','MEDIUM'],
+    ['pwgVc','pwg-api posts WholeSaleApi XML to vCare.','MEDIUM'],
+    ['busGupi','Tata subscriber: gupi_mgmt, which has no profile filter.','HIGH','ACTIVATED (any profile)'],
+    ['gupiTata','gupi_mgmt creates the carrier subscription at Tata.','MEDIUM'],
+    ['mnoBus','The carrier service publishes Subscription / SimInfo / Email / Sms.','MEDIUM'],
+    ['busInteg','billing-integ sends the "your number is active" notifications.','MEDIUM']
+  ]},
+  recharge:{n:'Recharge', steps:[
+    ['plans','Subscriber picks a bundle.','HIGH'],
+    ['pay','POST payments with entityType BundleTopup.','HIGH'],
+    ['stripeOut','Card: Stripe Checkout Session.','HIGH'],
+    ['stripeIn','Webhook → confirmPayment → transactionComplete.','HIGH'],
+    ['sspWal','Wallet alternative: AIRTIME_BALANCE / EBALANCE debit the wallet with no checkout page.','MEDIUM'],
+    ['sspDb','doProcessServiceBundleRecharge → prepaid_subscription_records inserted under a new recharge token.','HIGH','prepaid_subscription_records'],
+    ['sspUra','LycaUGA brand only: invoice uploaded to URA.','HIGH'],
+    ['sspBus','Publishes PrepaidSubscriptionRecord BUNDLE_ACTIVATION tagged with the carrier.','HIGH','BUNDLE_ACTIVATION'],
+    ['busMno','Verizon subscriber: mno_mgmt applies the bundle.','HIGH','BUNDLE_ACTIVATION (Verizon)'],
+    ['mnoVz','Plan / feature change sent to Verizon.','MEDIUM','plan change XML'],
+    ['busPwg','T-Mobile subscriber: pwg-mno-mgmt (workload queue or async).','HIGH','BUNDLE_ACTIVATION (TMobile)'],
+    ['pwgApi','pwg-mno-mgmt → pwg-api /adjust_balance_request.','HIGH','POST /adjust_balance_request'],
+    ['pwgVc','pwg-api → vCare WholeSaleApi.','MEDIUM'],
+    ['busLoy','billing-loyalty matches promotions on the recharge event.','MEDIUM'],
+    ['loyWal','Promotion or commission credited to a wallet.','MEDIUM'],
+    ['busGl','Ledger posting for the payment.','MEDIUM','GatewayTransaction'],
+    ['busInteg','Payment confirmation SMS / email.','MEDIUM']
+  ]},
+  cdr:{n:'Usage (CDR)', steps:[
+    ['prrVz','prr-collector pulls Verizon PRR usage reports every minute over HTTPS REST.','MEDIUM'],
+    ['prrPrr','prr-cdr\'s rating cron (10-15 s) picks up the downloaded files.','MEDIUM'],
+    ['prrMongo','Rated Voice / SMS / Data CDRs are stored in MongoDB.','MEDIUM'],
+    ['pwgcdrMongo','pwg-cdr discovers T-Mobile CDR files every 15 s and ingests them to MongoDB.','MEDIUM'],
+    ['intlNip','international-cdrs collects NetworkIP call records.','MEDIUM'],
+    ['intlDb','…rated and stored in MySQL every 25 s.','MEDIUM'],
+    ['repDb','billing-reports reads CDRs for usage reporting. How rated usage feeds invoices is not traced in the repo docs.','MEDIUM']
+  ]},
+  billing:{n:'Postpaid billing', steps:[
+    ['postBus','postpaid-service cron (0 0 0 1 * ?) generates the monthly invoice and publishes Topic.Invoice.','MEDIUM'],
+    ['busInteg','billing-integ IntegrationEventHooks.onInvoiceEvent (SERIALIZABLE, REQUIRES_NEW).','MEDIUM'],
+    ['integDb','Invoice row: TrailRun → InvoiceRaised; due date = generation + 15 days.','MEDIUM'],
+    ['integSes','Invoice email through AWS SES.','MEDIUM'],
+    ['integBus','Payment SMS through the carrier-specific SMSMediaService (Verizon / T-Mobile / GUPI / Tuvalu).','MEDIUM']
+  ]},
+  deploy:{n:'Deployment', steps:[
+    ['gitJen','A developer merges a PR; an operator starts the Jenkins job, choosing the service and environment.','HIGH'],
+    ['jenDock','Build stage: mvn -pl <module> -am clean install. Deploy stage: build_run.sh on the Docker host.','HIGH'],
+    ['dockK8s','SSH to the jump host, then kubectl applies the service manifest.','HIGH'],
+    ['k8sCfg','Pods boot and import their configuration from config-server (config-hub:8094).','HIGH'],
+    ['cfgKyc','Each service (e.g. user-kyc) gets its properties and decrypted {cipher} secrets, then starts serving.','MEDIUM']
+  ]}
+};
+
+const canvas=document.getElementById('canvas'), svg=document.getElementById('edges'), NS='http://www.w3.org/2000/svg';
+const CW=1490, CH=905;
+canvas.style.width=CW+'px'; canvas.style.height=CH+'px'; svg.setAttribute('width',CW); svg.setAttribute('height',CH);
+let SC=1; const sizer=document.getElementById('sizer'), mapEl=document.getElementById('map');
+function fit(){ const avail=mapEl.clientWidth-2; let sc=avail/CW; sc = sc>=0.62 ? Math.min(1,sc) : 1; SC=sc;
+  canvas.style.transform=sc<1?`scale(${sc})`:''; sizer.style.width=CW*sc+'px'; sizer.style.height=CH*sc+'px'; mapEl.classList.toggle('scroll', sc===1 && avail<CW); }
+fit(); addEventListener('resize',()=>{fit(); render(false);});
+function el(t,c,x){const e=document.createElement(t); if(c) e.className=c; if(x!=null) e.textContent=x; return e;}
+
+GROUPS.forEach(g=>{const d=el('div','grp'); d.style.cssText=`left:${g.x}px;top:${g.y}px;width:${g.w}px;height:${g.h}px`; d.append(el('span',null,g.t)); canvas.insertBefore(d,svg);});
+const nodeEls={};
+Object.entries(N).forEach(([id,n])=>{
+  const d=el('div','node'+(n.dash?' dash':'')+(n.ext?' ext':'')+(n.big?' big':'')); d.style.cssText=`left:${n.x}px;top:${n.y}px;width:${W}px;--c:${n.g}`;
+  d.append(el('div','t',n.t), el('div','s',n.s||'')); d.title=n.t; d.onclick=()=>{stop(); selectNode(id);}; canvas.append(d); nodeEls[id]=d;
+});
+function box(id){const n=N[id]; const e=nodeEls[id]; return {x:n.x,y:n.y,w:W,h:e.offsetHeight||H};}
+function anchor(b,tx,ty){const cx=b.x+b.w/2, cy=b.y+b.h/2, dx=tx-cx, dy=ty-cy;
+  if(Math.abs(dx)*b.h > Math.abs(dy)*b.w) return {x:dx>0?b.x+b.w:b.x, y:cy, horiz:true, s:Math.sign(dx)};
+  return {x:cx, y:dy>0?b.y+b.h:b.y, horiz:false, s:Math.sign(dy)};}
+const edgeEls={};
+const defs=document.createElementNS(NS,'defs'); svg.append(defs);
+['rest','event','db','ext','ops'].forEach(t=>{const m=document.createElementNS(NS,'marker'); m.setAttribute('id','m-'+t); m.setAttribute('viewBox','0 0 10 10');
+  m.setAttribute('refX','9'); m.setAttribute('refY','5'); m.setAttribute('markerWidth','7'); m.setAttribute('markerHeight','7'); m.setAttribute('orient','auto-start-reverse');
+  const p=document.createElementNS(NS,'path'); p.setAttribute('d','M0,0 L10,5 L0,10 z'); p.style.fill=`var(--${t})`; m.append(p); defs.append(m);});
+function drawEdges(){
+  svg.querySelectorAll('path.e').forEach(p=>p.remove());
+  Object.entries(E).forEach(([id,[a,b,t]])=>{
+    const A=box(a), B=box(b);
+    const p1=anchor(A,B.x+B.w/2,B.y+B.h/2), p2=anchor(B,A.x+A.w/2,A.y+A.h/2);
+    const k=Math.max(40,Math.min(160,Math.hypot(p2.x-p1.x,p2.y-p1.y)/2.4));
+    const c1=p1.horiz?{x:p1.x+p1.s*k,y:p1.y}:{x:p1.x,y:p1.y+p1.s*k};
+    const c2=p2.horiz?{x:p2.x+p2.s*k,y:p2.y}:{x:p2.x,y:p2.y+p2.s*k};
+    const path=document.createElementNS(NS,'path'); path.setAttribute('d',`M${p1.x},${p1.y} C${c1.x},${c1.y} ${c2.x},${c2.y} ${p2.x},${p2.y}`);
+    path.setAttribute('class','e '+t); path.setAttribute('marker-end',`url(#m-${t})`); path.dataset.id=id; svg.append(path); edgeEls[id]=path;});
+}
+drawEdges();
+
+let mode='overview', idx=0, playing=false, timer=null, raf=null, selected=null;
+const seg=document.getElementById('seg');
+[['overview','Overview'],...Object.entries(J).map(([k,v])=>[k,v.n])].forEach(([k,l],i)=>{const b=el('button',i===0?'on':null,l); b.dataset.k=k; seg.append(b);});
+seg.onclick=e=>{const b=e.target.closest('button'); if(!b) return; stop(); mode=b.dataset.k; idx=0; selected=null;
+  seg.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); try{localStorage.setItem('arch-mode',mode);}catch(_){} render(false);};
+
+function clearFx(){canvas.querySelectorAll('.elabel').forEach(x=>x.remove()); svg.querySelectorAll('.token').forEach(x=>x.remove()); if(raf) cancelAnimationFrame(raf);}
+function render(animate){
+  clearFx();
+  const ctl=['b-restart','b-prev','b-play','b-next','speed'].map(i=>document.getElementById(i));
+  if(mode==='overview'){
+    canvas.classList.add('overview'); ctl.forEach(c=>c.disabled=true); document.getElementById('count').textContent='';
+    Object.values(edgeEls).forEach(p=>{p.setAttribute('class',p.getAttribute('class').replace(/ (hide|seen|active)/g,''));});
+    Object.values(nodeEls).forEach(n=>n.classList.remove('dim','hot'));
+    document.getElementById('capk').textContent='OVERVIEW'; document.getElementById('capv').textContent='All '+Object.keys(E).length+' connections shown. Pick a journey above and press Play, or click any box.';
+    if(selected) selectNode(selected); else overviewPanel(); return;
+  }
+  canvas.classList.remove('overview'); ctl.forEach(c=>c.disabled=false);
+  const j=J[mode], steps=j.steps; idx=Math.max(0,Math.min(steps.length-1,idx));
+  const used=new Set(steps.map(s=>s[0])), seen=new Set(steps.slice(0,idx).map(s=>s[0])), cur=steps[idx][0];
+  const hotNodes=new Set(); steps.slice(0,idx+1).forEach(s=>{hotNodes.add(E[s[0]][0]); hotNodes.add(E[s[0]][1]);});
+  const allNodes=new Set(); steps.forEach(s=>{allNodes.add(E[s[0]][0]); allNodes.add(E[s[0]][1]);});
+  Object.entries(edgeEls).forEach(([id,p])=>{const base='e '+E[id][2]; p.setAttribute('class', base+(!used.has(id)?' hide':'')+(id===cur?' active':(seen.has(id)?' seen':'')));});
+  Object.entries(nodeEls).forEach(([id,n])=>{n.classList.toggle('dim',!allNodes.has(id)||!hotNodes.has(id)); n.classList.toggle('hot', id===E[cur][0]||id===E[cur][1]);});
+  const path=edgeEls[cur], L=path.getTotalLength(), mid=path.getPointAtLength(L/2);
+  const lab=el('div','elabel',steps[idx][3]||E[cur][3]); lab.style.left=mid.x+'px'; lab.style.top=mid.y+'px'; lab.style.background=`var(--${E[cur][2]})`; canvas.append(lab);
+  if(animate!==false){const dot=document.createElementNS(NS,'circle'); dot.setAttribute('r','6'); dot.setAttribute('class','token'); dot.style.fill=`var(--${E[cur][2]})`; dot.style.color=`var(--${E[cur][2]})`; svg.append(dot);
+    const t0=performance.now(); const tick=t=>{const k=Math.min(1,(t-t0)/950), pt=path.getPointAtLength(L*(1-Math.pow(1-k,2))); dot.setAttribute('cx',pt.x); dot.setAttribute('cy',pt.y); if(k<1) raf=requestAnimationFrame(tick); else dot.remove();}; raf=requestAnimationFrame(tick);}
+  const m=document.getElementById('map'), a=box(E[cur][0]), b=box(E[cur][1]); const cx=(Math.min(a.x,b.x)+Math.max(a.x+a.w,b.x+b.w))/2, cy=(Math.min(a.y,b.y)+Math.max(a.y+a.h,b.y+b.h))/2;
+  if(m.classList.contains('scroll')){ const vx=cx-m.scrollLeft, vy=cy-m.scrollTop; if(vx<80||vx>m.clientWidth-80||vy<60||vy>m.clientHeight-60) m.scrollTo({left:cx-m.clientWidth/2,top:cy-m.clientHeight/2,behavior:'smooth'}); }
+  document.getElementById('capk').textContent=`${j.n.toUpperCase()} ${idx+1}/${steps.length}`; document.getElementById('capv').textContent=`${N[E[cur][0]].t} → ${N[E[cur][1]].t}: ${steps[idx][1]}`;
+  document.getElementById('count').textContent=(idx+1)+' / '+steps.length;
+  stepPanel(j,idx);
+}
+
+function stepPanel(j,i){
+  let p=document.getElementById('panel'); p.innerHTML=''; const [eid,cap,conf,lab]=j.steps[i]; const [a,b,t,deflab]=E[eid];
+  const left=el('div'); p.append(left); const P=p; p=left;
+  p.append(el('div','kick',`${j.n} · step ${i+1} of ${j.steps.length}`), el('h2',null,`${N[a].t} → ${N[b].t}`));
+  const call=el('div'); call.style.marginBottom='8px'; call.append(el('span','badge '+t,{rest:'REST',event:'EVENT',db:'DB',ext:'EXTERNAL',ops:'DEPLOY'}[t]), el('code',null,lab||deflab)); p.append(call);
+  p.append(el('p',null,cap)); p.append(el('span','conf '+conf,'Confidence: '+conf));
+  p=P; const sec=el('div','sec'); sec.style.marginTop='0'; sec.append(el('h3',null,'All steps')); const ol=el('ol','stepslist');
+  j.steps.forEach((s,k)=>{const li=el('li',k===i?'cur':(k<i?'done':null),`${N[E[s[0]][0]].t} → ${N[E[s[0]][1]].t}`); li.onclick=()=>{stop(); idx=k; render();}; ol.append(li);});
+  sec.append(ol); p.append(sec);
+  const more=el('div','sec'); more.append(el('h3',null,'Detailed page'));
+  const map={purchase:'01-purchase-flow.html',activation:'02-activation-flow.html',recharge:'03-recharge-flow.html',cdr:'04-cdr-flow.html',billing:'05-postpaid-billing-flow.html'};
+  if(map[mode]){const a2=el('a',null,'Open the step-by-step '+j.n.toLowerCase()+' flow →'); a2.href=map[mode]; more.append(a2);} else more.append(el('p',null,'Summarized from the repo\'s discovery docs; no dedicated page.'));
+  p.append(more);
+}
+function overviewPanel(){
+  const p=document.getElementById('panel'); p.innerHTML='';
+  p.append(el('div','kick','Overview'), el('h2',null,'Telecom BSS on Spring Boot microservices'));
+  p.append(el('p',null,'Channels call MVNO business services over REST using a SESSIONID header. Those services persist to MySQL and talk to each other mainly through a DB-polling event bus (the rmq_events table). Carrier gateways (Verizon, T-Mobile via vCare, Tata, NetworkIP) listen on that bus and call the carriers. CDR collectors pull usage into MongoDB and MySQL. Everything boots from config-server and ships through Jenkins → Docker → Kubernetes.'));
+  const s=el('div','sec'); s.append(el('h3',null,'At a glance')); const c=el('div','chips');
+  [`${Object.keys(N).length} components`,`${Object.keys(E).length} connections`,`${Object.keys(J).length} journeys`,'117 Maven modules','49 Spring Boot apps','24 Jenkins service keys'].forEach(x=>c.append(el('span','chip',x)));
+  s.append(c); p.append(s);
+  const s2=el('div','sec'); s2.append(el('h3',null,'Try')); const ul=el('ul','links');
+  Object.entries(J).forEach(([k,v])=>{const li=el('li'); const bt=el('button',null,'▶ '+v.n); bt.onclick=()=>{seg.querySelector(`[data-k="${k}"]`).click(); play();}; li.append(bt, document.createTextNode(` · ${v.steps.length} steps`)); ul.append(li);});
+  s2.append(ul); p.append(s2);
+  p.append(Object.assign(el('div','sec'),{}), el('p',null,'Click any box for its role, tech and connections.'));
+}
+function selectNode(id){
+  selected=id; Object.entries(nodeEls).forEach(([k,n])=>n.classList.toggle('sel',k===id));
+  if(mode==='overview'){ Object.entries(edgeEls).forEach(([eid,p])=>{const [a,b]=E[eid]; const on=a===id||b===id; p.setAttribute('class','e '+E[eid][2]+(on?' seen':' hide'));});
+    Object.entries(nodeEls).forEach(([k,n])=>{const linked=k===id||Object.values(E).some(([a,b])=>(a===id&&b===k)||(b===id&&a===k)); n.classList.toggle('dim',!linked);}); }
+  const n=N[id], p=document.getElementById('panel'); p.innerHTML='';
+  const g=GROUPS.find(g=>n.x>=g.x&&n.x<g.x+g.w&&n.y>=g.y&&n.y<g.y+g.h);
+  p.append(el('div','kick',(g?g.t:'')+(n.dash?' · deploy path unconfirmed':'')), el('h2',null,n.t)); if(n.s) p.append(el('div','mono',n.s));
+  const d=el('p',null,n.d); d.style.marginTop='8px'; p.append(d);
+  if(n.warn) p.append(el('div','warn',n.warn));
+  if(n.tech){const s=el('div','sec'); s.append(el('h3',null,'Tech')); const c=el('div','chips'); n.tech.forEach(t=>c.append(el('span','chip',t))); s.append(c); p.append(s);}
+  if(n.tables){const s=el('div','sec'); s.append(el('h3',null,'Key tables')); const c=el('div','chips'); n.tables.forEach(t=>c.append(el('span','chip',t))); s.append(c); p.append(s);}
+  const out=Object.entries(E).filter(([,e])=>e[0]===id), inn=Object.entries(E).filter(([,e])=>e[1]===id);
+  [['Calls / sends to',out,1],['Called by / receives from',inn,0]].forEach(([h,list,dir])=>{ if(!list.length) return; const s=el('div','sec'); s.append(el('h3',null,h)); const ul=el('ul','links');
+    list.forEach(([,e])=>{const other=dir?e[1]:e[0]; const li=el('li'); li.append(el('span','badge '+e[2],{rest:'REST',event:'EVT',db:'DB',ext:'EXT',ops:'OPS'}[e[2]])); const bt=el('button',null,N[other].t); bt.onclick=()=>selectNode(other); li.append(bt, document.createTextNode(' · '+e[3])); ul.append(li);});
+    s.append(ul); p.append(s);});
+  const inJ=Object.entries(J).filter(([,j])=>j.steps.some(s=>E[s[0]][0]===id||E[s[0]][1]===id)).map(([k,j])=>[k,j.n]);
+  if(inJ.length){const s=el('div','sec'); s.append(el('h3',null,'Appears in journeys')); const ul=el('ul','links');
+    inJ.forEach(([k,nm])=>{const li=el('li'); const bt=el('button',null,'▶ '+nm); bt.onclick=()=>{seg.querySelector(`[data-k="${k}"]`).click(); play();}; li.append(bt); ul.append(li);}); s.append(ul); p.append(s);}
+}
+
+function next(){ if(mode==='overview') return; if(idx<J[mode].steps.length-1){idx++; render();} else stop(); }
+function schedule(){clearTimeout(timer); if(playing) timer=setTimeout(()=>{next(); if(playing && idx<J[mode].steps.length-1) schedule(); else stop();}, +document.getElementById('speed').value);}
+function play(){ if(mode==='overview') return; if(idx>=J[mode].steps.length-1){idx=0; render();} playing=true; document.getElementById('b-play').textContent='❚❚ Pause'; schedule(); }
+function stop(){ playing=false; clearTimeout(timer); document.getElementById('b-play').textContent='▶ Play'; }
+document.getElementById('b-play').onclick=()=>playing?stop():play();
+document.getElementById('b-next').onclick=()=>{stop(); next();};
+document.getElementById('b-prev').onclick=()=>{stop(); if(idx>0){idx--; render();}};
+document.getElementById('b-restart').onclick=()=>{stop(); idx=0; render();};
+document.getElementById('speed').onchange=()=>{if(playing) schedule();};
+document.addEventListener('keydown',e=>{ if(['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName)) return;
+  if(e.key==='ArrowRight'){stop(); next(); e.preventDefault();} else if(e.key==='ArrowLeft'){stop(); if(idx>0){idx--; render();} e.preventDefault();}
+  else if(e.key===' '){ if(mode!=='overview'){playing?stop():play(); e.preventDefault();} } });
+document.getElementById('b-theme').onclick=()=>{const r=document.documentElement; const dark=r.dataset.theme?r.dataset.theme==='dark':matchMedia('(prefers-color-scheme: dark)').matches;
+  r.dataset.theme=dark?'light':'dark'; try{localStorage.setItem('pf-theme',r.dataset.theme);}catch(_){} render(false);};
+try{const t=localStorage.getItem('pf-theme'); if(t) document.documentElement.dataset.theme=t;
+    const m=localStorage.getItem('arch-mode'); if(m&&(m==='overview'||J[m])){mode=m; seg.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x.dataset.k===m));}}catch(_){}
+render(false);
+</script>
+</body>
+</html>

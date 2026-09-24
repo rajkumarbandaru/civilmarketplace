@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>03 — Frontend (UI)</title>
+<style>
+:root{--bg:#f6f7f9;--fg:#1f2933;--muted:#5b6770;--card:#fff;--line:#e3e6ea;--accent:#3730a3;--accent-bg:#eef2ff;--head:#0f172a;--code:#f1f3f6}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1115;--fg:#e6e8eb;--muted:#9aa4ad;--card:#171a20;--line:#2a2f37;--accent:#a5b4fc;--accent-bg:#1e2240;--head:#05070b;--code:#1f232b}}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.6 system-ui,-apple-system,Segoe UI,sans-serif;background:var(--bg);color:var(--fg)}
+header{background:var(--head);color:#fff;padding:18px 16px}
+header .in{max-width:1200px;margin:0 auto}
+header h1{margin:0;font-size:22px;line-height:1.3} header p{margin:4px 0 0;opacity:.75;font-size:13px}
+header a{color:#c7d2fe}
+.nav{max-width:1200px;margin:0 auto;padding:10px 16px 0;font-size:13px}
+.nav a{color:var(--accent);text-decoration:none;margin-right:6px;padding:3px 9px;border-radius:999px;background:var(--accent-bg);display:inline-block;margin-bottom:6px}
+.wrap{max-width:1200px;margin:0 auto;padding:0 16px 60px;display:flex;gap:24px;align-items:flex-start}
+nav.toc{position:sticky;top:12px;flex:0 0 250px;max-height:calc(100vh - 24px);overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:16px;font-size:13px}
+nav.toc ul{list-style:none;margin:0;padding-left:10px} nav.toc>ul{padding-left:0}
+nav.toc a{color:var(--accent);text-decoration:none;display:block;padding:2px 0}
+main{flex:1;min-width:0}
+main h1{display:none}
+h2{font-size:20px;margin:32px 0 10px;padding-top:8px;border-top:1px solid var(--line)}
+h3{font-size:16px;margin:20px 0 8px}
+a{color:var(--accent)}
+blockquote{margin:12px 0;padding:10px 14px;background:var(--accent-bg);border-left:4px solid var(--accent);border-radius:6px}
+blockquote p{margin:4px 0}
+table{border-collapse:collapse;width:100%;background:var(--card);font-size:14px;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:6px 10px;text-align:left;vertical-align:top}
+th{background:var(--accent-bg)}
+code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:13px}
+pre{background:var(--code);padding:12px;border-radius:8px;overflow-x:auto;font-size:13px;line-height:1.45}
+pre code{background:none;padding:0}
+pre.mermaid{background:var(--card);border:1px solid var(--line);text-align:center}
+hr{border:0;border-top:1px solid var(--line);margin:24px 0}
+@media (max-width:900px){.wrap{display:block}nav.toc{position:static;max-height:none;margin-top:16px}}
+</style></head><body>
+<header><div class="in"><h1>03 — Frontend (UI)</h1><p>Civil Engineering Marketplace · source ~/RAJKUMAR · generated from <code style="color:#fff;background:none">ui/ui-guide.md</code></p></div></header>
+<div class="nav"><a href="../index.html">Home</a><a href="../interview-guide.html">Interview guide</a><a href="../overview/architecture.html">Architecture</a><a href="../backend/backend-guide.html">Backend</a><a href="../ui/ui-guide.html">UI</a><a href="../docker/docker-guide.html">Docker</a><a href="../overview/action-flows.html">Action flows</a><a href="../interview/rapid-fire.html">Rapid fire</a></div>
+<div class="wrap"><nav class="toc"><b>Contents</b><div class="toc">
+<ul>
+<li><a href="#stack">Stack</a></li>
+<li><a href="#folder-structure-frontend">Folder structure (frontend/)</a></li>
+<li><a href="#how-the-ui-talks-to-the-backend">How the UI talks to the backend</a><ul>
+<li><a href="#runtime-theming">Runtime theming</a></li>
+</ul>
+</li>
+<li><a href="#two-ways-to-run-the-ui">Two ways to run the UI</a><ul>
+<li><a href="#a-dev-mode-vite-dev-server-hot-reload">A) Dev mode — Vite dev server (hot reload)</a></li>
+<li><a href="#b-docker-mode-built-bundle-served-by-nginx">B) Docker mode — built bundle served by nginx</a></li>
+</ul>
+</li>
+<li><a href="#other-commands">Other commands</a></li>
+<li><a href="#frontend-environment-variables-frontendenv">Frontend environment variables (frontend/.env)</a></li>
+<li><a href="#multi-tenant-urls">Multi-tenant URLs</a></li>
+</ul>
+</div>
+</nav><main><h1 id="03-frontend-ui">03 — Frontend (UI)</h1>
+<h2 id="stack">Stack</h2>
+<p>React 18 · TypeScript · Vite · Material UI (MUI) + Emotion · Tailwind CSS · Redux Toolkit ·
+TanStack React Query · React Router 6 · React Hook Form + Yup · Axios · Framer Motion ·
+<code>vite-plugin-pwa</code> (installable app, service worker).</p>
+<h2 id="folder-structure-frontend">Folder structure (<code>frontend/</code>)</h2>
+<pre><code>frontend/
+├── index.html
+├── vite.config.ts        dev server (5173), /api + /ws proxy to the gateway, PWA, chunking
+├── tailwind.config.js, postcss.config.js
+├── .env                  VITE_* build-time settings
+├── Dockerfile            multi-stage: node:20 build → nginx:alpine serve
+├── nginx.conf            used inside the container (port 3000, /api proxy)
+├── public/               icons, favicon, PWA images
+└── src/
+    ├── main.tsx          entry point: mounts &lt;App/&gt; with providers
+    ├── App.tsx           routes
+    ├── theme.ts          MUI theme (overridden at runtime by the admin UI-config)
+    ├── pages/
+    │   ├── HomePage.tsx
+    │   ├── auth/         Login, Register, OTP, OAuth2 redirect
+    │   ├── dashboard/    user dashboard
+    │   ├── booking/      create/list/detail bookings
+    │   ├── services/     service catalogue
+    │   ├── tracking/     booking/order tracking
+    │   ├── profile/      profile, KYC
+    │   ├── settings/     appearance and account settings
+    │   ├── support/      tickets, Ask AI
+    │   └── admin/        admin console (dashboard, analytics, revenue, workspaces,
+    │                     theme, content, announcements, audit, KYC, ...)
+    ├── components/       shared UI parts (Navbar, cards, dialogs, ...)
+    ├── layouts/          page shells (public, member, admin)
+    ├── providers/        context providers (theme/UI-config, query client, ...)
+    ├── store/            Redux Toolkit store + slices (auth state, etc.)
+    ├── services/         apiBase.ts, api.ts (Axios instance) + per-feature API modules
+    ├── hooks/            custom hooks
+    ├── constants/, types/, utils/, styles/
+</code></pre>
+<h2 id="how-the-ui-talks-to-the-backend">How the UI talks to the backend</h2>
+<ol>
+<li><code>src/services/apiBase.ts</code> reads <code>VITE_API_BASE_URL</code>.
+   - A URL such as <code>http://localhost:8080</code> means: call that host directly.
+   - <code>same-origin</code> (what Docker builds use) means: call <code>/api/v1/...</code> on the page's own host.</li>
+<li><code>src/services/api.ts</code> creates the Axios instance with <code>baseURL: ${API_BASE_URL}/api/v1</code>.
+   Interceptors attach <code>Authorization: Bearer &lt;accessToken&gt;</code> and handle 401 / token refresh.</li>
+<li>The request reaches the <strong>API gateway</strong>, which routes it to the right microservice (see the route
+   table in <a href="../backend/backend-guide.html">backend-guide.md</a>).</li>
+<li>React Query caches server data. Redux holds client state such as the logged-in user and token.</li>
+</ol>
+<h3 id="runtime-theming">Runtime theming</h3>
+<p>After login, the UI calls <code>GET /api/v1/ui-config/me</code> (admin-service). It returns the effective
+theme: colors, radius, density, button style, layout, brand name and logo. A Super Admin edits it in the
+admin console, and members see the change. Pages read colors from the MUI theme
+(<code>theme.palette.primary.main</code>) rather than hard-coding them.</p>
+<h2 id="two-ways-to-run-the-ui">Two ways to run the UI</h2>
+<h3 id="a-dev-mode-vite-dev-server-hot-reload">A) Dev mode — Vite dev server (hot reload)</h3>
+<pre><code class="language-bash">cd ~/RAJKUMAR/frontend
+npm install              # first time only
+npm run dev              # http://localhost:5173
+</code></pre>
+<ul>
+<li>Vite proxies <code>/api</code> → <code>http://localhost:${HOST_PORT_GATEWAY:-8080}</code> and <code>/ws</code> → websocket.</li>
+<li>The backend still needs to be running (usually in Docker). Only the UI runs on your machine.</li>
+<li>If the gateway runs on a different host port: <code>HOST_PORT_GATEWAY=8087 npm run dev</code>.</li>
+<li><code>frontend/.env</code> has <code>VITE_API_BASE_URL=http://localhost:8080</code>, so in dev the bundle may call the
+  gateway directly (CORS allows <code>localhost:5173</code>).</li>
+</ul>
+<h3 id="b-docker-mode-built-bundle-served-by-nginx">B) Docker mode — built bundle served by nginx</h3>
+<pre><code class="language-bash">cd ~/RAJKUMAR/docker
+docker compose up -d --build frontend     # http://localhost:3000
+</code></pre>
+<ul>
+<li>Stage 1 (<code>node:20-alpine</code>) runs <code>npm ci</code> then <code>npm run build</code> (<code>tsc &amp;&amp; vite build</code>), producing <code>dist/</code>.</li>
+<li>Stage 2 (<code>nginx:alpine</code>) copies <code>dist/</code> into <code>/usr/share/nginx/html</code> with <code>frontend/nginx.conf</code>.</li>
+<li>nginx on port 3000:</li>
+<li><code>/api/</code> → <code>proxy_pass http://api-gateway:8080</code>, keeping <code>Host: $http_host</code> (needed for tenancy).</li>
+<li><code>/</code> → <code>try_files ... /index.html</code> (SPA routing).</li>
+<li><code>/assets/</code> cached for 1 year (hashed filenames); <code>index.html</code> never cached.</li>
+<li><strong><code>VITE_*</code> values are baked in at build time.</strong> Changing them means rebuilding the image
+  (<code>docker compose build frontend</code>). Setting them at container runtime does nothing.</li>
+</ul>
+<h2 id="other-commands">Other commands</h2>
+<pre><code class="language-bash">npm run build     # type-check + production build into dist/
+npm run preview   # serve dist/ locally
+npm run lint      # ESLint
+npx tsc --noEmit  # type-check only
+</code></pre>
+<h2 id="frontend-environment-variables-frontendenv">Frontend environment variables (<code>frontend/.env</code>)</h2>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>VITE_API_BASE_URL</code></td>
+<td>Gateway URL, or <code>same-origin</code></td>
+</tr>
+<tr>
+<td><code>VITE_SOCIAL_PROVIDERS</code></td>
+<td>Which social login buttons to show (<code>google,facebook</code>)</td>
+</tr>
+<tr>
+<td><code>VITE_RAZORPAY_KEY_ID</code></td>
+<td>Razorpay <strong>public</strong> key id (never put a secret in a <code>VITE_</code> variable)</td>
+</tr>
+<tr>
+<td><code>VITE_GOOGLE_MAPS_API_KEY</code></td>
+<td>Maps (passed as a Docker build arg)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="multi-tenant-urls">Multi-tenant URLs</h2>
+<p>Every tenant has its own subdomain, e.g. <code>http://acme.localhost:3000</code>. Browsers resolve
+<code>*.localhost</code> to 127.0.0.1 automatically. The login page calls <code>/api/v1/tenant-resolution/**</code>
+to show that tenant's name and branding before anyone logs in.</p></main></div>
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+mermaid.initialize({ startOnLoad: false, theme: dark ? 'dark' : 'default', securityLevel: 'loose',
+                      flowchart: { htmlLabels: true }, sequence: { useMaxWidth: false } });
+const blocks = [...document.querySelectorAll('pre.mermaid')];
+for (let i = 0; i < blocks.length; i++) {
+  const el = blocks[i];
+  const src = el.textContent;
+  try {
+    const { svg } = await mermaid.render('mmd' + i, src);
+    el.innerHTML = svg;
+    el.setAttribute('data-processed', 'true');
+  } catch (e) {
+    el.setAttribute('data-error', 'true');
+    el.textContent = 'Diagram error: ' + e.message + ' --- ' + src;
+  }
+}
+</script>
+</body></html>

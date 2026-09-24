@@ -1,5 +1,9 @@
 package com.civileng.marketplace.admin.uiconfig.service;
 
+import com.civileng.marketplace.admin.config.ConfigRelease;
+import com.civileng.marketplace.admin.config.ConfigScope;
+import com.civileng.marketplace.admin.config.ConfigService;
+import com.civileng.marketplace.admin.uiconfig.dto.UiConfigDTO.ThemeUpdateCommand;
 import com.civileng.marketplace.admin.uiconfig.model.TenantMenuOverrideRow;
 import com.civileng.marketplace.admin.uiconfig.model.TenantModule;
 import com.civileng.marketplace.admin.uiconfig.model.TenantNavigation;
@@ -45,7 +49,7 @@ import org.springframework.stereotype.Component;
 @ConditionalOnProperty(prefix = "platform.tenant", name = "enabled", havingValue = "true")
 public class TenantStateSync implements TenantProvisionedCallback {
 
-    private final ThemeConfigRepository themeRepository;
+    private final ConfigService configService;
     private final TenantModuleRepository moduleRepository;
     private final TenantMenuOverrideRowRepository menuOverrideRepository;
     private final TenantNavigationRepository navigationRepository;
@@ -96,52 +100,34 @@ public class TenantStateSync implements TenantProvisionedCallback {
                 event.getLandingPath(), event.getTenantKey());
     }
 
-    // Not @Transactional: this is called from onProvisioned on the same object, so a proxy-based
-    // annotation would not apply anyway. The two repository calls carry their own transactions,
-    // and there is nothing here that needs them to be one.
+    /**
+     * Publishes the onboarding (or operator-edited) branding as a release of the workspace's theme
+     * documents. A creation event never overrides anything but the shipped default — a redelivered
+     * event after the tenant has started choosing its own look is ignored — while an operator edit
+     * publishes regardless: the console showed them the tenant had customised and they confirmed.
+     */
     private void seed(TenantEventMessage event, TenantBranding branding) {
-        ThemeConfig config = themeRepository.findById(ThemeConfig.PLATFORM_SCOPE)
-                .orElseGet(() -> new ThemeConfig(ThemeConfig.PLATFORM_SCOPE));
-
-        // An explicit operator edit overwrites regardless: the console shows them that the tenant
-        // has customised its theme, and this event only exists because they confirmed anyway.
-        if (!event.isBrandingUpdate() && config.getVersion() > 1) {
-            log.info("Tenant '{}' has customised its theme (version {}) — leaving it alone",
-                    event.getTenantKey(), config.getVersion());
+        if (!event.isBrandingUpdate() && configService.hasNonSeedRelease(ConfigScope.TENANT)) {
+            log.info("Tenant '{}' already has a published theme beyond the default — leaving it alone",
+                    event.getTenantKey());
             return;
         }
-
-        config.setLogoUrl(branding.getLogoUrl());
-        config.setPrimaryColor(branding.getPrimaryColor());
-        config.setAccentColor(branding.getAccentColor());
-        config.setSurfaceColor(branding.getSurfaceColor());
-        config.setSidebarColor(branding.getSidebarColor());
-        config.setBorderRadius(branding.getBorderRadius());
-        config.setFontFamily(branding.getFontFamily());
-        config.setUiStyle(branding.getUiStyle());
-        config.setButtonStyle(branding.getButtonStyle());
-        config.setLayoutStyle(branding.getLayoutStyle());
-        config.setDensity(branding.getDensity());
-        // Never null in the column; an operator who picked no mode gets the shipped default rather
-        // than a row that fails to insert.
-        config.setMode(branding.getColorMode() == null ? "system" : branding.getColorMode());
-        // An explicit wordmark wins; the tenant's own name is the fallback, because it is the one
-        // piece of branding an operator has definitely already told us and it beats the shipped
-        // product name. The two differ often enough to be worth asking: a white-labelled tenant's
-        // legal entity is rarely the brand its own staff see in the sidebar.
-        config.setBrandName(branding.getBrandName() != null
-                ? truncate(branding.getBrandName(), 60)
-                : truncate(event.getName(), 60));
-        // Past 1, so this now reads as a deliberate choice to everything downstream — including a
-        // redelivered provisioning event, which will leave it alone rather than re-apply. An edit
-        // keeps counting up, so the tenant's own screen still shows a customised theme.
-        config.setVersion(Math.max(config.getVersion() + 1, 2));
-
-        themeRepository.save(config);
-        log.info("{} theme for tenant '{}': primary={} mode={} style={}",
-                event.isBrandingUpdate() ? "Updated" : "Seeded",
-                event.getTenantKey(), config.getPrimaryColor(), config.getMode(),
-                config.getUiStyle());
+        ThemeUpdateCommand command = new ThemeUpdateCommand(
+                // An operator who picked no mode gets the shipped default.
+                branding.getColorMode() == null ? "system" : branding.getColorMode(),
+                branding.getPrimaryColor(), branding.getAccentColor(), branding.getSurfaceColor(),
+                branding.getSidebarColor(), branding.getBorderRadius(), branding.getFontFamily(),
+                // An explicit wordmark wins; the tenant's own name is the fallback — the one piece
+                // of branding an operator has definitely already told us.
+                branding.getBrandName() != null ? truncate(branding.getBrandName(), 60) : truncate(event.getName(), 60),
+                branding.getLogoUrl(), branding.getUiStyle(), branding.getButtonStyle(),
+                branding.getLayoutStyle(), branding.getDensity(), branding.getSiteLayout());
+        boolean update = event.isBrandingUpdate();
+        configService.publish(ConfigScope.TENANT, UiConfigService.documentsOf(command),
+                update ? ConfigRelease.Source.OPERATOR : ConfigRelease.Source.ONBOARDING, null,
+                update ? "Branding changed by the platform operator" : "Branding chosen at onboarding", null);
+        log.info("{} theme for tenant '{}': primary={} mode={} style={}", update ? "Updated" : "Seeded",
+                event.getTenantKey(), branding.getPrimaryColor(), command.mode(), branding.getUiStyle());
     }
 
     private static String truncate(String value, int max) {

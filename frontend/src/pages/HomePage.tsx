@@ -20,6 +20,9 @@ import ServiceMedia from '../components/ServiceMedia';
 import { useCatalogue } from '../hooks/useCatalogue';
 import { useSection } from '../hooks/useSiteContent';
 import { resolveMediaUrl } from '../services/siteContentApi';
+import { useTheme } from '@mui/material/styles';
+import { experienceOf } from '../theme';
+import { siteLayout } from '../experience/siteLayouts';
 
 const MotionBox = motion(Box);
 const MotionCard = motion(Card);
@@ -61,6 +64,7 @@ const Headline: React.FC<{ text: string }> = ({ text }) => (
 
 const HomePage: React.FC = () => {
   const navigate = useNavigate();
+  const layout = siteLayout(experienceOf(useTheme()).siteLayout);
   const { services: catalogue } = useCatalogue();
 
   // Every heading, paragraph, badge and button below is a row a Super Admin edits in the console.
@@ -90,13 +94,16 @@ const HomePage: React.FC = () => {
   /** The hero panel's shortlist: the head of the same ordering, so the two never contradict. */
   const topRated = useMemo(() => featured.slice(0, 6), [featured]);
 
-  return (
-    <Box>
+  // The block library for this page (registry-manifest.json "blocks"). The site layout decides
+  // which appear and in what order; each still disappears when its CMS section is switched off.
+  const blocks: Record<string, React.ReactNode> = {
+    'hero': (
+      <>
       {/* Hero Section */}
       {hero && (
       <Box
         sx={{
-          minHeight: '90vh',
+          minHeight: layout.heroHeight,
           display: 'flex',
           alignItems: 'center',
           position: 'relative',
@@ -118,6 +125,8 @@ const HomePage: React.FC = () => {
           <Box
             key={i}
             component="div"
+            aria-hidden
+            data-decorative
             sx={{
               position: 'absolute',
               width: `${300 + i * 200}px`,
@@ -127,6 +136,7 @@ const HomePage: React.FC = () => {
               top: `${10 + i * 15}%`,
               right: `${-5 + i * 10}%`,
               animation: `float ${5 + i * 2}s ease-in-out infinite`,
+              '@media (prefers-reduced-motion: reduce)': { animation: 'none' },
               animationDelay: `${i * 0.5}s`,
             }}
           />
@@ -187,8 +197,8 @@ const HomePage: React.FC = () => {
                       flex: 1,
                       minWidth: 300,
                       '& .MuiOutlinedInput-root': {
-                        bgcolor: '#fff',
-                        borderRadius: 3,
+                        // The theme's surface, so the typed text keeps its contrast in dark mode too.
+                        bgcolor: 'background.paper',
                         '&:hover fieldset': { borderColor: 'transparent' },
                         '& fieldset': { borderColor: 'transparent' },
                       },
@@ -208,11 +218,12 @@ const HomePage: React.FC = () => {
                     sx={{
                       px: 5,
                       py: 1.5,
-                      borderRadius: 3,
                       fontSize: '1rem',
-                      bgcolor: '#fbbf24',
-                      color: '#1e293b',
-                      '&:hover': { bgcolor: '#f59e0b' },
+                      // The tenant's accent (and its readable label), not a fixed amber: the
+                      // style pack and palette decide what the page's main action looks like.
+                      background: (t) => t.palette.secondary.main,
+                      color: (t) => t.palette.secondary.contrastText,
+                      '&:hover': { background: (t) => t.palette.secondary.dark },
                     }}
                   >
                     {hero.linkLabel || 'Search'}
@@ -297,6 +308,10 @@ const HomePage: React.FC = () => {
       </Box>
       )}
 
+      </>
+    ),
+    'stats': (
+      <>
       {/* Stats Section */}
       {statsSection && (
       <Container maxWidth="xl" sx={{ py: 8 }}>
@@ -310,7 +325,6 @@ const HomePage: React.FC = () => {
                 sx={{
                   textAlign: 'center',
                   p: 4,
-                  borderRadius: 4,
                 }}
               >
                 <Avatar
@@ -338,6 +352,10 @@ const HomePage: React.FC = () => {
       </Container>
       )}
 
+      </>
+    ),
+    'how-it-works': (
+      <>
       {/* How It Works */}
       {howItWorks && (
       <Box sx={{ bgcolor: 'action.hover', py: 10 }}>
@@ -402,6 +420,10 @@ const HomePage: React.FC = () => {
       </Box>
       )}
 
+      </>
+    ),
+    'services': (
+      <>
       {/* Services Grid */}
       {servicesSection && (
       <Container maxWidth="xl" sx={{ py: 10 }}>
@@ -425,7 +447,7 @@ const HomePage: React.FC = () => {
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.3, delay: idx * 0.05 }}
                 className="card-hover"
-                sx={{ p: 3, cursor: 'pointer', borderRadius: 4, textAlign: 'center' }}
+                sx={{ p: 3, cursor: 'pointer', textAlign: 'center' }}
                 // The tile names one service, so it opens that service's booking page; the chip-level
                 // "browse the category" route is still a click away on the services page itself.
                 onClick={() => navigate(`/book/${service.slug}`)}
@@ -465,7 +487,6 @@ const HomePage: React.FC = () => {
               variant="outlined"
               size="large"
               onClick={() => navigate('/services')}
-              sx={{ borderRadius: 3, px: 4, textTransform: 'none', fontWeight: 600 }}
             >
               Browse all {catalogue.length} services
             </Button>
@@ -474,6 +495,10 @@ const HomePage: React.FC = () => {
       </Container>
       )}
 
+      </>
+    ),
+    'cta': (
+      <>
       {/* CTA Section */}
       {cta && (
       <Box
@@ -517,7 +542,6 @@ const HomePage: React.FC = () => {
                     sx={{
                       px: 6,
                       py: 1.5,
-                      borderRadius: 3,
                       bgcolor: '#fff',
                       color: 'primary.main',
                       fontSize: '1.1rem',
@@ -536,7 +560,6 @@ const HomePage: React.FC = () => {
                     sx={{
                       px: 6,
                       py: 1.5,
-                      borderRadius: 3,
                       borderColor: '#fff',
                       color: '#fff',
                       fontSize: '1.1rem',
@@ -553,6 +576,15 @@ const HomePage: React.FC = () => {
         </Container>
       </Box>
       )}
+      </>
+    ),
+  };
+
+  return (
+    <Box data-testid="home" data-site-layout={layout.key}>
+      {layout.home.map((key) => (
+        <Box key={key} data-block={key} sx={{ display: 'contents' }}>{blocks[key] ?? null}</Box>
+      ))}
     </Box>
   );
 };

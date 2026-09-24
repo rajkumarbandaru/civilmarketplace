@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>06 — How to Run (start / stop / rebuild / debug)</title>
+<style>
+:root{--bg:#f6f7f9;--fg:#1f2933;--muted:#5b6770;--card:#fff;--line:#e3e6ea;--accent:#3730a3;--accent-bg:#eef2ff;--head:#0f172a;--code:#f1f3f6}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1115;--fg:#e6e8eb;--muted:#9aa4ad;--card:#171a20;--line:#2a2f37;--accent:#a5b4fc;--accent-bg:#1e2240;--head:#05070b;--code:#1f232b}}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.6 system-ui,-apple-system,Segoe UI,sans-serif;background:var(--bg);color:var(--fg)}
+header{background:var(--head);color:#fff;padding:18px 16px}
+header .in{max-width:1200px;margin:0 auto}
+header h1{margin:0;font-size:22px;line-height:1.3} header p{margin:4px 0 0;opacity:.75;font-size:13px}
+header a{color:#c7d2fe}
+.nav{max-width:1200px;margin:0 auto;padding:10px 16px 0;font-size:13px}
+.nav a{color:var(--accent);text-decoration:none;margin-right:6px;padding:3px 9px;border-radius:999px;background:var(--accent-bg);display:inline-block;margin-bottom:6px}
+.wrap{max-width:1200px;margin:0 auto;padding:0 16px 60px;display:flex;gap:24px;align-items:flex-start}
+nav.toc{position:sticky;top:12px;flex:0 0 250px;max-height:calc(100vh - 24px);overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:16px;font-size:13px}
+nav.toc ul{list-style:none;margin:0;padding-left:10px} nav.toc>ul{padding-left:0}
+nav.toc a{color:var(--accent);text-decoration:none;display:block;padding:2px 0}
+main{flex:1;min-width:0}
+main h1{display:none}
+h2{font-size:20px;margin:32px 0 10px;padding-top:8px;border-top:1px solid var(--line)}
+h3{font-size:16px;margin:20px 0 8px}
+a{color:var(--accent)}
+blockquote{margin:12px 0;padding:10px 14px;background:var(--accent-bg);border-left:4px solid var(--accent);border-radius:6px}
+blockquote p{margin:4px 0}
+table{border-collapse:collapse;width:100%;background:var(--card);font-size:14px;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:6px 10px;text-align:left;vertical-align:top}
+th{background:var(--accent-bg)}
+code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:13px}
+pre{background:var(--code);padding:12px;border-radius:8px;overflow-x:auto;font-size:13px;line-height:1.45}
+pre code{background:none;padding:0}
+pre.mermaid{background:var(--card);border:1px solid var(--line);text-align:center}
+hr{border:0;border-top:1px solid var(--line);margin:24px 0}
+@media (max-width:900px){.wrap{display:block}nav.toc{position:static;max-height:none;margin-top:16px}}
+</style></head><body>
+<header><div class="in"><h1>06 — How to Run (start / stop / rebuild / debug)</h1><p>Civil Engineering Marketplace · source ~/RAJKUMAR · generated from <code style="color:#fff;background:none">docker/how-to-run.md</code></p></div></header>
+<div class="nav"><a href="../index.html">Home</a><a href="../interview-guide.html">Interview guide</a><a href="../overview/architecture.html">Architecture</a><a href="../backend/backend-guide.html">Backend</a><a href="../ui/ui-guide.html">UI</a><a href="../docker/docker-guide.html">Docker</a><a href="../overview/action-flows.html">Action flows</a><a href="../interview/rapid-fire.html">Rapid fire</a></div>
+<div class="wrap"><nav class="toc"><b>Contents</b><div class="toc">
+<ul>
+<li><a href="#prerequisites">Prerequisites</a></li>
+<li><a href="#option-1-everything-in-docker-recommended">Option 1 — Everything in Docker (recommended)</a><ul>
+<li><a href="#step-1-build-the-backend-jars-docker-does-not-compile-java">Step 1: Build the backend jars (Docker does NOT compile Java)</a></li>
+<li><a href="#step-2-check-dockerenv">Step 2: Check docker/.env</a></li>
+<li><a href="#step-3-start-the-stack">Step 3: Start the stack</a></li>
+<li><a href="#step-4-check-that-everything-is-up">Step 4: Check that everything is up</a></li>
+<li><a href="#step-5-use-it">Step 5: Use it</a></li>
+</ul>
+</li>
+<li><a href="#option-2-backend-in-docker-ui-in-dev-mode-best-for-ui-work">Option 2 — Backend in Docker, UI in dev mode (best for UI work)</a></li>
+<li><a href="#option-3-one-service-from-your-ide-terminal-for-debugging-java">Option 3 — One service from your IDE / terminal (for debugging Java)</a></li>
+<li><a href="#everyday-commands-run-from-rajkumardocker">Everyday commands (run from ~/RAJKUMAR/docker)</a></li>
+<li><a href="#tests-and-checks">Tests and checks</a></li>
+<li><a href="#troubleshooting">Troubleshooting</a></li>
+</ul>
+</div>
+</nav><main><h1 id="06-how-to-run-start-stop-rebuild-debug">06 — How to Run (start / stop / rebuild / debug)</h1>
+<h2 id="prerequisites">Prerequisites</h2>
+<table>
+<thead>
+<tr>
+<th>Tool</th>
+<th>Version</th>
+<th>Check</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>JDK</td>
+<td><strong>21</strong></td>
+<td><code>/usr/lib/jvm/java-21-openjdk-amd64/bin/java -version</code></td>
+</tr>
+<tr>
+<td>Maven</td>
+<td>3.9+</td>
+<td><code>mvn -version</code></td>
+</tr>
+<tr>
+<td>Node.js / npm</td>
+<td>18+ (Docker uses 20)</td>
+<td><code>npm -v</code></td>
+</tr>
+<tr>
+<td>Docker + Compose v2</td>
+<td>recent</td>
+<td><code>docker --version</code>, <code>docker compose version</code></td>
+</tr>
+<tr>
+<td>RAM</td>
+<td>~12–16 GB for the full stack</td>
+<td>use the lean overlay</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Important:</strong> on this machine the default <code>java</code>/<code>mvn</code> point to JDK 17. This project needs 21, so
+prefix Maven commands with <code>JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64</code>.
+Optional helper:</p>
+<pre><code class="language-bash">export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64    # put in ~/.bashrc to make it permanent
+</code></pre>
+<hr />
+<h2 id="option-1-everything-in-docker-recommended">Option 1 — Everything in Docker (recommended)</h2>
+<h3 id="step-1-build-the-backend-jars-docker-does-not-compile-java">Step 1: Build the backend jars (Docker does NOT compile Java)</h3>
+<pre><code class="language-bash">cd ~/RAJKUMAR/backend
+JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 mvn clean package -DskipTests
+</code></pre>
+<p>This creates <code>backend/&lt;service&gt;/target/*.jar</code> for every module. The service Dockerfiles copy those jars.</p>
+<h3 id="step-2-check-dockerenv">Step 2: Check <code>docker/.env</code></h3>
+<pre><code class="language-bash">cd ~/RAJKUMAR/docker
+cp .env.example .env     # only if .env doesn't exist yet
+</code></pre>
+<p>At minimum it needs <code>JWT_SECRET</code> (a base64 key of at least 256 bits, e.g. <code>openssl rand -base64 64</code>) and
+<code>MYSQL_ROOT_PASSWORD</code>. Channels set to <code>log</code> need no real credentials.</p>
+<h3 id="step-3-start-the-stack">Step 3: Start the stack</h3>
+<pre><code class="language-bash">cd ~/RAJKUMAR/docker
+docker compose -f docker-compose.yml -f docker-compose.lean.yml up -d --build
+</code></pre>
+<p>(Without the lean overlay: <code>docker compose up -d --build</code>. It uses much more memory.)</p>
+<p>The first start takes a few minutes: MySQL initializes, then config-server, then Eureka, then the services.</p>
+<h3 id="step-4-check-that-everything-is-up">Step 4: Check that everything is up</h3>
+<pre><code class="language-bash">docker compose ps                                    # all should be &quot;running&quot;/&quot;healthy&quot;
+curl -s http://localhost:8080/actuator/health         # gateway → {&quot;status&quot;:&quot;UP&quot;}
+curl -s http://localhost:8761/eureka/apps -H 'Accept: application/json' \
+  | python3 -c &quot;import sys,json;d=json.load(sys.stdin);print([a['name'] for a in d['applications']['application']])&quot;
+</code></pre>
+<p>Or open the Eureka dashboard at http://localhost:8761 and check that every service is listed.</p>
+<h3 id="step-5-use-it">Step 5: Use it</h3>
+<table>
+<thead>
+<tr>
+<th>What</th>
+<th>URL</th>
+<th>Login</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Web app</strong></td>
+<td>http://localhost:3000</td>
+<td><code>superadmin@civileng.test</code> / <code>Password123!</code></td>
+</tr>
+<tr>
+<td>Tenant subdomain</td>
+<td>http://&lt;tenant&gt;.localhost:3000</td>
+<td></td>
+</tr>
+<tr>
+<td>API gateway</td>
+<td>http://localhost:8080</td>
+<td></td>
+</tr>
+<tr>
+<td>Eureka</td>
+<td>http://localhost:8761</td>
+<td></td>
+</tr>
+<tr>
+<td>Config server</td>
+<td>http://localhost:8889/&lt;service&gt;/default</td>
+<td></td>
+</tr>
+<tr>
+<td>Swagger (per service)</td>
+<td>http://localhost:&lt;host-port&gt;/swagger-ui.html</td>
+<td></td>
+</tr>
+<tr>
+<td>RabbitMQ UI</td>
+<td>http://localhost:15672</td>
+<td>guest / guest</td>
+</tr>
+<tr>
+<td>Elasticsearch</td>
+<td>http://localhost:9200</td>
+<td></td>
+</tr>
+<tr>
+<td>Zipkin</td>
+<td>http://localhost:9411</td>
+<td></td>
+</tr>
+<tr>
+<td>Prometheus</td>
+<td>http://localhost:9090</td>
+<td></td>
+</tr>
+<tr>
+<td>Grafana</td>
+<td>http://localhost:3001</td>
+<td>admin / admin</td>
+</tr>
+<tr>
+<td>MySQL</td>
+<td>localhost:3309</td>
+<td>civil_user / civil_pass (or root)</td>
+</tr>
+</tbody>
+</table>
+<p>Other seeded users (same password): <code>admin@</code>, <code>customer@</code>, <code>worker@</code>, <code>engineer@</code>,
+<code>architect@</code>, <code>contractor@</code>, <code>surveyor@</code>, <code>supplier@</code>, <code>labour@</code> + <code>civileng.test</code>.</p>
+<p>Quick API test:</p>
+<pre><code class="language-bash">curl -s -X POST http://localhost:8080/api/v1/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{&quot;email&quot;:&quot;superadmin@civileng.test&quot;,&quot;password&quot;:&quot;Password123!&quot;}'
+</code></pre>
+<hr />
+<h2 id="option-2-backend-in-docker-ui-in-dev-mode-best-for-ui-work">Option 2 — Backend in Docker, UI in dev mode (best for UI work)</h2>
+<pre><code class="language-bash"># 1. backend + infrastructure (everything except the frontend container)
+cd ~/RAJKUMAR/docker
+docker compose -f docker-compose.yml -f docker-compose.lean.yml up -d \
+  mysql redis zookeeper kafka rabbitmq elasticsearch \
+  config-server service-registry api-gateway tenant-service \
+  auth-service user-service booking-service payment-service notification-service \
+  admin-service project-service review-service audit-service messaging-service \
+  support-service search-service
+
+# 2. UI with hot reload
+cd ~/RAJKUMAR/frontend
+npm install          # first time
+npm run dev          # → http://localhost:5173   (/api proxied to localhost:8080)
+</code></pre>
+<p>Start only what your screen needs. The minimum for logging in is:
+<code>mysql redis zookeeper kafka config-server service-registry api-gateway tenant-service auth-service admin-service</code>.</p>
+<hr />
+<h2 id="option-3-one-service-from-your-ide-terminal-for-debugging-java">Option 3 — One service from your IDE / terminal (for debugging Java)</h2>
+<p>Keep infrastructure, config-server, Eureka and the gateway in Docker. Stop the container for the service you
+want to debug, and run that service locally:</p>
+<pre><code class="language-bash">cd ~/RAJKUMAR/docker
+docker compose stop booking-service
+
+cd ~/RAJKUMAR/backend
+JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 mvn -pl booking-service -am spring-boot:run
+</code></pre>
+<p>When running outside Docker, the service must use <strong>host</strong> addresses, not container names:
+config server <code>localhost:8889</code>, Eureka <code>localhost:8761</code>, MySQL <code>localhost:3309</code>,
+Redis <code>localhost:6381</code>, Kafka <code>localhost:29093</code>. Override them with environment variables or a local profile
+if the config-repo defaults use the Docker names.</p>
+<p>Also note that a service running on your host registers in Eureka with your host's address. The gateway runs
+inside Docker and may not be able to reach that address. If gateway calls fail, call the service directly on its port
+(adding the <code>X-User-*</code> / <code>X-Tenant-Id</code> headers yourself), or run the gateway locally as well.</p>
+<hr />
+<h2 id="everyday-commands-run-from-rajkumardocker">Everyday commands (run from <code>~/RAJKUMAR/docker</code>)</h2>
+<pre><code class="language-bash"># status / logs
+docker compose ps
+docker compose logs -f auth-service              # follow one service
+docker compose logs --tail=200 notification-service   # OTPs appear here when provider=log
+
+# after changing Java code in one service
+cd ../backend &amp;&amp; JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 \
+  mvn -q -pl auth-service -am package -DskipTests &amp;&amp; cd ../docker
+docker compose up -d --build auth-service
+
+# after changing a shared lib (audit-common / tenant-common / web-common)
+#   rebuild every service that uses it: -pl &lt;svc1&gt;,&lt;svc2&gt; -am, then up -d --build those services
+
+# after changing frontend code (Docker mode)
+docker compose up -d --build frontend
+
+# after changing config-server's config-repo YAML
+#   rebuild config-server (the configs are on its classpath), then restart the affected services
+docker compose up -d --build config-server &amp;&amp; docker compose restart auth-service
+
+# restart / stop
+docker compose restart api-gateway
+docker compose stop                 # stop everything, keep containers
+docker compose down                 # remove containers, KEEP data volumes
+docker compose down -v              # remove containers AND DATA (DB wiped, init SQL re-runs)
+
+# open a DB shell
+docker exec -it civil_mysql mysql -ucivil_user -pcivil_pass
+#   SHOW DATABASES;   -- per-tenant schemas look like civil_engineer_auth_&lt;tenant&gt;
+</code></pre>
+<h2 id="tests-and-checks">Tests and checks</h2>
+<pre><code class="language-bash">cd ~/RAJKUMAR/backend &amp;&amp; JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 mvn test
+cd ~/RAJKUMAR/frontend &amp;&amp; npx tsc --noEmit &amp;&amp; npm run lint
+</code></pre>
+<p>CI configuration: <code>.github/workflows/ci.yml</code>.</p>
+<hr />
+<h2 id="troubleshooting">Troubleshooting</h2>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Likely cause / fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>COPY ... target/*.jar: no source files</code> during <code>docker compose build</code></td>
+<td>Jars not built. Run the Maven package step first</td>
+</tr>
+<tr>
+<td><code>release version 21 not supported</code></td>
+<td>Maven is using JDK 17. Set <code>JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64</code></td>
+</tr>
+<tr>
+<td>Service exits right after start, "Could not connect to config server"</td>
+<td>config-server not healthy yet. Check <code>docker compose logs config-server</code>, then <code>restart &lt;svc&gt;</code></td>
+</tr>
+<tr>
+<td>Service fails on first boot with a DB connection error</td>
+<td>MySQL was still initializing. Run <code>docker compose restart &lt;svc&gt;</code></td>
+</tr>
+<tr>
+<td>Gateway returns <strong>503</strong> for a route</td>
+<td>The target service isn't registered in Eureka yet (wait about 30 s) or has crashed. Check the logs</td>
+</tr>
+<tr>
+<td>Gateway returns <strong>401</strong></td>
+<td>Missing, expired or wrong JWT, or <code>JWT_SECRET</code> differs between auth-service and api-gateway</td>
+</tr>
+<tr>
+<td><strong>403</strong> with an empty body on login</td>
+<td>Origin not allowed by CORS (unusual host/port), or tenant mismatch between the token and the subdomain</td>
+</tr>
+<tr>
+<td>UI shows old code after a rebuild</td>
+<td>Hard-refresh (the PWA service worker caches). <code>index.html</code> itself is never cached</td>
+</tr>
+<tr>
+<td><code>VITE_*</code> change has no effect</td>
+<td>They are build-time values. Rebuild the frontend image or restart <code>npm run dev</code></td>
+</tr>
+<tr>
+<td>Port already in use</td>
+<td>Change the matching <code>HOST_PORT_*</code> in <code>docker/.env</code>, then <code>docker compose up -d</code></td>
+</tr>
+<tr>
+<td>Machine very slow / OOM</td>
+<td>Use <code>-f docker-compose.lean.yml</code> and start only the services you need</td>
+</tr>
+<tr>
+<td>No OTP email arrives</td>
+<td><code>EMAIL_PROVIDER=log</code> or placeholder SMTP credentials. Read the OTP from <code>docker compose logs notification-service</code></td>
+</tr>
+<tr>
+<td>Social login buttons do nothing</td>
+<td>Needs <code>AUTH_PROFILE=docker,social</code> plus real Google/Facebook credentials</td>
+</tr>
+<tr>
+<td>Ask AI says unavailable</td>
+<td><code>GEMINI_API_KEY</code> is not set in <code>docker/.env</code></td>
+</tr>
+</tbody>
+</table></main></div>
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+mermaid.initialize({ startOnLoad: false, theme: dark ? 'dark' : 'default', securityLevel: 'loose',
+                      flowchart: { htmlLabels: true }, sequence: { useMaxWidth: false } });
+const blocks = [...document.querySelectorAll('pre.mermaid')];
+for (let i = 0; i < blocks.length; i++) {
+  const el = blocks[i];
+  const src = el.textContent;
+  try {
+    const { svg } = await mermaid.render('mmd' + i, src);
+    el.innerHTML = svg;
+    el.setAttribute('data-processed', 'true');
+  } catch (e) {
+    el.setAttribute('data-error', 'true');
+    el.textContent = 'Diagram error: ' + e.message + ' --- ' + src;
+  }
+}
+</script>
+</body></html>

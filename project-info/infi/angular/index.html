@@ -1,0 +1,920 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AryaDash — Angular UI Interview Guide</title>
+<style>
+:root{--bg:#f6f7f9;--fg:#1f2933;--muted:#5b6770;--card:#fff;--line:#e3e6ea;--accent:#3730a3;--accent-bg:#eef2ff;--head:#0f172a;--code:#f1f3f6}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1115;--fg:#e6e8eb;--muted:#9aa4ad;--card:#171a20;--line:#2a2f37;--accent:#a5b4fc;--accent-bg:#1e2240;--head:#05070b;--code:#1f232b}}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.6 system-ui,-apple-system,Segoe UI,sans-serif;background:var(--bg);color:var(--fg)}
+header{background:var(--head);color:#fff;padding:18px 16px}
+header .in{max-width:1200px;margin:0 auto}
+header h1{margin:0;font-size:22px;line-height:1.3} header p{margin:4px 0 0;opacity:.75;font-size:13px}
+header a{color:#c7d2fe}
+.wrap{max-width:1200px;margin:0 auto;padding:0 16px 60px;display:flex;gap:24px;align-items:flex-start}
+nav.toc{position:sticky;top:12px;flex:0 0 250px;max-height:calc(100vh - 24px);overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:16px;font-size:13px}
+nav.toc ul{list-style:none;margin:0;padding-left:10px} nav.toc>ul{padding-left:0}
+nav.toc a{color:var(--accent);text-decoration:none;display:block;padding:2px 0}
+main{flex:1;min-width:0}
+main h1{display:none}
+h2{font-size:20px;margin:32px 0 10px;padding-top:8px;border-top:1px solid var(--line)}
+h3{font-size:16px;margin:20px 0 8px}
+a{color:var(--accent)}
+blockquote{margin:12px 0;padding:10px 14px;background:var(--accent-bg);border-left:4px solid var(--accent);border-radius:6px}
+blockquote p{margin:4px 0}
+table{border-collapse:collapse;width:100%;background:var(--card);font-size:14px;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:6px 10px;text-align:left;vertical-align:top}
+th{background:var(--accent-bg)}
+code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:13px}
+pre{background:var(--code);padding:12px;border-radius:8px;overflow-x:auto;font-size:13px;line-height:1.45}
+pre code{background:none;padding:0}
+pre.mermaid{background:var(--card);border:1px solid var(--line);text-align:center}
+hr{border:0;border-top:1px solid var(--line);margin:24px 0}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin:12px 0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px}
+.card h3{margin:0 0 6px;font-size:16px}.card p{margin:0;color:var(--muted);font-size:13px}
+.card .meta{margin-top:8px;font-size:12px;color:var(--muted)}
+@media (max-width:900px){.wrap{display:block}nav.toc{position:static;max-height:none;margin-top:16px}}
+</style></head><body>
+<header><div class="in"><h1>AryaDash — Angular UI Interview Guide</h1><p>VIPLine-billing &middot; aryadash-dashboard + aryadash-designer &middot; <a href="projects/index.html">All projects</a></p></div></header>
+<div class="wrap"><nav class="toc"><b>Contents</b><div class="toc">
+<ul>
+<li><a href="#1-your-60-second-pitch">1. Your 60-second pitch</a></li>
+<li><a href="#2-what-the-project-is">2. What the project is</a></li>
+<li><a href="#3-tech-stack">3. Tech stack</a></li>
+<li><a href="#4-folder-structure-dashboard">4. Folder structure (dashboard)</a></li>
+<li><a href="#5-high-level-architecture">5. High-level architecture</a></li>
+<li><a href="#6-flow-1-choosing-a-product-at-build-time">6. Flow 1 — Choosing a product at build time</a></li>
+<li><a href="#7-flow-2-app-bootstrap">7. Flow 2 — App bootstrap</a></li>
+<li><a href="#8-flow-3-login-session-cookie-mode-and-bearer-token-mode">8. Flow 3 — Login (session-cookie mode and bearer-token mode)</a></li>
+<li><a href="#9-flow-4-route-protection-authguard-role-access">9. Flow 4 — Route protection (AuthGuard + role access)</a></li>
+<li><a href="#10-flow-5-menu-click-to-rendered-page-the-heart-of-the-engine">10. Flow 5 — Menu click to rendered page (the heart of the engine)</a></li>
+<li><a href="#11-flow-6-form-submit-with-status-handlers">11. Flow 6 — Form submit with status handlers</a></li>
+<li><a href="#12-flow-7-how-an-http-request-is-built">12. Flow 7 — How an HTTP request is built</a></li>
+<li><a href="#13-flow-8-session-expiry-and-re-login-without-losing-the-page">13. Flow 8 — Session expiry and re-login without losing the page</a></li>
+<li><a href="#14-flow-9-component-communication-patterns-used">14. Flow 9 — Component communication patterns used</a></li>
+<li><a href="#15-real-time-features">15. Real-time features</a></li>
+<li><a href="#16-performance-and-design-decisions-worth-mentioning">16. Performance and design decisions worth mentioning</a></li>
+<li><a href="#17-the-second-app-aryadash-designer-ai-config-generator">17. The second app: AryaDash Designer (AI config generator)</a></li>
+<li><a href="#18-angular-concepts-where-they-are-in-this-project">18. Angular concepts → where they are in this project</a></li>
+<li><a href="#19-interview-questions-with-answers-from-this-project">19. Interview questions with answers from this project</a></li>
+<li><a href="#20-how-to-run">20. How to run</a></li>
+<li><a href="#21-glossary">21. Glossary</a></li>
+</ul>
+</div>
+</nav><main><h1 id="aryadash-vipline-billing-angular-ui-interview-guide">AryaDash (VIPLine-billing) — Angular UI Interview Guide</h1>
+<p>Everything a UI developer needs to explain this project in an interview: what it is, how it
+is built, how each flow works end to end (with flowcharts), which Angular concepts it uses
+and where, and practice questions with answers taken from the real code.</p>
+<blockquote>
+<p>Source repo: <code>~/VIPLine-billing</code> (GitHub <code>goswyperdev/VIPLine-billing</code>).
+Two Angular apps live in it: <strong>aryadash-dashboard</strong> (the product) and <strong>aryadash-designer</strong>
+(an AI tool that writes config for the product).
+Per-project pages: <a href="projects/index.html">projects/index.html</a>.
+For 5+ years of experience, read this with the <a href="03-senior-developer-playbook.html">senior developer playbook</a>.</p>
+</blockquote>
+<hr />
+<h2 id="1-your-60-second-pitch">1. Your 60-second pitch</h2>
+<blockquote>
+<p>"I work on <strong>AryaDash</strong>, a <strong>configuration-driven Angular dashboard engine</strong> for telecom and
+billing operations. Instead of hand-coding every screen, we built around 80 reusable
+components — tables, forms, wizards, charts, detail views, chat, timelines — and each
+screen is described in <strong>JSON</strong>: which API to call, which columns to show, which filters,
+which form fields, what to do on each response status.</p>
+<p>The <strong>same Angular 15 codebase ships 14 differently branded products</strong> — VIP Line, Arya CRM,
+Arya Billing Admin (Xmobee), Wirepay, OCS Monitor, and more. A product is selected at
+<strong>build time</strong> through <code>angular.json</code> configurations that swap in that product's
+<code>global.json</code>, <code>routes.ts</code>, environment file and asset folder.</p>
+<p>I worked on the UI engine — the table/form components, the REST layer that builds URLs and
+headers from config, the login and session handling (cookie sessions and JWT bearer tokens),
+role-based menu and route access, and real-time features like live panels and chat over
+WebSockets. We also have a second app, <strong>AryaDash Designer</strong>, built in Angular 21 with
+standalone components and signals, which uses Claude to generate those JSON configs from a
+plain-English description."</p>
+</blockquote>
+<hr />
+<h2 id="2-what-the-project-is">2. What the project is</h2>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Repo</td>
+<td><code>VIPLine-billing</code> (≈1,550 commits since Nov 2022)</td>
+</tr>
+<tr>
+<td>App 1</td>
+<td><code>aryadash-dashboard</code> — Angular <strong>15.2</strong>, NgModule-based, package name <code>vip-line</code></td>
+</tr>
+<tr>
+<td>App 2</td>
+<td><code>aryadash-designer</code> — Angular <strong>21.1</strong>, standalone components + signals</td>
+</tr>
+<tr>
+<td>Products built from App 1</td>
+<td><strong>14</strong> (one folder each under <code>src/config/</code>)</td>
+</tr>
+<tr>
+<td>Reusable UI components</td>
+<td>≈80 declared in <code>app.module.ts</code> (components, pipes, directives)</td>
+</tr>
+<tr>
+<td>Page config files</td>
+<td>≈440 JSON files across all products (arya-billing-admin alone has 221)</td>
+</tr>
+<tr>
+<td>Styling</td>
+<td>Argon Dashboard (Bootstrap 5) theme + SCSS, per-product theme colours</td>
+</tr>
+<tr>
+<td>Domain</td>
+<td>Telecom BSS/OSS: SIMs, activations, bundles, DIDs, billing, wallets, CRM tickets, MNP porting, reports</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The core idea (say this clearly in the interview):</strong>
+screens are <strong>data, not code</strong>. A page is a list of <em>view items</em> in <code>global.json</code>, each item
+points to a JSON file that describes a table/form/etc., and generic Angular components
+interpret that JSON at runtime.</p>
+<hr />
+<h2 id="3-tech-stack">3. Tech stack</h2>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Dashboard (App 1)</th>
+<th>Designer (App 2)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Framework</td>
+<td>Angular 15.2, <code>NgModule</code>, <code>CUSTOM_ELEMENTS_SCHEMA</code></td>
+<td>Angular 21.1, standalone, <code>ApplicationConfig</code>, signals, <code>inject()</code></td>
+</tr>
+<tr>
+<td>Build</td>
+<td><code>@angular-builders/custom-webpack</code> (DefinePlugin injects <code>PRODUCT_TYPE</code>)</td>
+<td><code>@angular/build</code> (esbuild), Vitest</td>
+</tr>
+<tr>
+<td>Language</td>
+<td>TypeScript 4.x</td>
+<td>TypeScript 5.9</td>
+</tr>
+<tr>
+<td>Async</td>
+<td>RxJS 7.8 (<code>Observable</code>, <code>Subject</code>, custom observers)</td>
+<td>RxJS (<code>switchMap</code>, <code>forkJoin</code>, <code>shareReplay</code>) + async iterators</td>
+</tr>
+<tr>
+<td>HTTP</td>
+<td><code>HttpClient</code> wrapped in <code>RestAPIService</code></td>
+<td><code>HttpClient</code>, <code>fetch</code> + SSE stream reader</td>
+</tr>
+<tr>
+<td>UI libs</td>
+<td>ngx-bootstrap (modals), ngx-toastr, ngx-spinner, SweetAlert2, ngx-gauge, Chart.js, drawflow / rete (bot-flow editor), flag-icon-css</td>
+<td>plain SCSS</td>
+</tr>
+<tr>
+<td>Storage</td>
+<td><code>angular-2-local-storage</code> (prefixed per product), <code>ngx-cookie</code></td>
+<td><code>localStorage</code> settings</td>
+</tr>
+<tr>
+<td>Real time</td>
+<td>native <code>WebSocket</code>, <code>@stomp/stompjs</code> + SockJS (agent voice), Verto WebSocket</td>
+<td>Server-Sent Events from Node server</td>
+</tr>
+<tr>
+<td>Files</td>
+<td>papaparse (CSV), file-saver, sha.js (password hashing)</td>
+<td>Node <code>fs</code> via <code>server.js</code></td>
+</tr>
+<tr>
+<td>AI</td>
+<td>—</td>
+<td><code>@anthropic-ai/sdk</code> (browser) or AWS Bedrock via <code>server.js</code></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="4-folder-structure-dashboard">4. Folder structure (dashboard)</h2>
+<pre><code>aryadash-dashboard/
+├── angular.json                 # 22 build configs + 17 serve configs = one per product/env
+├── custom-webpack.config.js     # DefinePlugin: process.env.PRODUCT_TYPE
+├── src/
+│   ├── main.ts                  # platformBrowserDynamic().bootstrapModule(AppModule)
+│   ├── index.html               # &lt;app-root&gt;, Argon CSS, fonts, FontAwesome
+│   ├── environments/            # environment.&lt;product&gt;.ts  -&gt; configBase, productType
+│   ├── config/
+│   │   ├── global.json          # placeholder, REPLACED at build time
+│   │   └── &lt;product&gt;/           # 14 products
+│   │       ├── global.json      # title, theme, login, menu, submenu, pages, dashboard
+│   │       ├── routes.ts        # Angular routes for that product
+│   │       └── *.json           # one file per screen: tables, forms, wizards...
+│   ├── assets-&lt;product&gt;/        # logos, CSS per brand
+│   ├── proxy.conf.&lt;product&gt;.json# dev-server proxy: /user_mgmt/* -&gt; backend
+│   └── app/
+│       ├── app.module.ts        # declares ~80 components/pipes/directives
+│       ├── app-routing.module.ts# wraps every route (except login) with AuthGuard
+│       ├── routes/routes.ts     # placeholder, REPLACED per product
+│       ├── appconfig.service.ts # global.json + runtime JSON loader with cache
+│       ├── rest-api.service.ts  # builds URL/headers from config, GET/POST/PUT/DELETE
+│       ├── data-store.service.ts# localStorage + in-memory runtime store + pub/sub
+│       ├── access-control.service.ts, auth.guard.ts, bearer-auth.service.ts
+│       ├── session-logout.service.ts
+│       ├── login-page/ login/   # login screen + login logic
+│       ├── tableview/           # THE page shell: header, menu, rows of view items
+│       ├── dashboard/           # metric tiles, gauges, charts
+│       ├── table/ form/ wizard-form/ modal-form/ detailview/ list-view/ ...
+│       ├── chat-room/ webchannel/ live-panel/ break-panel/ agent-voice/
+│       └── *.pipe.ts            # data-fetch, data-xlate, data-filter, fe-paging, ...
+</code></pre>
+<hr />
+<h2 id="5-high-level-architecture">5. High-level architecture</h2>
+<pre class="mermaid">flowchart TB
+    subgraph BUILD[&quot;Build time (angular.json configuration)&quot;]
+        CFG[&quot;ng serve --configuration=arya-crm&quot;]
+        FR[&quot;fileReplacements:&lt;br/&gt;environment.ts, config/global.json,&lt;br/&gt;app/routes/routes.ts&quot;]
+        AS[&quot;assets glob:&lt;br/&gt;assets-{product}/ to /assets/&lt;br/&gt;config/ to /config/&quot;]
+        CFG --&gt; FR --&gt; BUNDLE[&quot;One branded bundle&quot;]
+        CFG --&gt; AS --&gt; BUNDLE
+    end
+
+    subgraph BROWSER[&quot;Browser (Angular 15 SPA)&quot;]
+        APP[&quot;AppComponent&lt;br/&gt;title + layout&quot;]
+        RT[&quot;Router + AuthGuard&quot;]
+        LP[&quot;LoginPageComponent&quot;]
+        TV[&quot;TableviewComponent&lt;br/&gt;(page shell)&quot;]
+        DB[&quot;DashboardComponent&quot;]
+        VIEWS[&quot;table / form / wizard / detail-view /&lt;br/&gt;list-view / content-tab / chat / charts&quot;]
+        SVC[&quot;Services:&lt;br/&gt;AppConfig, RestAPIService, DataStore,&lt;br/&gt;AccessControl, BearerAuth, SessionLogout&quot;]
+        APP --&gt; RT
+        RT --&gt; LP
+        RT --&gt; TV
+        RT --&gt; DB
+        TV --&gt; VIEWS
+        VIEWS --&gt; SVC
+        LP --&gt; SVC
+    end
+
+    subgraph DATA[&quot;Runtime data&quot;]
+        JSON[&quot;/config/{product}/*.json&lt;br/&gt;(screen definitions)&quot;]
+        API[&quot;Backend REST APIs&lt;br/&gt;user_mgmt, service_mgmt, billing,&lt;br/&gt;catalogue_mgmt, metrics ...&quot;]
+        WS[&quot;WebSocket / STOMP&lt;br/&gt;(chat, live panel, agent voice)&quot;]
+    end
+
+    BUNDLE --&gt; BROWSER
+    SVC -- &quot;HttpClient GET (cached)&quot; --&gt; JSON
+    SVC -- &quot;HttpClient + SESSIONID / Authorization&quot; --&gt; API
+    VIEWS -- &quot;WebSocket&quot; --&gt; WS
+</pre>
+<hr />
+<h2 id="6-flow-1-choosing-a-product-at-build-time">6. Flow 1 — Choosing a product at build time</h2>
+<p><code>angular.json</code> has one <strong>build configuration</strong> and one <strong>serve configuration</strong> per product.
+Each one swaps three files and copies that product's assets.</p>
+<pre class="mermaid">flowchart LR
+    A[&quot;Developer runs&lt;br/&gt;ng serve --configuration=vip-line-style name&quot;] --&gt; B{&quot;Which serve config?&quot;}
+    B --&gt; C[&quot;browserTarget: vip-line:build:development-{product}&quot;]
+    B --&gt; D[&quot;proxyConfig: src/proxy.conf.{product}.json&quot;]
+    C --&gt; E[&quot;fileReplacements&quot;]
+    E --&gt; E1[&quot;environments/environment.ts&lt;br/&gt;to environment.{product}.ts&lt;br/&gt;(configBase, productType)&quot;]
+    E --&gt; E2[&quot;config/global.json&lt;br/&gt;to config/{product}/global.json&quot;]
+    E --&gt; E3[&quot;app/routes/routes.ts&lt;br/&gt;to config/{product}/routes.ts&quot;]
+    C --&gt; F[&quot;assets: assets-{product}/ served as /assets/&quot;]
+    E1 --&gt; G[&quot;Compiled bundle for that product&quot;]
+    E2 --&gt; G
+    E3 --&gt; G
+    F --&gt; G
+    D --&gt; H[&quot;Dev server forwards /user_mgmt/*, /billing/* ...&lt;br/&gt;to that product's backend (no CORS issue)&quot;]
+</pre>
+<p>Key points to say:</p>
+<ul>
+<li><code>global.json</code> is <strong>imported at compile time</strong> (<code>import * as data from '../config/global.json'</code>
+  in <code>AppConfig</code>), so it is baked into the bundle.</li>
+<li>The per-screen JSON files are <strong>fetched at runtime</strong> over HTTP from
+  <code>config/&lt;configBase&gt;/&lt;name&gt;.json</code>, so they can be edited without recompiling TypeScript.</li>
+<li><strong>Product type</strong> (e.g. <code>PRODUCT_TYPE=enterprise ng serve --configuration=arya-crm</code>) adds a
+  second layer: <code>AppConfig.readConfig()</code> tries <code>config/arya-crm/enterprise/&lt;name&gt;.json</code> first
+  and falls back to <code>config/arya-crm/&lt;name&gt;.json</code> on 404 or on an HTML response.</li>
+</ul>
+<hr />
+<h2 id="7-flow-2-app-bootstrap">7. Flow 2 — App bootstrap</h2>
+<pre class="mermaid">sequenceDiagram
+    participant B as Browser
+    participant M as main.ts
+    participant AM as AppModule
+    participant AC as AppComponent
+    participant CFG as AppConfig
+    participant DS as DataStoreService
+    participant R as Router
+
+    B-&gt;&gt;M: load index.html + bundles
+    M-&gt;&gt;AM: platformBrowserDynamic().bootstrapModule(AppModule)
+    Note over AM: LocalStorageModule.forRoot({prefix: global.json &quot;datastore-prefix&quot;})&lt;br/&gt;CookieModule, ModalModule, Toastr, Spinner, Gauge
+    AM-&gt;&gt;AC: bootstrap AppComponent
+    AC-&gt;&gt;CFG: read global.json (already in bundle)
+    AC-&gt;&gt;AC: TitleService.setTitle(config.title)
+    AC-&gt;&gt;DS: setLayout(config.layout)
+    AC-&gt;&gt;R: router-outlet
+    R-&gt;&gt;R: route &quot;&quot; (matcher checkAdmin) -&gt; LoginPageComponent
+</pre>
+<hr />
+<h2 id="8-flow-3-login-session-cookie-mode-and-bearer-token-mode">8. Flow 3 — Login (session-cookie mode and bearer-token mode)</h2>
+<p><code>LoginComponent.onSignIn()</code> reads <code>global.json → login</code> to decide everything: URLs, field
+names, cookie name, what to store after success.</p>
+<pre class="mermaid">flowchart TD
+    S[&quot;User submits username + password&quot;] --&gt; E{&quot;Fields empty?&quot;}
+    E -- yes --&gt; H[&quot;Show hint: cannot be empty&quot;]
+    E -- no --&gt; M{&quot;login.auth-mode == 'bearer'?&quot;}
+
+    M -- yes --&gt; B1[&quot;POST login_url&lt;br/&gt;{tenantId, username, password}&quot;]
+    B1 --&gt; B2{&quot;accessToken in response?&quot;}
+    B2 -- no --&gt; INV[&quot;invalidCredentials = true&quot;]
+    B2 -- yes --&gt; B3[&quot;BearerAuthService.storeTokens()&lt;br/&gt;cookie Authorization = 'Bearer {token}'&lt;br/&gt;refreshToken to localStorage&lt;br/&gt;scheduleRefresh(expiresIn - 30s)&quot;]
+    B3 --&gt; B4[&quot;GET me_url -&gt; store userId, tenantId, roles&quot;]
+    B4 --&gt; OK
+
+    M -- no --&gt; P[&quot;Build body from login_data mapping&lt;br/&gt;password = SHA-256 (hex or base64) via sha.js&quot;]
+    P --&gt; A{&quot;isAdmin?&lt;br/&gt;route data / hostname contains 'admin'&quot;}
+    A -- yes --&gt; U1[&quot;POST admin_url&quot;]
+    A -- no --&gt; U2[&quot;POST login_url&quot;]
+    U1 --&gt; R{&quot;status&quot;}
+    U2 --&gt; R
+    R -- &quot;success + newpasswd&quot; --&gt; CP[&quot;Show Change Password&quot;]
+    R -- success --&gt; F[&quot;finishLoginProcess()&lt;br/&gt;cookie {cookie_name} = sessionKey&lt;br/&gt;role = admin / reseller&lt;br/&gt;store-data fields to localStorage&lt;br/&gt;remember-me (hashed)&quot;]
+    F --&gt; PL{&quot;post-login.validation?&quot;}
+    PL -- yes --&gt; V[&quot;extra GET, store more data&quot;] --&gt; OK
+    PL -- no --&gt; OK
+    R -- &quot;statusHttpError&quot; --&gt; OFF[&quot;serviceOffline = true&quot;]
+    R -- &quot;INVALID_USER/PASSWORD&quot; --&gt; INV
+    R -- &quot;invalid login attempts&quot; --&gt; TM[&quot;tooManyLoginAttempts&quot;]
+    OK[&quot;loginUpdate.emit('success')&quot;] --&gt; NAV[&quot;LoginPage: router.navigate(['/' + AccessControl.getLandingPage()])&quot;]
+</pre>
+<p>Interview talking points:</p>
+<ul>
+<li><strong>Config-driven field mapping</strong>: <code>login_data</code> maps UI fields to API field names
+  (<code>username → servedMSISDN</code> in VIP Line), so one login component serves 14 backends.</li>
+<li><strong>Two auth strategies behind one interface</strong>: <code>AccessControlService.isLoggedIn()</code> checks the
+  bearer cookie in bearer mode and the product's session cookie otherwise.</li>
+<li><strong>Token refresh</strong>: <code>BearerAuthService.scheduleRefresh()</code> sets a timer for 30 seconds before
+  expiry and calls <code>refresh_url</code>.</li>
+</ul>
+<hr />
+<h2 id="9-flow-4-route-protection-authguard-role-access">9. Flow 4 — Route protection (AuthGuard + role access)</h2>
+<p><code>app-routing.module.ts</code> wraps every route except the login component:</p>
+<pre><code class="language-ts">const guardedRoutes = routes.map(route =&gt;
+  route.component === LoginPageComponent ? route : { ...route, canActivate: [AuthGuard] });
+</code></pre>
+<pre class="mermaid">flowchart TD
+    N[&quot;Navigate to /simcards&quot;] --&gt; G[&quot;AuthGuard.canActivate()&quot;]
+    G --&gt; L{&quot;AccessControl.isLoggedIn()?&quot;}
+    L -- no --&gt; LOGIN[&quot;return UrlTree '/' (login)&quot;]
+    L -- yes --&gt; P{&quot;isRouteAllowed(path)?&lt;br/&gt;find menu item with name == path&quot;}
+    P -- &quot;no menu item&quot; --&gt; OKR[&quot;allow&quot;]
+    P -- found --&gt; I[&quot;isItemAllowed(item.access)&quot;]
+    I --&gt; R1{&quot;role matches?&lt;br/&gt;string, array, 'A|B' or {not: ...}&quot;}
+    R1 -- yes --&gt; R2{&quot;access.list set?&quot;}
+    R2 -- no --&gt; OKR
+    R2 -- yes --&gt; R3[&quot;DataStore.checkAccessList(list, access)&lt;br/&gt;e.g. resellerViewAccess has&lt;br/&gt;viewAccessName=Subscriptions, enableAccess=true&quot;]
+    R3 -- pass --&gt; OKR
+    R3 -- fail --&gt; LAND
+    R1 -- no --&gt; R4{&quot;access.mode == 'strict'?&quot;}
+    R4 -- yes --&gt; LAND[&quot;return UrlTree '/' + landing page&quot;]
+    R4 -- no --&gt; OKR
+</pre>
+<p>The <strong>same <code>isItemAllowed()</code></strong> is used by <code>MenuComponent</code> to hide menu entries, by
+<code>TableviewComponent</code> to drop view items, and by the guard — one rule set, three places.</p>
+<hr />
+<h2 id="10-flow-5-menu-click-to-rendered-page-the-heart-of-the-engine">10. Flow 5 — Menu click to rendered page (the heart of the engine)</h2>
+<pre class="mermaid">sequenceDiagram
+    participant U as User
+    participant MN as MenuComponent
+    participant TV as TableviewComponent
+    participant G as global.json (pages)
+    participant T as TableComponent / FormComponent
+    participant CFG as AppConfig.readConfig()
+    participant API as RestAPIService
+    participant BE as Backend
+
+    U-&gt;&gt;MN: click &quot;SIM Cards&quot;
+    MN-&gt;&gt;MN: filter items with AccessControl.isItemAllowed()
+    MN-&gt;&gt;TV: router.navigate(['/simcards']) + @Output menuItemSelection
+    MN-&gt;&gt;TV: @Output submenuItemPage(&quot;simcards&quot;)
+    TV-&gt;&gt;G: pages[&quot;simcards&quot;] -&gt; [ {type:&quot;form&quot;, name:&quot;simactivate&quot;, config:&quot;simcards&quot;}, {type:&quot;table&quot;, name:&quot;simlist&quot;, config:&quot;simcards&quot;} ]
+    TV-&gt;&gt;TV: drop items failing access, group by rowindex,&lt;br/&gt;col class: 1 col = col-md-12, 2 = col-md-6, 3 = col-md-4
+    TV-&gt;&gt;T: *ngFor rows/cols, *ngIf pc.type == 'table' -&gt; app-table with pageConfigName, pageConfigIndex
+    T-&gt;&gt;CFG: readConfig(&quot;simcards&quot;)
+    CFG--&gt;&gt;T: simcards.json (from cache or HTTP GET /config/vip-line/simcards.json)
+    T-&gt;&gt;T: take jsonData[&quot;simlist&quot;]: columns, data.url, params, filters, actions
+    T-&gt;&gt;API: fetchData(url, params, query)
+    API-&gt;&gt;API: build path from params (datastore / data / cdate / sdate ...)&lt;br/&gt;add SESSIONID or Authorization header
+    API-&gt;&gt;BE: GET /user_mgmt/...
+    BE--&gt;&gt;API: { status: &quot;success&quot;, allSubscriptions: [...], totalRecords }
+    API--&gt;&gt;T: jsonData
+    T-&gt;&gt;T: pipes: dataFetch, dataXlate, dataFilter, fePaging, sortList
+    T--&gt;&gt;U: rendered table with paging, filters, row actions
+</pre>
+<p><strong>A real example</strong> (<code>config/vip-line/global.json</code> → <code>pages.simbaltopup</code>):</p>
+<pre><code class="language-json">[
+  { &quot;type&quot;: &quot;form&quot;,  &quot;name&quot;: &quot;toppingup&quot;,  &quot;config&quot;: &quot;simbaltopup&quot; },
+  { &quot;type&quot;: &quot;table&quot;, &quot;name&quot;: &quot;simBallist&quot;, &quot;config&quot;: &quot;simbaltopup&quot;, &quot;totalEntries&quot;: &quot;true&quot;, &quot;view&quot;: &quot;top&quot; }
+]
+</code></pre>
+<p>This one entry produces a page with a top-up form and a table below it. No new Angular code.</p>
+<p><strong>View types supported by <code>tableview.component.html</code></strong>: <code>table</code>, <code>table-with-filter</code>,
+<code>form</code>, <code>modal-form</code>, <code>modal-wizard</code>, <code>wizard</code>, <code>select-update-form</code>, <code>detail-view</code>,
+<code>list-view</code>, <code>content-tab</code>, <code>page-section</code>, <code>timeline</code>, <code>chat-view</code>, <code>chat-conversation</code>,
+<code>bot-flow</code>, <code>metrics-grid</code>, <code>shift-grid</code>, <code>selection-overlay</code>, charts and more.</p>
+<hr />
+<h2 id="11-flow-6-form-submit-with-status-handlers">11. Flow 6 — Form submit with status handlers</h2>
+<pre class="mermaid">flowchart TD
+    A[&quot;FormComponent loads form JSON&lt;br/&gt;fields, validation, source-data, submit-action, status-handlers&quot;] --&gt; B[&quot;Dropdowns with source: api&lt;br/&gt;fetch options (e.g. catalogue_mgmt/get_bundle_plan_simple)&quot;]
+    B --&gt; C[&quot;User fills form -&gt; validation (required, minlen, maxlen, type)&quot;]
+    C --&gt; D{&quot;submit-action.action&quot;}
+    D -- api --&gt; E[&quot;RestAPIService.submitData(method, url, params, body, headers, query)&quot;]
+    D -- fileUpload / upload-doc --&gt; F[&quot;multipart upload&quot;]
+    D -- fileread --&gt; G[&quot;read CSV (papaparse) in browser&quot;]
+    D -- localcache --&gt; H[&quot;save into DataStore, no API&quot;]
+    E --&gt; R{&quot;response.status&quot;}
+    R -- success --&gt; S[&quot;toast / SweetAlert success&lt;br/&gt;emit formOutput, refresh table (SharedService.refreshData)&quot;]
+    R -- &quot;INVALID_SESSION&quot; --&gt; T[&quot;emit sessionTimeout -&gt; re-login modal&quot;]
+    R -- &quot;custom code e.g. no_dids&quot; --&gt; SH[&quot;status-handlers.no_dids&lt;br/&gt;alert: 'DIDs not available, proceed?'&quot;]
+    SH -- Ok --&gt; OV[&quot;override_default isPrefixSkipped = true&lt;br/&gt;and resubmit&quot;]
+    SH -- Cancel --&gt; X[&quot;close&quot;]
+    R -- other --&gt; ERR[&quot;show error&quot;]
+</pre>
+<p>Why this matters: business rules like "no DIDs left — continue anyway?" are <strong>declared in JSON</strong>,
+not coded. The form engine (<code>form.component.ts</code>, ~3,400 lines) interprets them.</p>
+<hr />
+<h2 id="12-flow-7-how-an-http-request-is-built">12. Flow 7 — How an HTTP request is built</h2>
+<p><code>RestAPIService.fetchData(path, params, query, headers)</code> turns a config like</p>
+<pre><code class="language-json">&quot;params&quot;: {
+  &quot;fields&quot;: [&quot;resellerid&quot;, &quot;allplans&quot;],
+  &quot;resellerid&quot;: { &quot;source&quot;: &quot;datastore&quot;, &quot;data&quot;: &quot;resellerId&quot;, &quot;match-role&quot;: &quot;reseller&quot; },
+  &quot;allplans&quot;:   { &quot;source&quot;: &quot;data&quot;, &quot;value&quot;: &quot;All&quot;, &quot;match-role&quot;: &quot;admin&quot; }
+}
+</code></pre>
+<p>into a URL:</p>
+<pre class="mermaid">flowchart LR
+    P[&quot;for each field in params.fields&quot;] --&gt; MR{&quot;match-role set&lt;br/&gt;and != current role?&quot;}
+    MR -- yes --&gt; SKIP[&quot;skip&quot;]
+    MR -- no --&gt; SRC{&quot;source&quot;}
+    SRC -- &quot;string / number&quot; --&gt; A1[&quot;append /value&quot;]
+    SRC -- &quot;data, pagedata, form-data, select&quot; --&gt; A2[&quot;append /pconfig.value&lt;br/&gt;(optional translate pipe)&quot;]
+    SRC -- datastore --&gt; A3[&quot;append /localStorage[data]&quot;]
+    SRC -- sdate --&gt; A4[&quot;append first-of-month + offset&quot;]
+    SRC -- &quot;cdate / cdate_whour&quot; --&gt; A5[&quot;append today + offset (formatted)&quot;]
+    A1 --&gt; HD
+    A2 --&gt; HD
+    A3 --&gt; HD
+    A4 --&gt; HD
+    A5 --&gt; HD
+    HD[&quot;Headers:&lt;br/&gt;Authorization cookie present? -&gt; Authorization&lt;br/&gt;else SESSIONID = product cookie&lt;br/&gt;+ API_KEY / config headers&quot;] --&gt; CALL[&quot;http.get / post / put / delete&quot;]
+    CALL --&gt; WRAP[&quot;Custom Observable: HTTP errors are turned into&lt;br/&gt;{status: 'statusHttpError', error} so callers&lt;br/&gt;always get one response shape&quot;]
+</pre>
+<p>So a reseller calls <code>.../get_bundle_plan_simple/Tariff%20Plans/&lt;resellerId&gt;</code> and an admin calls
+<code>.../get_bundle_plan_simple/Tariff%20Plans/All</code> — same config, role decides the URL.</p>
+<p>A URL ending in <code>!</code> (e.g. Wirepay's <code>v1/auth/login!</code>) is a marker: <code>submitData()</code> strips it and does <strong>not</strong> append the usual trailing <code>/</code> — for endpoints that must be called without a trailing slash.</p>
+<p><code>isEmptyResultStatus()</code> treats "not found / no records" statuses as an empty result instead of an
+error, so the UI shows an empty table rather than an error popup.</p>
+<hr />
+<h2 id="13-flow-8-session-expiry-and-re-login-without-losing-the-page">13. Flow 8 — Session expiry and re-login without losing the page</h2>
+<pre class="mermaid">sequenceDiagram
+    participant T as Table/Form component
+    participant API as RestAPIService
+    participant TV as TableviewComponent
+    participant MF as ModalFormComponent (Login)
+    participant PT as PageTop / UserProfile
+
+    T-&gt;&gt;API: fetchData(...)
+    API--&gt;&gt;T: { status: &quot;INVALID_SESSION&quot; }
+    T-&gt;&gt;T: RestAPIService.checkInvalidSessionStatus(status) == true
+    T-&gt;&gt;TV: @Output sessionTimeout.emit(&quot;SessionTimeout&quot;)
+    TV-&gt;&gt;MF: loginForm.openModalForm(&quot;Session expired, Please login again!!&quot;)
+    Note over TV: loginModalOpened flag stops duplicate modals
+    MF--&gt;&gt;TV: (onClosed) after successful login
+    TV-&gt;&gt;TV: loginEvent.next()  (Subject)
+    TV--&gt;&gt;T: [loginEvent] input subscribed -&gt; reload data
+    TV--&gt;&gt;PT: [loginEvent] -&gt; refresh header / profile
+</pre>
+<p>Logout (<code>SessionLogoutService.logout()</code>): bearer mode clears tokens; cookie mode calls
+<code>logout_url</code> / <code>admin_url</code>, treats an already-expired session as a successful logout, removes the
+cookie, clears stored session data, and navigates to <code>''</code> or <code>'admin'</code>.</p>
+<hr />
+<h2 id="14-flow-9-component-communication-patterns-used">14. Flow 9 — Component communication patterns used</h2>
+<pre class="mermaid">flowchart TB
+    subgraph PC[&quot;Parent to child / child to parent&quot;]
+        I[&quot;@Input: pageConfigName, pageConfigIndex,&lt;br/&gt;pageConfigData, loginEvent (Subject)&quot;]
+        O[&quot;@Output EventEmitter: sessionTimeout, formOutput,&lt;br/&gt;countChanged, menuItemSelection, submenuItemPage&quot;]
+        V[&quot;@ViewChild('loginform') ModalFormComponent&lt;br/&gt;@ViewChild floatActionModalView&quot;]
+    end
+    subgraph SV[&quot;Sibling / far-away components (services)&quot;]
+        S1[&quot;SharedService: Subject refreshData()&lt;br/&gt;-&gt; tables reload after a form submit&quot;]
+        S2[&quot;EventService: typed AppEvent bus&lt;br/&gt;emit({type, payload}) / on(type)&quot;]
+        S3[&quot;DataStoreService: broadcast/watch(key)&lt;br/&gt;runtime Map + localStorage&lt;br/&gt;e.g. 'vip.sidebar.collapsed', 'layout'&quot;]
+    end
+    subgraph DOM[&quot;Outside Angular&quot;]
+        D1[&quot;CustomEvent 'ContentLoadComplete' dispatched on host element&quot;]
+    end
+</pre>
+<hr />
+<h2 id="15-real-time-features">15. Real-time features</h2>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Where</th>
+<th>Tech</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Generic socket</td>
+<td><code>websocket.service.ts</code></td>
+<td>native <code>WebSocket</code>, messages exposed as <code>Subject.asObservable()</code>; URL injected via <code>InjectionToken SOCKET_URL</code></td>
+</tr>
+<tr>
+<td>Agent voice / softphone</td>
+<td><code>agent-voice.service.ts</code></td>
+<td><code>@stomp/stompjs</code> over SockJS (<code>/topic/agent-status</code>) + Verto WebSocket</td>
+</tr>
+<tr>
+<td>Web chat channel</td>
+<td><code>webchannel/</code></td>
+<td><code>WebSocket</code></td>
+</tr>
+<tr>
+<td>CRM chat / support chat</td>
+<td><code>chat-room/</code>, <code>chat-conversation/</code></td>
+<td><code>WebsocketService</code> created per room (<code>new WebsocketService(url/domain/user/room/nick)</code>); config keys <code>crmchat</code>, <code>supportchat</code>, <code>infibotchat</code></td>
+</tr>
+<tr>
+<td>Live panel / break panel</td>
+<td><code>live-panel/</code>, <code>break-panel/</code>, <code>attendance.service.ts</code></td>
+<td>agent availability, breaks, shift sign-off (Arya CRM)</td>
+</tr>
+<tr>
+<td>Bot flow editor</td>
+<td><code>bot-flow-editor/</code></td>
+<td><code>drawflow</code> / <code>rete</code> node editor</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="16-performance-and-design-decisions-worth-mentioning">16. Performance and design decisions worth mentioning</h2>
+<ol>
+<li><strong>Config cache with request de-duplication</strong> — <code>AppConfig.readConfig()</code> keeps a
+   <code>Map&lt;configName, json&gt;</code> cache <strong>and</strong> a <code>Map&lt;configName, Observer[]&gt;</code> of pending requests.
+   If five components ask for <code>simcards.json</code> at the same time, only <strong>one</strong> HTTP call is made
+   and all five observers get the result. (Same idea as <code>shareReplay(1)</code>, written by hand.)</li>
+<li><strong>Front-end paging</strong> (<code>fePaging</code> pipe, <code>fpaging: true, pageentries: 50</code>) for small lists,
+   server paging for large ones.</li>
+<li><strong>Pure pipes</strong> for formatting (<code>dataXlate</code>, <code>dataFetch</code>, <code>templateField</code>, <code>textWrap</code>,
+   <code>calc</code>) keep templates declarative and are memoised by Angular.</li>
+<li><strong>Per-product localStorage prefix</strong> (<code>datastore-prefix</code>) so two products on the same domain
+   don't overwrite each other's data.</li>
+<li><strong>Dev proxy per product</strong> avoids CORS in development.</li>
+<li><strong>Role-aware URLs</strong> (<code>match-role</code>) — one config serves admin and reseller.</li>
+</ol>
+<hr />
+<h2 id="17-the-second-app-aryadash-designer-ai-config-generator">17. The second app: AryaDash Designer (AI config generator)</h2>
+<pre class="mermaid">flowchart LR
+    U[&quot;Developer types:&lt;br/&gt;'A table of customer accounts&lt;br/&gt;with search and date filter'&quot;] --&gt; P[&quot;AiPanelComponent&lt;br/&gt;signals: messages, isStreaming&quot;]
+    P --&gt; MODE{&quot;mode&quot;}
+    MODE -- generate --&gt; PB[&quot;PromptBuilderService&lt;br/&gt;infer element types from text&lt;br/&gt;+ schema/element-types.json&lt;br/&gt;+ examples of current app&lt;br/&gt;+ global.json + table component source&quot;]
+    MODE -- explain --&gt; EX[&quot;explain prompt&quot;]
+    MODE -- modify --&gt; MO[&quot;existing JSON + 'CHANGE:' instruction&quot;]
+    PB --&gt; GEN[&quot;ConfigGeneratorService&quot;]
+    EX --&gt; GEN
+    MO --&gt; GEN
+    GEN --&gt; W{&quot;Settings.useBedrock?&quot;}
+    W -- no --&gt; AN[&quot;@anthropic-ai/sdk in browser&lt;br/&gt;messages.stream()&quot;]
+    W -- yes --&gt; SRV[&quot;POST localhost:3001/api/generate&lt;br/&gt;server.js -&gt; AWS Bedrock&lt;br/&gt;SSE stream&quot;]
+    AN --&gt; TOK[&quot;token events -&gt; live text&quot;]
+    SRV --&gt; TOK
+    TOK --&gt; DONE[&quot;parse JSON -&gt; GeneratedConfig&quot;]
+    DONE --&gt; ACT{&quot;user action&quot;}
+    ACT --&gt; C1[&quot;Copy&quot;]
+    ACT --&gt; C2[&quot;Download .json&quot;]
+    ACT --&gt; C3[&quot;Save: POST /api/save-config&lt;br/&gt;writes assets/config/{app}/{key}.json&quot;]
+</pre>
+<p>Angular 21 features to name: <strong>standalone components</strong>, <strong><code>loadComponent</code> lazy routes</strong>,
+<strong><code>signal()</code> / <code>computed()</code></strong>, <strong><code>inject()</code></strong> instead of constructor injection,
+<strong><code>provideRouter</code> / <code>provideHttpClient</code></strong> in <code>app.config.ts</code>,
+<strong><code>provideBrowserGlobalErrorListeners()</code></strong>.</p>
+<hr />
+<h2 id="18-angular-concepts-where-they-are-in-this-project">18. Angular concepts → where they are in this project</h2>
+<table>
+<thead>
+<tr>
+<th>Concept</th>
+<th>Where in this project</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>NgModule, declarations, <code>forRoot()</code></td>
+<td><code>app.module.ts</code> (<code>LocalStorageModule.forRoot</code>, <code>ModalModule.forRoot</code>, <code>ToastNoAnimationModule.forRoot</code>)</td>
+</tr>
+<tr>
+<td><code>CUSTOM_ELEMENTS_SCHEMA</code></td>
+<td><code>app.module.ts</code> — allows unknown elements from third-party widgets</td>
+</tr>
+<tr>
+<td>Standalone components</td>
+<td>designer <code>AiPanelComponent</code>, <code>SettingsComponent</code></td>
+</tr>
+<tr>
+<td>Routing, custom <code>UrlMatcher</code></td>
+<td><code>checkAdmin</code> matcher in each <code>routes.ts</code> sets <code>data.is_admin</code> from hostname</td>
+</tr>
+<tr>
+<td>Route data</td>
+<td><code>{ path: 'admin', data: { is_admin: true } }</code>, <code>disable_float</code></td>
+</tr>
+<tr>
+<td>Guards</td>
+<td><code>AuthGuard implements CanActivate</code>, returns <code>boolean \| UrlTree</code></td>
+</tr>
+<tr>
+<td>Lazy loading</td>
+<td>designer: <code>loadComponent: () =&gt; import(...)</code></td>
+</tr>
+<tr>
+<td>Services / DI</td>
+<td><code>providedIn: 'root'</code> everywhere; <code>providers: [AppConfig]</code> at component level in <code>TableviewComponent</code> and <code>AppComponent</code></td>
+</tr>
+<tr>
+<td><code>InjectionToken</code></td>
+<td><code>SOCKET_URL</code> in <code>websocket.service.ts</code></td>
+</tr>
+<tr>
+<td><code>@Input</code> / <code>@Output</code> / <code>EventEmitter</code></td>
+<td>every view component</td>
+</tr>
+<tr>
+<td><code>@ViewChild(..., { read: X })</code></td>
+<td><code>TableviewComponent</code> → <code>ModalFormComponent</code>, <code>ModalViewComponent</code></td>
+</tr>
+<tr>
+<td>Lifecycle hooks</td>
+<td><code>OnInit</code>, <code>AfterContentInit</code>, <code>OnDestroy</code> (unsubscribe login events)</td>
+</tr>
+<tr>
+<td>Structural directives</td>
+<td><code>*ngFor</code> rows/cols, <code>*ngIf</code> per view type, <code>ng-template [ngIf]</code></td>
+</tr>
+<tr>
+<td><code>[ngClass]</code></td>
+<td>layout switching (vertical / horizontal / horizontal-top / horizontal-light)</td>
+</tr>
+<tr>
+<td>Custom pipes</td>
+<td>15 pipes: <code>dataFetch</code>, <code>dataXlate</code>, <code>dataFilter</code>, <code>dataGroup</code>, <code>fePaging</code>, <code>sortList</code>, <code>safeHtml</code>, <code>calc</code>, <code>jsonParse</code> ...</td>
+</tr>
+<tr>
+<td>Built-in pipes</td>
+<td><code>currency</code>, <code>date</code> (with timezone from config), <code>decimal</code>, <code>titlecase</code></td>
+</tr>
+<tr>
+<td>Custom directives</td>
+<td><code>[tooltip]</code>, <code>[appLastElement]</code>, <code>[appNoLeadingSpace]</code></td>
+</tr>
+<tr>
+<td><code>DomSanitizer</code></td>
+<td><code>safe-html.pipe.ts</code> for config-provided HTML</td>
+</tr>
+<tr>
+<td>Template-driven forms</td>
+<td><code>FormsModule</code>; <code>form-field</code> binds <code>[ngModel]</code> to a <code>Map</code> of field values with <code>[ngModelOptions]="{standalone: true}"</code> (no ReactiveForms)</td>
+</tr>
+<tr>
+<td>HttpClient</td>
+<td><code>RestAPIService</code>, <code>AppConfig</code></td>
+</tr>
+<tr>
+<td>RxJS</td>
+<td><code>Subject</code>, <code>Observable</code> constructor, custom Observers, <code>filter</code>, <code>map</code>, <code>switchMap</code>, <code>forkJoin</code>, <code>shareReplay</code></td>
+</tr>
+<tr>
+<td>Environments</td>
+<td><code>environment.&lt;product&gt;.ts</code> with <code>configBase</code>, <code>productType</code></td>
+</tr>
+<tr>
+<td><code>fileReplacements</code></td>
+<td>swap global.json / routes.ts / environment per product</td>
+</tr>
+<tr>
+<td>Custom webpack</td>
+<td><code>DefinePlugin</code> to read <code>PRODUCT_TYPE</code> env var at build</td>
+</tr>
+<tr>
+<td>Proxy config</td>
+<td><code>proxy.conf.&lt;product&gt;.json</code></td>
+</tr>
+<tr>
+<td>Signals</td>
+<td>designer: <code>signal</code>, <code>computed</code>, <code>.update()</code>, <code>.set()</code></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="19-interview-questions-with-answers-from-this-project">19. Interview questions with answers from this project</h2>
+<p><strong>Q1. Explain your project's architecture.</strong>
+Config-driven SPA. <code>global.json</code> defines branding, login, menu and pages; each page is a list of
+view items that point to screen JSON files; generic components (table, form, wizard…) render
+them; <code>RestAPIService</code> builds requests from config. One codebase, 14 products, chosen by
+<code>angular.json</code> configurations.</p>
+<p><strong>Q2. How do you build different clients from one codebase?</strong>
+Build configurations with <code>fileReplacements</code> (environment, <code>global.json</code>, <code>routes.ts</code>) and
+per-product asset folders. Serve configurations pair each build with its own proxy file.
+Runtime <code>productType</code> lets a variant (e.g. <code>enterprise</code>) override single JSON files with fallback.</p>
+<p><strong>Q3. How is authentication handled?</strong>
+Two modes chosen by <code>login.auth-mode</code>. Session mode: POST credentials (password SHA-256 hashed),
+store <code>sessionKey</code> in a product-named cookie, send it as <code>SESSIONID</code> header. Bearer mode: store
+<code>Authorization: Bearer …</code> cookie, refresh token in storage, auto-refresh 30 s before expiry,
+principal from <code>me_url</code>.</p>
+<p><strong>Q4. How do you protect routes?</strong>
+<code>AuthGuard</code> added to every non-login route by mapping over the routes array. It returns a
+<code>UrlTree</code> (not <code>false</code>) so Angular redirects cleanly: to login if not logged in, or to the
+role's landing page if the menu item's <code>access</code> rule fails.</p>
+<p><strong>Q5. How does role-based UI work?</strong>
+<code>access</code> objects on menu items and page items: <code>role</code> (string, array, <code>"A|B"</code>, or <code>{not: …}</code>),
+<code>list</code> (a permission list saved at login such as <code>resellerViewAccess</code>), and <code>mode: strict</code>.
+<code>AccessControlService.isItemAllowed()</code> is reused by menu, guard and page builder.</p>
+<p><strong>Q6. How do components talk to each other?</strong>
+<code>@Input</code>/<code>@Output</code> for parent-child; <code>@ViewChild</code> to call child methods (open login modal);
+services with <code>Subject</code> for siblings (<code>SharedService.refreshData()</code>, <code>EventService</code>,
+<code>DataStoreService.watch()</code>); a <code>Subject&lt;void&gt;</code> passed as <code>@Input loginEvent</code> to tell every child
+"login finished, reload".</p>
+<p><strong>Q7. What happens when the session expires mid-work?</strong>
+Any component that sees <code>INVALID_SESSION</code> emits <code>sessionTimeout</code>; the page shell opens a login
+modal (guarded against duplicates); after login it calls <code>loginEvent.next()</code> and children reload
+— the user never loses the page they were on.</p>
+<p><strong>Q8. How did you avoid duplicate HTTP calls for configs?</strong>
+<code>AppConfig.readConfig()</code> returns a custom <code>Observable</code> backed by a cache map and a pending-observer
+map; the first subscriber triggers the request, later ones are queued and all are notified.</p>
+<p><strong>Q9. Difference between <code>Subject</code>, <code>BehaviorSubject</code>, <code>ReplaySubject</code>?</strong>
+<code>Subject</code> has no initial value and late subscribers miss past values (used here for events like
+refresh/login). <code>BehaviorSubject</code> holds a current value (good for "current layout"). <code>ReplaySubject</code>
+/ <code>shareReplay(1)</code> replays the last N values (designer's schema is loaded once with <code>shareReplay(1)</code>).</p>
+<p><strong>Q10. <code>switchMap</code> vs <code>mergeMap</code> vs <code>forkJoin</code>?</strong>
+Designer uses <code>switchMap</code> to go from the loaded schema to the prompt-building call (cancels the
+previous inner stream), and <code>forkJoin</code> to wait for examples, global config and component source in
+parallel before composing the prompt.</p>
+<p><strong>Q11. Why pipes instead of methods in templates?</strong>
+Pure pipes run only when inputs change; a method call in a template runs on every change-detection
+cycle. The table uses pipes like <code>dataFetch</code>, <code>dataXlate</code>, <code>fePaging</code> for formatting and paging.</p>
+<p><strong>Q12. How do you handle CORS in development?</strong>
+Angular dev-server proxy per product (<code>proxy.conf.aryacrm.json</code> maps <code>/user_mgmt/*</code>,
+<code>/service_mgmt/*</code>, <code>/billing_reports/*</code> … to the backend). In production the same paths are served
+from the same origin.</p>
+<p><strong>Q13. What is a custom <code>UrlMatcher</code> and why use one?</strong>
+<code>checkAdmin</code> matches the empty path and, when the hostname contains <code>admin</code>, sets
+<code>route.data.is_admin = true</code>, so <code>admin.example.com</code> shows the admin login without a separate route.</p>
+<p><strong>Q14. NgModule vs standalone — which did you use?</strong>
+Both. The dashboard (Angular 15) is NgModule-based with ~80 declarations. The designer (Angular 21)
+is fully standalone with <code>ApplicationConfig</code>, <code>provideRouter</code>, <code>provideHttpClient</code>, lazy
+<code>loadComponent</code>, and signals.</p>
+<p><strong>Q15. What are signals and how are they used?</strong>
+Reactive values with fine-grained change tracking. Designer: <code>messages = signal&lt;AiMessage[]&gt;([])</code>,
+<code>isStreaming = signal(false)</code>, <code>hasApiKey = computed(() =&gt; …)</code>, updated with <code>.set()</code> / <code>.update()</code>
+while tokens stream in.</p>
+<p><strong>Q16. How do you stream an AI response into the UI?</strong>
+<code>ConfigGeneratorService</code> wraps the Anthropic SDK stream (<code>for await</code> over events) or a <code>fetch</code>
+body reader (SSE from <code>server.js</code>) in an <code>Observable&lt;StreamEvent&gt;</code> that emits <code>token</code>, <code>done</code>,
+<code>error</code>; the component appends tokens to a signal.</p>
+<p><strong>Q17. How is data kept per product in the browser?</strong>
+<code>LocalStorageModule.forRoot({ prefix: datastore-prefix })</code> — e.g. <code>vip.</code>, <code>aryabilling.</code> — plus a
+product-specific cookie name (<code>SESSIONID_VIP_LINE</code>, <code>SESSIONID_ARYA_CRM</code>).</p>
+<p><strong>Q18. How would you add a new screen?</strong>
+Add a JSON file under <code>src/config/&lt;product&gt;/</code>, add a <code>pages</code> entry and a <code>menu</code>/<code>submenu</code> entry in
+that product's <code>global.json</code>, add a <code>{ path, component: TableviewComponent }</code> route in its
+<code>routes.ts</code>. Only write Angular code if a new <em>view type</em> is needed.</p>
+<p><strong>Q19. How would you add a new product?</strong>
+Create <code>src/config/&lt;new&gt;/</code> (global.json, routes.ts, screen JSONs), <code>environment.&lt;new&gt;.ts</code>
+(<code>configBase: "&lt;new&gt;/"</code>), <code>assets-&lt;new&gt;/</code>, <code>proxy.conf.&lt;new&gt;.json</code>, and a build + serve
+configuration in <code>angular.json</code>.</p>
+<p><strong>Q20. What would you improve? (always prepare this)</strong>
+- Split very large components (<code>form.component.ts</code> ~3,400 lines, <code>table.component.ts</code> ~1,700) into
+  smaller field/column renderers.
+- Add TypeScript interfaces / JSON Schema for configs (the designer's <code>element-types.json</code> is a
+  start) instead of <code>any</code>.
+- Move to an <code>HttpInterceptor</code> for auth headers and session-expiry handling instead of doing it in
+  <code>RestAPIService</code> and every component.
+- Use <code>takeUntilDestroyed</code> / <code>async</code> pipe to avoid manual subscriptions.
+- Functional guards (<code>CanActivateFn</code>) — class-based <code>CanActivate</code> is deprecated in newer Angular.
+- Remove <code>console.log</code> noise; add <code>OnPush</code> change detection on heavy tables.
+- Don't call the Anthropic API from the browser with a user key (<code>dangerouslyAllowBrowser</code>) — the
+  Bedrock path through <code>server.js</code> is the safer pattern.
+- Upgrade the dashboard from Angular 15 to a supported version.</p>
+<hr />
+<h2 id="20-how-to-run">20. How to run</h2>
+<pre><code class="language-bash"># Dashboard (default product = VIP Line, http://localhost:4200)
+cd ~/VIPLine-billing/aryadash-dashboard
+npm install
+ng serve                                   # vip-line (development config)
+ng serve --configuration=arya-crm          # Arya CRM
+PRODUCT_TYPE=enterprise ng serve --configuration=arya-crm   # Arya CRM enterprise variant
+ng build --configuration=arya-crm          # production-style build for one product
+
+# Designer (http://localhost:4201) + its file/AI server (http://localhost:3001)
+cd ~/VIPLine-billing/aryadash-designer
+npm install
+node server.js &amp;                           # file read/write + Bedrock proxy
+npm start
+</code></pre>
+<hr />
+<h2 id="21-glossary">21. Glossary</h2>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>Meaning here</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Product</td>
+<td>One branded build (vip-line, arya-crm …) = one folder in <code>src/config/</code></td>
+</tr>
+<tr>
+<td><code>global.json</code></td>
+<td>Product-level config: title, theme, login, menu, submenu, pages, dashboard widgets</td>
+</tr>
+<tr>
+<td>Page</td>
+<td>Entry in <code>global.json → pages</code>: array of view items</td>
+</tr>
+<tr>
+<td>View item</td>
+<td><code>{ type, name, config, rowindex?, access? }</code> — one table/form/etc. on a page</td>
+</tr>
+<tr>
+<td>Screen JSON</td>
+<td><code>src/config/&lt;product&gt;/&lt;config&gt;.json</code> — definition keyed by view-item <code>name</code></td>
+</tr>
+<tr>
+<td><code>configBase</code></td>
+<td>Folder name used to fetch screen JSON at runtime</td>
+</tr>
+<tr>
+<td><code>productType</code></td>
+<td>Optional sub-variant folder with fallback (e.g. <code>enterprise</code>)</td>
+</tr>
+<tr>
+<td><code>datastore-prefix</code></td>
+<td>localStorage key prefix per product</td>
+</tr>
+<tr>
+<td><code>access</code></td>
+<td>Role / permission rule on menu and page items</td>
+</tr>
+<tr>
+<td><code>status-handlers</code></td>
+<td>Per-status reactions declared in form JSON</td>
+</tr>
+<tr>
+<td>BSS / OSS</td>
+<td>Business / Operations Support Systems (telecom billing and operations)</td>
+</tr>
+<tr>
+<td>MSISDN, ICCID, IMSI, DID</td>
+<td>Phone number, SIM serial, subscriber identity, direct inward dial number</td>
+</tr>
+<tr>
+<td>MNP</td>
+<td>Mobile Number Portability (port-in / port-out)</td>
+</tr>
+<tr>
+<td>CDR / EDR</td>
+<td>Call / Event Detail Record</td>
+</tr>
+</tbody>
+</table></main></div>
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+mermaid.initialize({ startOnLoad: false, theme: dark ? 'dark' : 'default', securityLevel: 'loose', flowchart: { htmlLabels: true } });
+const blocks = [...document.querySelectorAll('pre.mermaid')];
+for (let i = 0; i < blocks.length; i++) {
+  const el = blocks[i];
+  const src = el.textContent;
+  try {
+    const { svg } = await mermaid.render('mmd' + i, src);
+    el.innerHTML = svg;
+    el.setAttribute('data-processed', 'true');
+  } catch (e) {
+    el.setAttribute('data-error', 'true');
+    el.textContent = 'Diagram error: ' + e.message + ' --- ' + src;
+  }
+}
+</script>
+</body></html>

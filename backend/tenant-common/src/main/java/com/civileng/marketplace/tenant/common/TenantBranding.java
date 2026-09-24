@@ -27,11 +27,14 @@ import java.util.List;
 public class TenantBranding {
 
     public static final List<String> COLOR_MODES = List.of("light", "dark", "system");
-    public static final List<String> UI_STYLES = List.of("default", "flat", "elevated");
+    /** Mirrors admin-service's ThemePresets, which mirrors the frontend's registry manifest. */
+    public static final List<String> UI_STYLES = List.of(
+            "default", "flat", "elevated", "material", "glass", "luxury", "brutalist");
     public static final List<String> BUTTON_STYLES = List.of("gradient", "solid", "outlined");
     public static final List<String> LAYOUT_STYLES =
             List.of("sidebar-left", "sidebar-right", "topbar");
     public static final List<String> DENSITIES = List.of("compact", "comfortable", "spacious");
+    public static final List<String> SITE_LAYOUTS = List.of("marketplace", "corporate", "ecommerce");
 
     /** `#RRGGBB` or `#RRGGBBAA`, matching the width of admin-service's colour columns. */
     private static final java.util.regex.Pattern COLOR =
@@ -90,6 +93,9 @@ public class TenantBranding {
     /** compact | comfortable | spacious */
     private String density;
 
+    /** marketplace | corporate | ecommerce — how the public website arranges its blocks. */
+    private String siteLayout;
+
     /** True when nothing was chosen — the tenant then starts on the shipped platform theme. */
     @com.fasterxml.jackson.annotation.JsonIgnore
     public boolean isEmpty() {
@@ -97,7 +103,7 @@ public class TenantBranding {
                 && surfaceColor == null && sidebarColor == null && colorMode == null
                 && uiStyle == null && buttonStyle == null && layoutStyle == null
                 && density == null && borderRadius == null && fontFamily == null
-                && brandName == null;
+                && brandName == null && siteLayout == null;
     }
 
     /**
@@ -117,6 +123,7 @@ public class TenantBranding {
         requireOneOf("buttonStyle", buttonStyle, BUTTON_STYLES);
         requireOneOf("layoutStyle", layoutStyle, LAYOUT_STYLES);
         requireOneOf("density", density, DENSITIES);
+        requireOneOf("siteLayout", siteLayout, SITE_LAYOUTS);
 
         if (logoUrl != null && logoUrl.length() > 500) {
             throw new IllegalArgumentException("logoUrl must be 500 characters or fewer");

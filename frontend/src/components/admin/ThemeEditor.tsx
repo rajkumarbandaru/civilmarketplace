@@ -1,4 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import FileUploadButton from '../FileUploadButton';
+import manifest from '../../experience/registry-manifest.json';
+import { SITE_LAYOUTS as SITE_LAYOUT_REGISTRY } from '../../experience/siteLayouts';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Alert,
@@ -57,11 +60,15 @@ const COLOR_SWATCHES = [
   '#0f172a', '#111827', '#57534e', '#78716c', '#f8fafc', '#ffffff',
 ];
 
-const UI_STYLES = [
-  { value: 'default', label: 'Default' },
-  { value: 'flat', label: 'Flat — bordered, no shadows' },
-  { value: 'elevated', label: 'Elevated — deeper shadows' },
-];
+/** Every style pack this build renders (the registry), with a line on what each feels like. */
+const STYLE_HELP: Record<string, string> = {
+  default: 'Default', flat: 'Flat — bordered, no shadows', elevated: 'Elevated — deeper shadows',
+  material: 'Material — crisp elevation, uppercase buttons', glass: 'Glass — frosted cards over a brand gradient',
+  luxury: 'Luxury — serif headings, hairline edges', brutalist: 'Neo-Brutalist — hard borders and offset shadows',
+};
+const UI_STYLES = manifest.stylePacks.map((value) => ({ value, label: STYLE_HELP[value] ?? value }));
+
+const SITE_LAYOUTS = manifest.siteLayouts.map((value) => ({ value, label: SITE_LAYOUT_REGISTRY[value]?.label ?? value }));
 
 const BUTTON_STYLES = [
   { value: 'gradient', label: 'Gradient (primary → accent)' },
@@ -87,6 +94,7 @@ const toCommand = (form: ThemeUpdateCommand): ThemeUpdateCommand => ({
   buttonStyle: form.buttonStyle || null,
   layoutStyle: form.layoutStyle || null,
   density: form.density || null,
+  siteLayout: form.siteLayout || null,
   borderRadius: form.borderRadius === null || Number.isNaN(form.borderRadius)
     ? null
     : Number(form.borderRadius),
@@ -106,6 +114,7 @@ const fromResolved = (theme: ResolvedTheme | undefined): ThemeUpdateCommand => (
   buttonStyle: theme?.buttonStyle || '',
   layoutStyle: theme?.layoutStyle || '',
   density: theme?.density || '',
+  siteLayout: theme?.siteLayout || '',
 });
 
 /**
@@ -127,6 +136,7 @@ const BLANK_STYLING: ThemeUpdateCommand = {
   buttonStyle: '',
   layoutStyle: '',
   density: '',
+  siteLayout: '',
 };
 
 interface Props {
@@ -136,6 +146,8 @@ interface Props {
   effective?: ResolvedTheme;
   saving: boolean;
   onSave: (command: ThemeUpdateCommand) => void;
+  /** Opens the real app with the form's values, unpublished. */
+  onPreview?: (command: ThemeUpdateCommand) => void;
   onReset?: () => void;
   resetLabel?: string;
   /** Names the scope in the preview caption — "The platform theme", "Architect's workspace". */
@@ -216,7 +228,7 @@ const ColorField: React.FC<{
 const PRESETS_KEY = ['ui-config', 'theme-presets'];
 
 const ThemeEditor: React.FC<Props> = ({
-  value, effective, saving, onSave, onReset, resetLabel, scopeLabel,
+  value, effective, saving, onSave, onPreview, onReset, resetLabel, scopeLabel,
 }) => {
   const [form, setForm] = useState<ThemeUpdateCommand>(fromResolved(value));
 
@@ -524,6 +536,17 @@ const ThemeEditor: React.FC<Props> = ({
 
           <Grid item xs={12} sm={6}>
             <TextField
+              select fullWidth size="small" label="Website layout" value={form.siteLayout || ''}
+              helperText="How the public home page arranges its sections"
+              onChange={(e) => set('siteLayout', e.target.value)}
+            >
+              <MenuItem value="">Inherit</MenuItem>
+              {SITE_LAYOUTS.map((l) => <MenuItem key={l.value} value={l.value}>{l.label}</MenuItem>)}
+            </TextField>
+          </Grid>
+
+          <Grid item xs={12} sm={6}>
+            <TextField
               select fullWidth size="small" label="UI style" value={form.uiStyle || ''}
               onChange={(e) => set('uiStyle', e.target.value)}
             >
@@ -561,6 +584,9 @@ const ThemeEditor: React.FC<Props> = ({
               value={form.logoUrl || ''}
               onChange={(e) => set('logoUrl', e.target.value)}
             />
+            <Box sx={{ mt: 1 }}>
+              <FileUploadButton purpose="BRAND_LOGO" label="Upload logo" onUploaded={(media) => set('logoUrl', media.url ?? '')} />
+            </Box>
           </Grid>
 
           <Grid item xs={12}>
@@ -575,6 +601,11 @@ const ThemeEditor: React.FC<Props> = ({
         </Grid>
 
         <Stack direction="row" spacing={1.5} sx={{ mt: 3 }}>
+          {onPreview && (
+            <Button variant="outlined" disabled={saving} onClick={() => onPreview(toCommand(form))}>
+              Preview in app
+            </Button>
+          )}
           <Button variant="contained" disabled={saving} onClick={() => onSave(toCommand(form))}>
             {saving ? 'Saving…' : 'Save theme'}
           </Button>

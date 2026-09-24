@@ -67,6 +67,14 @@ public class JwtAuthGatewayFilterFactory
                         .parseSignedClaims(token)
                         .getPayload();
 
+                // Only access tokens open the API. Refresh tokens (30 days) and MFA tickets carry a
+                // "type" claim; accepting them here would let a refresh token stand in for an
+                // access token for its whole life, and an MFA ticket skip the second factor.
+                if (claims.get("type") != null) {
+                    log.warn("Refused a '{}' token used as an access token", claims.get("type"));
+                    return onError(exchange, "Invalid token", HttpStatus.UNAUTHORIZED);
+                }
+
                 // A token is only valid on the tenant it was issued for. Without this check a
                 // SUPER_ADMIN of one workspace could point their token at another workspace's
                 // subdomain and be served as an admin there, since downstream services trust the

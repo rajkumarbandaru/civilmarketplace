@@ -1,5 +1,10 @@
 package com.civileng.marketplace.admin.uiconfig.service;
 
+import com.civileng.marketplace.admin.config.ConfigDocument;
+import com.civileng.marketplace.admin.config.ConfigRelease;
+import com.civileng.marketplace.admin.config.ConfigScope;
+import com.civileng.marketplace.admin.config.ConfigService;
+import com.civileng.marketplace.admin.config.ConfigValidator;
 import com.civileng.marketplace.admin.client.AuthServiceClient;
 import com.civileng.marketplace.admin.uiconfig.dto.UiConfigDTO.*;
 import com.civileng.marketplace.admin.uiconfig.model.CustomThemePreset;
@@ -27,6 +32,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.EnumMap;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -51,7 +59,7 @@ public class UiConfigService {
     private final MenuItemDefinitionRepository menuItemRepository;
     private final WorkspaceMenuEntryRepository workspaceMenuRepository;
     private final UserMenuOverrideRepository userOverrideRepository;
-    private final ThemeConfigRepository themeRepository;
+    private final ConfigService configService;
     private final TenantModuleRepository tenantModuleRepository;
     private final TenantMenuOverrideRowRepository tenantMenuOverrideRepository;
     private final TenantNavigationRepository navigationRepository;
@@ -130,7 +138,7 @@ public class UiConfigService {
                 workspace.brandName(), workspace.logoUrl(),
                 workspace.uiStyle(), workspace.buttonStyle(), workspace.layoutStyle(),
                 firstNonNull(mine.getDensity(), workspace.density()),
-                workspace.version());
+                workspace.version(), workspace.siteLayout());
     }
 
     // ---------------------------------------------------------------- workspaces
@@ -139,9 +147,7 @@ public class UiConfigService {
     @Transactional(readOnly = true)
     public List<WorkspaceSummary> listWorkspaces() {
         Map<String, Long> counts = roleDirectory.userCounts();
-        Set<String> themedScopes = themeRepository.findAll().stream()
-                .map(ThemeConfig::getScopeKey)
-                .collect(Collectors.toSet());
+        Set<String> themedScopes = configService.rolesWithOverrides();
 
         // The catalogue is the same for every role, so it is read once here rather than once per
         // workspace — 24 roles would otherwise mean 24 identical queries.
@@ -426,28 +432,42 @@ public class UiConfigService {
 
     // ---------------------------------------------------------------- theme
 
-    /** The theme a scope actually renders. {@code scopeKey} is {@code PLATFORM} or a role name. */
+    /**
+     * The theme a scope actually renders: the workspace's published documents, with a role's own
+     * documents over them. {@code scopeKey} is {@code PLATFORM} (the workspace) or a role name.
+     */
     @Transactional(readOnly = true)
     public ResolvedTheme theme(String scopeKey) {
-        ThemeConfig platform = themeRepository.findById(ThemeConfig.PLATFORM_SCOPE)
-                .orElseGet(() -> new ThemeConfig(ThemeConfig.PLATFORM_SCOPE));
-        if (ThemeConfig.PLATFORM_SCOPE.equals(scopeKey)) return toResolved(platform, platform.getScopeKey());
-
-        ThemeConfig workspace = themeRepository.findById(scopeKey).orElse(null);
-        if (workspace == null) return toResolved(platform, scopeKey);
-        return merge(platform, workspace, scopeKey);
+        Map<String, Object> workspace = flatten(configService.live(ConfigScope.TENANT));
+        long workspaceRelease = configService.liveReleaseId(ConfigScope.TENANT);
+        if (ThemeConfig.PLATFORM_SCOPE.equals(scopeKey)) {
+            return toResolved(scopeKey, workspace, workspaceRelease);
+        }
+        ConfigScope role = ConfigScope.role(scopeKey);
+        Map<String, Object> merged = new HashMap<>(workspace);
+        merged.putAll(flatten(configService.live(role)));
+        // Either layer publishing should invalidate a client's cached copy.
+        return toResolved(scopeKey, merged, workspaceRelease + configService.liveReleaseId(role));
     }
 
-    /** The stored row for a scope, unmerged — what the console edits. */
+    /**
+     * What the workspace would look like with {@code candidate} published — for previews. Checked
+     * like a real save, so a preview never shows something that could not be published.
+     */
+    public ResolvedTheme previewTheme(ThemeUpdateCommand candidate) {
+        Map<ConfigDocument, Map<String, Object>> docs = documentsOf(candidate);
+        docs.forEach((doc, content) -> {
+            ConfigValidator.Report report = ConfigValidator.validate(doc, ConfigScope.TENANT, content);
+            if (!report.ok()) throw new IllegalArgumentException(String.join("; ", report.errors()));
+        });
+        return toResolved("PLATFORM", flatten(docs), 0);
+    }
+
+    /** One scope's own published settings, unmerged — what the console edits. */
     @Transactional(readOnly = true)
     public ResolvedTheme rawTheme(String scopeKey) {
-        return themeRepository.findById(scopeKey)
-                .map(config -> toResolved(config, scopeKey))
-                // An unset workspace scope has no row at all; report it as all-inherit rather
-                // than 404, so the console can render an empty edit form for it.
-                .orElseGet(() -> new ResolvedTheme(
-                        scopeKey, "system", null, null, null, null, null, null, null, null,
-                        null, null, null, null, 0));
+        ConfigScope scope = ConfigScope.fromThemeScopeKey(scopeKey);
+        return toResolved(scopeKey, flatten(configService.live(scope)), configService.liveReleaseId(scope));
     }
 
     /**
@@ -554,7 +574,7 @@ public class UiConfigService {
                         preset.getMode(), preset.getPrimaryColor(), preset.getAccentColor(),
                         preset.getSurfaceColor(), preset.getSidebarColor(), preset.getBorderRadius(),
                         preset.getFontFamily(), null, null, preset.getUiStyle(),
-                        preset.getButtonStyle(), preset.getLayoutStyle(), preset.getDensity()),
+                        preset.getButtonStyle(), preset.getLayoutStyle(), preset.getDensity(), null),
                 false);
     }
 
@@ -565,43 +585,82 @@ public class UiConfigService {
 
     @Transactional
     public ResolvedTheme updateTheme(String scopeKey, ThemeUpdateCommand command) {
-        if (!ThemeConfig.PLATFORM_SCOPE.equals(scopeKey)) requireRole(scopeKey);
+        return updateTheme(scopeKey, command, null);
+    }
 
-        ThemeConfig config = themeRepository.findById(scopeKey).orElseGet(() -> new ThemeConfig(scopeKey));
-        config.setMode(requireOneOf("mode", command.mode(), AppearanceSettings.COLOR_MODES, "system"));
-        config.setPrimaryColor(blankToNull(command.primaryColor()));
-        config.setAccentColor(blankToNull(command.accentColor()));
-        config.setSurfaceColor(blankToNull(command.surfaceColor()));
-        config.setSidebarColor(blankToNull(command.sidebarColor()));
-        config.setBorderRadius(command.borderRadius());
-        config.setFontFamily(blankToNull(command.fontFamily()));
-        config.setBrandName(blankToNull(command.brandName()));
-        config.setLogoUrl(blankToNull(command.logoUrl()));
-        // Style fields are closed sets the client switches on — an unknown value would silently
-        // render as the default, so it is refused here instead of being stored and ignored.
-        config.setUiStyle(requireOneOf("uiStyle", command.uiStyle(), ThemePresets.UI_STYLES, null));
-        config.setButtonStyle(
-                requireOneOf("buttonStyle", command.buttonStyle(), ThemePresets.BUTTON_STYLES, null));
-        config.setLayoutStyle(
-                requireOneOf("layoutStyle", command.layoutStyle(), ThemePresets.LAYOUT_STYLES, null));
-        config.setDensity(requireOneOf("density", command.density(), AppearanceSettings.DENSITIES, null));
-        config.setVersion(config.getVersion() + 1);
-        themeRepository.save(config);
-        log.info("Theme for scope {} saved (version {}): mode={} primary={} accent={} layout={} density={}",
-                scopeKey, config.getVersion(), config.getMode(), config.getPrimaryColor(),
-                config.getAccentColor(), config.getLayoutStyle(), config.getDensity());
+    /**
+     * Publishes the theme form as one release of the four documents. Only documents whose content
+     * changed get a new version; nothing changed means no release at all.
+     */
+    @Transactional
+    public ResolvedTheme updateTheme(String scopeKey, ThemeUpdateCommand command, Long actorId) {
+        if (!ThemeConfig.PLATFORM_SCOPE.equals(scopeKey)) requireRole(scopeKey);
+        configService.publish(ConfigScope.fromThemeScopeKey(scopeKey), documentsOf(command),
+                ConfigRelease.Source.CONSOLE, actorId, "Saved in the theme editor", null);
         return theme(scopeKey);
     }
 
-    /** Deletes a workspace's theme row so it inherits the platform theme again. */
+    /**
+     * Clears a workspace's own theme so it inherits the workspace-wide one again. Published as a
+     * release of empty documents rather than deleted, so it can be rolled back like any change.
+     */
     @Transactional
     public void resetTheme(String scopeKey) {
+        resetTheme(scopeKey, null);
+    }
+
+    @Transactional
+    public void resetTheme(String scopeKey, Long actorId) {
         if (ThemeConfig.PLATFORM_SCOPE.equals(scopeKey)) {
             throw new IllegalArgumentException(
                     "The platform theme is the base every workspace inherits and cannot be deleted");
         }
-        themeRepository.findById(scopeKey).ifPresent(themeRepository::delete);
+        Map<ConfigDocument, Map<String, Object>> empty = new EnumMap<>(ConfigDocument.class);
+        for (ConfigDocument doc : ConfigDocument.values()) empty.put(doc, Map.of());
+        configService.publish(ConfigScope.role(scopeKey), empty, ConfigRelease.Source.CONSOLE, actorId,
+                "Reset to the workspace theme", null);
         log.info("Theme for scope {} reset to the platform theme", scopeKey);
+    }
+
+    /** The flat theme form, split into its documents. Blank means inherit; mode is always set. */
+    public static Map<ConfigDocument, Map<String, Object>> documentsOf(ThemeUpdateCommand c) {
+        Map<ConfigDocument, Map<String, Object>> docs = new EnumMap<>(ConfigDocument.class);
+        docs.put(ConfigDocument.BRANDING, values("brandName", c.brandName(), "logoUrl", c.logoUrl()));
+        docs.put(ConfigDocument.THEME, values(
+                // Never absent at a saved scope: every scope has to resolve to something paintable.
+                "mode", blankToNull(c.mode()) == null ? "system" : c.mode(),
+                "primaryColor", c.primaryColor(), "accentColor", c.accentColor(),
+                "surfaceColor", c.surfaceColor(), "sidebarColor", c.sidebarColor(), "fontFamily", c.fontFamily()));
+        docs.put(ConfigDocument.STYLE, values("uiStyle", c.uiStyle(), "buttonStyle", c.buttonStyle(),
+                "density", c.density(), "borderRadius", c.borderRadius()));
+        docs.put(ConfigDocument.LAYOUT, values("layoutStyle", c.layoutStyle(), "siteLayout", c.siteLayout()));
+        return docs;
+    }
+
+    private static Map<String, Object> values(Object... pairs) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        for (int i = 0; i < pairs.length; i += 2) m.put((String) pairs[i], pairs[i + 1]);
+        return m;
+    }
+
+    /** All documents' keys in one map (key names do not collide across documents). */
+    private static Map<String, Object> flatten(Map<ConfigDocument, Map<String, Object>> docs) {
+        Map<String, Object> flat = new HashMap<>();
+        docs.values().forEach(content -> content.forEach((k, v) -> {
+            if (v != null && !(v instanceof String s && s.isBlank())) flat.put(k, v);
+        }));
+        return flat;
+    }
+
+    private static ResolvedTheme toResolved(String scopeKey, Map<String, Object> v, long version) {
+        return new ResolvedTheme(scopeKey,
+                v.get("mode") == null ? "system" : (String) v.get("mode"),
+                (String) v.get("primaryColor"), (String) v.get("accentColor"),
+                (String) v.get("surfaceColor"), (String) v.get("sidebarColor"),
+                v.get("borderRadius") == null ? null : ((Number) v.get("borderRadius")).intValue(),
+                (String) v.get("fontFamily"), (String) v.get("brandName"), (String) v.get("logoUrl"),
+                (String) v.get("uiStyle"), (String) v.get("buttonStyle"), (String) v.get("layoutStyle"),
+                (String) v.get("density"), (int) version, (String) v.get("siteLayout"));
     }
 
     // ---------------------------------------------------------------- member's own appearance
@@ -691,36 +750,6 @@ public class UiConfigService {
             throw new IllegalArgumentException(field + " must be one of " + String.join(", ", allowed));
         }
         return trimmed;
-    }
-
-    /** Workspace fields win where set; nulls fall through to the platform row. */
-    private static ResolvedTheme merge(ThemeConfig platform, ThemeConfig workspace, String scopeKey) {
-        return new ResolvedTheme(
-                scopeKey,
-                firstNonNull(workspace.getMode(), platform.getMode()),
-                firstNonNull(workspace.getPrimaryColor(), platform.getPrimaryColor()),
-                firstNonNull(workspace.getAccentColor(), platform.getAccentColor()),
-                firstNonNull(workspace.getSurfaceColor(), platform.getSurfaceColor()),
-                firstNonNull(workspace.getSidebarColor(), platform.getSidebarColor()),
-                firstNonNull(workspace.getBorderRadius(), platform.getBorderRadius()),
-                firstNonNull(workspace.getFontFamily(), platform.getFontFamily()),
-                firstNonNull(workspace.getBrandName(), platform.getBrandName()),
-                firstNonNull(workspace.getLogoUrl(), platform.getLogoUrl()),
-                firstNonNull(workspace.getUiStyle(), platform.getUiStyle()),
-                firstNonNull(workspace.getButtonStyle(), platform.getButtonStyle()),
-                firstNonNull(workspace.getLayoutStyle(), platform.getLayoutStyle()),
-                firstNonNull(workspace.getDensity(), platform.getDensity()),
-                // Either layer changing should invalidate a client's cached copy.
-                platform.getVersion() + workspace.getVersion());
-    }
-
-    private static ResolvedTheme toResolved(ThemeConfig config, String scopeKey) {
-        return new ResolvedTheme(
-                scopeKey, config.getMode(), config.getPrimaryColor(), config.getAccentColor(),
-                config.getSurfaceColor(), config.getSidebarColor(), config.getBorderRadius(),
-                config.getFontFamily(), config.getBrandName(), config.getLogoUrl(),
-                config.getUiStyle(), config.getButtonStyle(), config.getLayoutStyle(),
-                config.getDensity(), config.getVersion());
     }
 
     private MenuItemDefinition rawItem(String itemKey) {

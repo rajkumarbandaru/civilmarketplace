@@ -48,6 +48,9 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     // Admin stats
     long countByStatus(BookingStatus status);
 
+    /** Bookings created since a moment — this month's usage against the plan's monthly limit. */
+    long countByCreatedAtGreaterThanEqual(java.time.LocalDateTime since);
+
     @Query("SELECT b FROM Booking b WHERE b.scheduledDate BETWEEN :start AND :end " +
            "AND b.status = :status")
     List<Booking> findByScheduledDateBetweenAndStatus(

@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UI Interview Questions — React, TypeScript, Vite</title>
+<style>
+:root{--bg:#f6f7f9;--fg:#1f2933;--muted:#5b6770;--card:#fff;--line:#e3e6ea;--accent:#3730a3;--accent-bg:#eef2ff;--head:#0f172a;--code:#f1f3f6}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1115;--fg:#e6e8eb;--muted:#9aa4ad;--card:#171a20;--line:#2a2f37;--accent:#a5b4fc;--accent-bg:#1e2240;--head:#05070b;--code:#1f232b}}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.6 system-ui,-apple-system,Segoe UI,sans-serif;background:var(--bg);color:var(--fg)}
+header{background:var(--head);color:#fff;padding:18px 16px}
+header .in{max-width:1200px;margin:0 auto}
+header h1{margin:0;font-size:22px;line-height:1.3} header p{margin:4px 0 0;opacity:.75;font-size:13px}
+header a{color:#c7d2fe}
+.nav{max-width:1200px;margin:0 auto;padding:10px 16px 0;font-size:13px}
+.nav a{color:var(--accent);text-decoration:none;margin-right:6px;padding:3px 9px;border-radius:999px;background:var(--accent-bg);display:inline-block;margin-bottom:6px}
+.wrap{max-width:1200px;margin:0 auto;padding:0 16px 60px;display:flex;gap:24px;align-items:flex-start}
+nav.toc{position:sticky;top:12px;flex:0 0 250px;max-height:calc(100vh - 24px);overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:16px;font-size:13px}
+nav.toc ul{list-style:none;margin:0;padding-left:10px} nav.toc>ul{padding-left:0}
+nav.toc a{color:var(--accent);text-decoration:none;display:block;padding:2px 0}
+main{flex:1;min-width:0}
+main h1{display:none}
+h2{font-size:20px;margin:32px 0 10px;padding-top:8px;border-top:1px solid var(--line)}
+h3{font-size:16px;margin:20px 0 8px}
+a{color:var(--accent)}
+blockquote{margin:12px 0;padding:10px 14px;background:var(--accent-bg);border-left:4px solid var(--accent);border-radius:6px}
+blockquote p{margin:4px 0}
+table{border-collapse:collapse;width:100%;background:var(--card);font-size:14px;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:6px 10px;text-align:left;vertical-align:top}
+th{background:var(--accent-bg)}
+code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:13px}
+pre{background:var(--code);padding:12px;border-radius:8px;overflow-x:auto;font-size:13px;line-height:1.45}
+pre code{background:none;padding:0}
+pre.mermaid{background:var(--card);border:1px solid var(--line);text-align:center}
+hr{border:0;border-top:1px solid var(--line);margin:24px 0}
+@media (max-width:900px){.wrap{display:block}nav.toc{position:static;max-height:none;margin-top:16px}}
+</style></head><body>
+<header><div class="in"><h1>UI Interview Questions — React, TypeScript, Vite</h1><p>Civil Engineering Marketplace · source ~/RAJKUMAR · generated from <code style="color:#fff;background:none">ui/ui-interview.md</code></p></div></header>
+<div class="nav"><a href="../index.html">Home</a><a href="../interview-guide.html">Interview guide</a><a href="../overview/architecture.html">Architecture</a><a href="../backend/backend-guide.html">Backend</a><a href="../ui/ui-guide.html">UI</a><a href="../docker/docker-guide.html">Docker</a><a href="../overview/action-flows.html">Action flows</a><a href="../interview/rapid-fire.html">Rapid fire</a></div>
+<div class="wrap"><nav class="toc"><b>Contents</b><div class="toc">
+<ul>
+<li><a href="#a-state-and-data">A. State and data</a></li>
+<li><a href="#b-build-config-and-deployment">B. Build, config and deployment</a></li>
+<li><a href="#c-performance">C. Performance</a></li>
+<li><a href="#d-react-and-typescript-specifics">D. React and TypeScript specifics</a></li>
+<li><a href="#e-cross-cutting">E. Cross-cutting</a></li>
+</ul>
+</div>
+</nav><main><h1 id="ui-interview-questions-react-typescript-vite">UI Interview Questions — React, TypeScript, Vite</h1>
+<p>Answers taken from this codebase. Reference: <a href="ui-guide.html">ui-guide.md</a>.</p>
+<hr />
+<h2 id="a-state-and-data">A. State and data</h2>
+<p><strong>1. Redux Toolkit <em>and</em> React Query — isn't that duplicated state?</strong>
+No, they hold different things. React Query owns <strong>server state</strong>: bookings, catalogue, tickets —
+data that lives on a server, needs caching, refetching and invalidation. Redux owns <strong>client
+state</strong>: the session (tokens, current user) and UI state that several branches read. The rule I
+apply: if the server is the source of truth, it does not belong in Redux.</p>
+<p><strong>2. Why is the session in <code>sessionStorage</code> and not <code>localStorage</code>?</strong>
+This was a deliberate change. <code>localStorage</code> is per origin, so every tab shares one set of keys and
+signing in as an admin in one tab silently replaced the customer session in another.
+<code>sessionStorage</code> is per tab, so two accounts can be open side by side — which matters constantly
+when testing an admin console against a member view. There is a one-time migration that moves a
+pre-existing <code>localStorage</code> session into the tab.
+→ <code>src/services/authStorage.ts</code>.</p>
+<p><strong>3. What about XSS — is storing a token in web storage safe?</strong>
+It is the weak point, and I would say so. Any script on the page can read it. The stronger design is
+an httpOnly, SameSite cookie so JavaScript never touches the token, with CSRF protection on top.
+Web storage was chosen for a token used across origins in dev; I would move to cookies for
+production, which the same-origin nginx proxy already makes practical.</p>
+<p><strong>4. How does token refresh work?</strong>
+An Axios response interceptor: on a 401 that is not from an auth endpoint and has not already been
+retried, it posts the refresh token to <code>/auth/refresh</code>, stores the new pair, sets the header on the
+original request and replays it; if the refresh fails, it logs out. Two details matter — the
+<code>_retry</code> flag prevents an infinite loop, and auth endpoints are excluded because a 401 from <em>login</em>
+means "wrong password", not "session expired". Refreshing there would turn a clear error into a
+logout.
+→ <code>src/services/api.ts</code>.</p>
+<hr />
+<h2 id="b-build-config-and-deployment">B. Build, config and deployment</h2>
+<p><strong>5. Why is <code>VITE_API_BASE_URL</code> set to <code>same-origin</code> in Docker?</strong>
+Because the gateway resolves the tenant from the <code>Host</code> header. If the bundle called
+<code>http://localhost:8080</code> directly, every tenant's traffic would arrive as host <code>localhost</code> and all of
+them would fall back to one tenant. Calling the page's own origin means <code>acme.localhost:3000</code>
+reaches the gateway as <code>acme</code> — nginx proxies with <code>proxy_set_header Host $http_host</code>.</p>
+<p><strong>6. <code>VITE_*</code> variables — build time or runtime?</strong>
+Build time. Vite inlines them into the bundle, so changing a container's environment does nothing to
+an already-built <code>dist</code>. They are passed as Docker <strong>build args</strong>. This was a real bug: they were
+listed under <code>environment:</code> in Compose, where nginx never reads them, so they silently did nothing.</p>
+<p><strong>7. Can you put a secret in a <code>VITE_</code> variable?</strong>
+Never — it ships to every browser. Only the Razorpay <strong>key id</strong> is there (public by design); the key
+secret stays in the container environment for payment-service, and the Gemini key stays server-side
+in support-service.</p>
+<p><strong>8. How is the frontend image built?</strong>
+Multi-stage: <code>node:20-alpine</code> runs <code>npm ci</code> then <code>npm run build</code>, and <code>nginx:alpine</code> serves the
+<code>dist</code>. Dependencies are copied before source so the install layer caches, and files are copied
+individually so the host's <code>node_modules</code> (built for a different platform) and stale <code>dist</code> never
+land in the image. An earlier version copied a prebuilt <code>dist</code>, which shipped whatever happened to
+be lying on someone's laptop — or nothing at all on a clean clone.</p>
+<p><strong>9. How do you cache static assets correctly?</strong>
+Vite emits content-hashed files under <code>/assets</code>, cached one year <code>immutable</code>. <code>index.html</code> is
+<code>no-cache</code> because it is the only stable URL and it names the hashed bundles — a browser holding
+yesterday's copy keeps requesting yesterday's chunks, which still exist, so nothing errors and the
+app just stays on the old version invisibly.</p>
+<p><strong>10. SPA routing on nginx?</strong>
+<code>try_files $uri $uri/ /index.html</code>, so a deep link like <code>/admin/users</code> returns the app instead of a
+404 and React Router takes over.</p>
+<hr />
+<h2 id="c-performance">C. Performance</h2>
+<p><strong>11. What did you do about bundle size?</strong>
+Manual chunks in Rollup: <code>vendor</code> (react, react-dom, router), <code>mui</code>, <code>state</code> (Redux), <code>query</code>.
+Splitting means a router change does not invalidate the MUI chunk in everyone's cache. Route-level
+code splitting is the next step for the admin console, which most users never open.</p>
+<p><strong>12. A PWA problem you hit?</strong>
+The MUI chunk with icons is around 4.2 MB, over Workbox's 2 MiB default for precaching, which failed
+the build at the service-worker step even though the bundle itself was fine. Raised
+<code>maximumFileSizeToCacheInBytes</code>. The better fix is to stop importing icons in bulk.</p>
+<p><strong>13. How do you keep the UI responsive while data loads?</strong>
+React Query gives loading and error states per query, with cached data shown immediately on
+revisit; forms use React Hook Form so typing does not re-render the whole form; heavy pages get
+skeletons rather than spinners.</p>
+<hr />
+<h2 id="d-react-and-typescript-specifics">D. React and TypeScript specifics</h2>
+<p><strong>14. Where do you use <code>useEffect</code>, and where do you avoid it?</strong>
+Avoid it for data fetching — that is React Query's job, which also handles caching, retries and
+race conditions. Use it for real side effects: subscribing to a tracking poll, syncing the MUI theme
+when the UI-config arrives, cleaning up timers on unmount.</p>
+<p><strong>15. How does runtime theming work?</strong>
+After login the app calls <code>GET /api/v1/ui-config/me</code>, which returns the effective theme — colours,
+radius, density, button style, layout, brand — merged from platform, workspace and personal
+settings. That builds the MUI theme, so a Super Admin's change re-colours everyone's UI without a
+deploy. The discipline it requires: components must read <code>theme.palette.primary.main</code>, never a
+hard-coded hex. I found several pages with the shipped violet written in literally, so re-theming
+left them unchanged — fixed by reading from the theme.</p>
+<p><strong>16. How is TypeScript actually helping here?</strong>
+API response types are declared per service module (<code>AdminUser</code>, <code>SupportTicket</code>, <code>ResolvedTheme</code>…),
+so a renamed backend field breaks the build instead of rendering <code>undefined</code>. The build runs <code>tsc</code>
+before Vite, so type errors fail CI rather than production.</p>
+<p><strong>17. Forms and validation?</strong>
+React Hook Form with Yup resolvers — uncontrolled inputs keep re-renders local, and the schema
+mirrors the backend rules. Server-side validation still exists; the client version is for speed of
+feedback, not for trust.</p>
+<p><strong>18. How do you handle API errors in the UI?</strong>
+A shared <code>apiError</code> helper turns the backend's standard error body into a message, with the
+interceptor handling 401 separately. 403 means the role is not allowed — the UI hides those actions,
+but the backend still enforces it, because hiding a button is not authorisation.</p>
+<hr />
+<h2 id="e-cross-cutting">E. Cross-cutting</h2>
+<p><strong>19. How does the UI know which menu and pages a role gets?</strong>
+<code>/ui-config/me</code> returns the workspace menu for that role, so admins configure navigation per
+workspace without a frontend release. Routes are still guarded client-side, and every endpoint is
+guarded server-side.</p>
+<p><strong>20. How do you develop against the backend?</strong>
+<code>npm run dev</code> on port 5173 with a Vite proxy forwarding <code>/api</code> and <code>/ws</code> to the gateway, which the
+backend runs in Docker. The proxy port follows <code>HOST_PORT_GATEWAY</code>, so it still works when the
+gateway is remapped to avoid a port clash.</p>
+<p><strong>21. What would you improve in the frontend?</strong>
+Three things: move the token to httpOnly cookies; add tests — there is lint and <code>tsc</code>, but no React
+Testing Library suite, and the theming and interceptor logic deserve it; and route-level code
+splitting so a customer never downloads the admin console.</p></main></div>
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+mermaid.initialize({ startOnLoad: false, theme: dark ? 'dark' : 'default', securityLevel: 'loose',
+                      flowchart: { htmlLabels: true }, sequence: { useMaxWidth: false } });
+const blocks = [...document.querySelectorAll('pre.mermaid')];
+for (let i = 0; i < blocks.length; i++) {
+  const el = blocks[i];
+  const src = el.textContent;
+  try {
+    const { svg } = await mermaid.render('mmd' + i, src);
+    el.innerHTML = svg;
+    el.setAttribute('data-processed', 'true');
+  } catch (e) {
+    el.setAttribute('data-error', 'true');
+    el.textContent = 'Diagram error: ' + e.message + ' --- ' + src;
+  }
+}
+</script>
+</body></html>

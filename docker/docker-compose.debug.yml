@@ -1,0 +1,98 @@
+# Local debugging only: publishes the ports that docker-compose.yml deliberately does not.
+#
+# The base stack publishes only what a browser needs (gateway, frontend, nginx, MinIO API).
+# Every service trusts the X-User-* / X-Tenant-Id headers the gateway sets, so a service port
+# reachable from outside is a way to be anyone in any workspace; MySQL, Redis (no password),
+# Kafka, Eureka and the config server (which serves secrets) are worse.
+#
+# This file puts them back for Swagger, an IDE-run service or a DB client, bound to 127.0.0.1 so
+# they are reachable from this machine only:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.lean.yml -f docker-compose.debug.yml up -d
+#
+# Never use it on a shared or deployed host.
+services:
+  mysql:
+    ports:
+      - "127.0.0.1:${HOST_PORT_MYSQL:-3306}:3306"
+  redis:
+    ports:
+      - "127.0.0.1:${HOST_PORT_REDIS:-6381}:6379"
+  minio:
+    ports:
+      - "127.0.0.1:${HOST_PORT_MINIO_CONSOLE:-9001}:9001"
+  zookeeper:
+    ports:
+      - "127.0.0.1:2181:2181"
+  kafka:
+    ports:
+      - "127.0.0.1:9092:9092"
+      - "127.0.0.1:${HOST_PORT_KAFKA:-29093}:29092"
+  rabbitmq:
+    ports:
+      - "127.0.0.1:5672:5672"
+      - "127.0.0.1:15672:15672"
+  elasticsearch:
+    ports:
+      - "127.0.0.1:9200:9200"
+      - "127.0.0.1:9300:9300"
+  zipkin:
+    ports:
+      - "127.0.0.1:9411:9411"
+  prometheus:
+    ports:
+      - "127.0.0.1:9090:9090"
+  grafana:
+    ports:
+      - "127.0.0.1:3001:3000"
+  config-server:
+    ports:
+      - "127.0.0.1:${HOST_PORT_CONFIG:-8888}:8888"
+  service-registry:
+    ports:
+      - "127.0.0.1:8761:8761"
+  auth-service:
+    ports:
+      - "127.0.0.1:${HOST_PORT_AUTH:-8093}:8081"
+  user-service:
+    ports:
+      - "127.0.0.1:${HOST_PORT_USER:-8094}:8082"
+  booking-service:
+    ports:
+      - "127.0.0.1:8083:8083"
+  payment-service:
+    ports:
+      - "127.0.0.1:8084:8084"
+  notification-service:
+    ports:
+      - "127.0.0.1:8085:8085"
+  admin-service:
+    ports:
+      - "127.0.0.1:8086:8086"
+  project-service:
+    ports:
+      - "127.0.0.1:${HOST_PORT_PROJECT:-8096}:8096"
+  tenant-service:
+    ports:
+      - "127.0.0.1:${HOST_PORT_TENANT:-8099}:8099"
+  support-service:
+    ports:
+      - "127.0.0.1:${HOST_PORT_SUPPORT:-8098}:8098"
+  review-service:
+    ports:
+      - "127.0.0.1:${HOST_PORT_REVIEW:-8089}:8089"
+  media-service:
+    ports:
+      - "127.0.0.1:${HOST_PORT_MEDIA:-8100}:8100"
+  procurement-service:
+    ports:
+      - "127.0.0.1:${HOST_PORT_PROCUREMENT:-8101}:8101"
+  audit-service:
+    ports:
+      - "127.0.0.1:${HOST_PORT_AUDIT:-8095}:8095"
+  messaging-service:
+    ports:
+      - "127.0.0.1:${HOST_PORT_MESSAGING:-8097}:8096"
+  search-service:
+    ports:
+      - "127.0.0.1:${HOST_PORT_SEARCH:-8092}:8092"

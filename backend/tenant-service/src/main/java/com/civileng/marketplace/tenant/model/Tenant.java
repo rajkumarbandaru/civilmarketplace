@@ -90,6 +90,10 @@ public class Tenant {
     @Column(length = 20)
     private String density;
 
+    /** How the tenant's public website arranges its blocks (frontend site-layout registry). */
+    @Column(name = "site_layout", length = 20)
+    private String siteLayout;
+
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.VARCHAR)
     @Column(nullable = false, length = 20)
@@ -97,6 +101,13 @@ public class Tenant {
 
     @Column(name = "contact_email", nullable = false, length = 150)
     private String contactEmail;
+
+    /** Who the owner invitation goes to at publish (the account lives in the tenant's auth schema). */
+    @Column(name = "owner_name", length = 120)
+    private String ownerName;
+
+    @Column(name = "owner_email", length = 150)
+    private String ownerEmail;
 
     @Column(nullable = false, length = 30)
     private String plan;
@@ -160,6 +171,7 @@ public class Tenant {
                 .buttonStyle(buttonStyle)
                 .layoutStyle(layoutStyle)
                 .density(density)
+                .siteLayout(siteLayout)
                 .build();
     }
 
@@ -181,5 +193,6 @@ public class Tenant {
         this.buttonStyle = branding.getButtonStyle();
         this.layoutStyle = branding.getLayoutStyle();
         this.density = branding.getDensity();
+        this.siteLayout = branding.getSiteLayout();
     }
 }

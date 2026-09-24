@@ -28,6 +28,11 @@ public class KafkaProducerConfig {
         config.put(ProducerConfig.ACKS_CONFIG, "all");
         config.put(ProducerConfig.RETRIES_CONFIG, 3);
         config.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
+        // Stamps each record with the current tenant. This factory is built by hand, so the
+        // interceptor.classes in auth-service.yml never reached it: every event left without a
+        // tenant header and consumers (notification-service's OTP and invitation emails) dropped them.
+        config.put(ProducerConfig.INTERCEPTOR_CLASSES_CONFIG,
+                com.civileng.marketplace.tenant.common.TenantKafkaProducerInterceptor.class.getName());
         return new DefaultKafkaProducerFactory<>(config);
     }
 

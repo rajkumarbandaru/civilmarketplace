@@ -47,6 +47,15 @@ const loadCheckoutScript = (): Promise<void> =>
     document.body.appendChild(script);
   });
 
+export const PAYMENTS_NOT_CONFIGURED =
+  'Online payments are not set up for this workspace yet. Please contact support.';
+
+/** True for payment-service's 409 when the tenant has no merchant account connected. */
+export const isPaymentsNotConfigured = (error: unknown): boolean => {
+  const response = (error as { response?: { status?: number; data?: { code?: string } } })?.response;
+  return response?.status === 409 && response.data?.code === 'INTEGRATION_NOT_CONFIGURED';
+};
+
 export interface CheckoutOptions {
   bookingId: number;
   /** Rupees, not paise. */
@@ -69,14 +78,17 @@ export type CheckoutOutcome =
  * from "something broke" without inspecting error strings.
  */
 export const payWithRazorpay = async (options: CheckoutOptions): Promise<CheckoutOutcome> => {
-  const keyId = import.meta.env.VITE_RAZORPAY_KEY_ID;
-  if (!keyId) {
-    return { status: 'failed', message: 'Payments are not configured. Please contact support.' };
+  let order: Payment;
+  try {
+    order = await createPaymentOrder(options.bookingId, options.amount);
+  } catch (error) {
+    // 409 INTEGRATION_NOT_CONFIGURED: this workspace has not connected its own merchant account.
+    // Said plainly, because "try again" would never work.
+    if (isPaymentsNotConfigured(error)) {
+      return { status: 'failed', message: PAYMENTS_NOT_CONFIGURED };
+    }
+    throw error;
   }
-
-  await loadCheckoutScript();
-
-  const order = await createPaymentOrder(options.bookingId, options.amount);
   // payment-service records a FAILED row instead of throwing when Razorpay is unreachable, so the
   // missing order id — not an exception — is what says the order was never created.
   if (!order.razorpayOrderId) {
@@ -85,6 +97,14 @@ export const payWithRazorpay = async (options: CheckoutOptions): Promise<Checkou
       message: order.failureReason || 'Could not start the payment. Please try again.',
     };
   }
+  // The key comes with the order, from this workspace's own merchant account. It used to be one
+  // build-time VITE_ variable, which sent every tenant's customers to the same account.
+  const keyId = order.razorpayKeyId;
+  if (!keyId) {
+    return { status: 'failed', message: PAYMENTS_NOT_CONFIGURED };
+  }
+
+  await loadCheckoutScript();
 
   return new Promise<CheckoutOutcome>((resolve, reject) => {
     // Guards the dismiss handler: Razorpay fires ondismiss after a successful payment too, which

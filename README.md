@@ -152,8 +152,16 @@ docker-compose up -d
 # 4. Access the application
 # Frontend: http://localhost:3000
 # API Gateway: http://localhost:8080
-# Eureka Dashboard: http://localhost:8761
-# Grafana: http://localhost:3001 (admin/admin)
+```
+
+Only the gateway, frontend, nginx and the MinIO API (for browser uploads) are published. Services
+trust the identity headers the gateway sets, so their ports, and MySQL, Redis, Kafka, Eureka and
+the config server, stay inside the Docker network. For local debugging (Swagger, a DB client, a
+service run from your IDE, Eureka on 8761, Grafana on 3001) add the debug override, which publishes
+them on `127.0.0.1` only:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.lean.yml -f docker-compose.debug.yml up -d
 ```
 
 ### Local Development
@@ -172,6 +180,25 @@ cd user-service && mvn spring-boot:run
 cd booking-service && mvn spring-boot:run
 cd payment-service && mvn spring-boot:run
 cd notification-service && mvn spring-boot:run
+```
+
+#### Security checks (live stack)
+```bash
+# Isolation and hardening: ports, forged/unsigned identity, tenant-scoped keys, cross-tenant tokens
+python3 scripts/security/phase0_live_check.py
+# Two-step sign-in with the dev SUPER_ADMIN (resets that account's MFA when done)
+python3 scripts/security/mfa_live_check.py
+```
+
+#### Platform phase exit checks (live stack)
+Each reproduces one roadmap phase's exit criterion (`docs/architecture/platform-factory/10-risks-decisions-roadmap.md`)
+against the running stack, and cleans up after itself (demo tenants archived, operator MFA reset).
+```bash
+python3 scripts/config/phase1_theme_rollback_check.py         # versioned theme: publish, diff, roll back
+python3 scripts/factory/phase2_create_publish_check.py        # draft → publish → live, owner invited
+python3 scripts/entitlements/phase3_entitlements_check.py     # plans, downgrades, grants, quotas
+python3 scripts/experience/phase4_experience_check.py         # three reference looks from one build
+python3 scripts/procurement/phase5_hybrid_flow_check.py       # B2C booking + B2B RFQ → PO → GRN → invoice
 ```
 
 #### Frontend
@@ -200,7 +227,8 @@ Key environment variables (see `.env.example` for full list):
 
 ## 📚 API Documentation
 
-Once running, API documentation is available via Swagger UI:
+With `docker-compose.debug.yml` applied, API documentation is available via Swagger UI (host ports
+are set in `docker/.env`):
 
 | Service | URL |
 |---|---|

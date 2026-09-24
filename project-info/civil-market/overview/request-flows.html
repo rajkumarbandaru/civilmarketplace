@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>05 — Request Flows (step by step)</title>
+<style>
+:root{--bg:#f6f7f9;--fg:#1f2933;--muted:#5b6770;--card:#fff;--line:#e3e6ea;--accent:#3730a3;--accent-bg:#eef2ff;--head:#0f172a;--code:#f1f3f6}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1115;--fg:#e6e8eb;--muted:#9aa4ad;--card:#171a20;--line:#2a2f37;--accent:#a5b4fc;--accent-bg:#1e2240;--head:#05070b;--code:#1f232b}}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.6 system-ui,-apple-system,Segoe UI,sans-serif;background:var(--bg);color:var(--fg)}
+header{background:var(--head);color:#fff;padding:18px 16px}
+header .in{max-width:1200px;margin:0 auto}
+header h1{margin:0;font-size:22px;line-height:1.3} header p{margin:4px 0 0;opacity:.75;font-size:13px}
+header a{color:#c7d2fe}
+.nav{max-width:1200px;margin:0 auto;padding:10px 16px 0;font-size:13px}
+.nav a{color:var(--accent);text-decoration:none;margin-right:6px;padding:3px 9px;border-radius:999px;background:var(--accent-bg);display:inline-block;margin-bottom:6px}
+.wrap{max-width:1200px;margin:0 auto;padding:0 16px 60px;display:flex;gap:24px;align-items:flex-start}
+nav.toc{position:sticky;top:12px;flex:0 0 250px;max-height:calc(100vh - 24px);overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:16px;font-size:13px}
+nav.toc ul{list-style:none;margin:0;padding-left:10px} nav.toc>ul{padding-left:0}
+nav.toc a{color:var(--accent);text-decoration:none;display:block;padding:2px 0}
+main{flex:1;min-width:0}
+main h1{display:none}
+h2{font-size:20px;margin:32px 0 10px;padding-top:8px;border-top:1px solid var(--line)}
+h3{font-size:16px;margin:20px 0 8px}
+a{color:var(--accent)}
+blockquote{margin:12px 0;padding:10px 14px;background:var(--accent-bg);border-left:4px solid var(--accent);border-radius:6px}
+blockquote p{margin:4px 0}
+table{border-collapse:collapse;width:100%;background:var(--card);font-size:14px;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:6px 10px;text-align:left;vertical-align:top}
+th{background:var(--accent-bg)}
+code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:13px}
+pre{background:var(--code);padding:12px;border-radius:8px;overflow-x:auto;font-size:13px;line-height:1.45}
+pre code{background:none;padding:0}
+pre.mermaid{background:var(--card);border:1px solid var(--line);text-align:center}
+hr{border:0;border-top:1px solid var(--line);margin:24px 0}
+@media (max-width:900px){.wrap{display:block}nav.toc{position:static;max-height:none;margin-top:16px}}
+</style></head><body>
+<header><div class="in"><h1>05 — Request Flows (step by step)</h1><p>Civil Engineering Marketplace · source ~/RAJKUMAR · generated from <code style="color:#fff;background:none">overview/request-flows.md</code></p></div></header>
+<div class="nav"><a href="../index.html">Home</a><a href="../interview-guide.html">Interview guide</a><a href="../overview/architecture.html">Architecture</a><a href="../backend/backend-guide.html">Backend</a><a href="../ui/ui-guide.html">UI</a><a href="../docker/docker-guide.html">Docker</a><a href="../overview/action-flows.html">Action flows</a><a href="../interview/rapid-fire.html">Rapid fire</a></div>
+<div class="wrap"><nav class="toc"><b>Contents</b><div class="toc">
+<ul>
+<li><a href="#flow-1-opening-the-app">Flow 1 — Opening the app</a></li>
+<li><a href="#flow-2-login">Flow 2 — Login</a></li>
+<li><a href="#flow-3-any-authenticated-call-example-create-a-booking">Flow 3 — Any authenticated call (example: create a booking)</a></li>
+<li><a href="#flow-4-service-to-service-synchronous-feign">Flow 4 — Service-to-service (synchronous, Feign)</a></li>
+<li><a href="#flow-5-event-driven-asynchronous-kafka">Flow 5 — Event-driven (asynchronous, Kafka)</a></li>
+<li><a href="#flow-6-payment-and-escrow">Flow 6 — Payment and escrow</a></li>
+<li><a href="#flow-7-service-boot-what-happens-inside-one-container">Flow 7 — Service boot (what happens inside one container)</a></li>
+<li><a href="#multi-tenancy-summary">Multi-tenancy summary</a></li>
+</ul>
+</div>
+</nav><main><h1 id="05-request-flows-step-by-step">05 — Request Flows (step by step)</h1>
+<h2 id="flow-1-opening-the-app">Flow 1 — Opening the app</h2>
+<pre><code>Browser ── GET http://localhost:3000/ ──▶ civil_frontend (nginx :3000)
+                                            └─ returns index.html + /assets/*.js (React bundle)
+React boots (main.tsx → App.tsx → providers → router)
+  ├─ GET /api/v1/tenant-resolution/...  → gateway → tenant-service   (workspace name/branding)
+  ├─ GET /api/v1/content/...            → gateway → admin-service    (landing page copy, public)
+  └─ GET /api/v1/catalogue/...          → gateway → booking-service  (service list, public)
+</code></pre>
+<h2 id="flow-2-login">Flow 2 — Login</h2>
+<pre><code>1. User submits the Login form (pages/auth/LoginPage.tsx)
+2. Axios  POST /api/v1/auth/login  {email, password}
+3. Browser → frontend nginx :3000  (/api/ → proxy_pass http://api-gateway:8080, Host kept)
+4. API gateway:
+     a. TenantResolutionGlobalFilter: Host &quot;acme.localhost:3000&quot; → tenant &quot;acme&quot;
+        (plain &quot;localhost&quot; → the fallback tenant); strips any client X-Tenant-Id; sets X-Tenant-Id
+     b. Route &quot;auth-service&quot; matches /api/v1/auth/**  (public, no JWT filter)
+     c. lb://auth-service → Eureka lookup → auth-service container :8081
+5. auth-service:
+     a. tenant-common switches the DB connection to schema civil_engineer_auth_&lt;tenant&gt;
+     b. loads the user, checks the BCrypt password, lockout counters
+     c. creates an access token (JWT: sub=userId, email, role, name, tenant) + refresh token
+6. Response → gateway → nginx → browser
+7. The frontend saves the tokens (Redux store and storage), then calls
+   GET /api/v1/ui-config/me to apply the tenant/user theme, and redirects to the dashboard
+</code></pre>
+<p>OTP login is similar: <code>POST /api/v1/auth/otp/send</code> → auth-service stores the OTP in Redis →
+event to notification-service → email/SMS (or the log, when provider=<code>log</code>) →
+<code>POST /api/v1/auth/otp/verify</code> → JWT.</p>
+<h2 id="flow-3-any-authenticated-call-example-create-a-booking">Flow 3 — Any authenticated call (example: create a booking)</h2>
+<pre><code>Browser  POST /api/v1/bookings   Authorization: Bearer eyJ...
+   │
+   ▼  frontend nginx (:3000)  →  api-gateway (:8080)
+   │
+   ├─ 1. TenantResolutionGlobalFilter → X-Tenant-Id: acme
+   ├─ 2. InternalOnlyPathFilter        → not an internal path, continue
+   ├─ 3. Route &quot;booking-service&quot; (/api/v1/bookings/**) with JwtAuth filter:
+   │       - verify signature with JWT_SECRET, check expiry
+   │       - check JWT &quot;tenant&quot; claim == resolved tenant (else 403, which blocks
+   │         cross-tenant token replay)
+   │       - add headers: X-User-Id, X-User-Email, X-User-Role, X-User-Name
+   ├─ 4. Redis rate limiter
+   └─ 5. lb://booking-service  (Eureka)
+   │
+   ▼  booking-service :8083
+      - controller reads @RequestHeader(&quot;X-User-Id&quot;) ...  (does not re-verify the JWT)
+      - tenant-common → schema civil_engineer_bookings_acme
+      - service layer (@Transactional) → JPA → MySQL
+      - may publish a Kafka event (booking created / status changed)
+   │
+   ▼  JSON response back through the gateway → nginx → React Query cache → UI re-renders
+</code></pre>
+<p>Errors: an invalid or expired token gets <strong>401</strong> from the gateway, and the frontend interceptor refreshes the
+token or logs the user out. A missing role gets <strong>403</strong> from the service. A validation error (<code>IllegalArgumentException</code>)
+gets <strong>400</strong> from the service's <code>GlobalExceptionHandler</code>.</p>
+<h2 id="flow-4-service-to-service-synchronous-feign">Flow 4 — Service-to-service (synchronous, Feign)</h2>
+<p>Example: submitting a review.</p>
+<pre><code>POST /api/v1/bookings/42/reviews → gateway route &quot;booking-reviews&quot; → review-service
+review-service ──Feign (lb://booking-service)──▶ booking-service: is booking 42 COMPLETED,
+                                                  and is the caller a party to it?
+   yes → save Review, recompute RatingSummary average
+   no  → 400 / 403
+</code></pre>
+<p>Other Feign calls: project-service → booking-service and payment-service (budget and escrow rollup);
+search-service → auth, user and review services (building the profile index).</p>
+<h2 id="flow-5-event-driven-asynchronous-kafka">Flow 5 — Event-driven (asynchronous, Kafka)</h2>
+<pre><code>messaging-service: customer sends a chat message
+   └─ publish &quot;message.sent&quot; ──Kafka──▶ notification-service listener
+                                          └─ creates an in-app Notification for the recipient
+                                             (+ email/SMS/WhatsApp depending on provider settings)
+
+Any audited action (KYC approve, escrow release, ticket resolve, theme change, announcement…)
+   └─ audit-common publishes an audit event ──Kafka──▶ audit-service
+                                                        └─ append-only, hash-chained row
+                                                           (GET /api/v1/admin/audit/events)
+
+tenant-service: a new tenant is onboarded
+   └─ publish &quot;tenant.events&quot; ──Kafka──▶ every tenanted service
+                                          └─ tenant-common creates &lt;db&gt;_&lt;tenantKey&gt; + runs Flyway
+                                             (no restart needed)
+</code></pre>
+<h2 id="flow-6-payment-and-escrow">Flow 6 — Payment and escrow</h2>
+<pre><code>1. Customer: POST /api/v1/escrow  (booking/milestone, amount)         → PENDING_FUNDING
+2. payment-service creates a Razorpay order → frontend opens Razorpay Checkout
+   (VITE_RAZORPAY_KEY_ID, public key)
+3. Razorpay → POST /webhooks/** (public route) or client verify → payment COMPLETED
+4. Reconciliation marks the hold HELD
+5. Customer: POST /api/v1/escrow/{id}/release        (or the auto-release job after 7 days)
+   → 5% commission frozen on the row → payee Wallet credited + WalletTransaction ledger line
+   → audit event
+   Dispute: POST /{id}/dispute → DISPUTED (release blocked) → admin resolves with RELEASE/REFUND/HOLD
+</code></pre>
+<h2 id="flow-7-service-boot-what-happens-inside-one-container">Flow 7 — Service boot (what happens inside one container)</h2>
+<pre><code>java -jar app.jar
+  1. bootstrap: contact config-server (http://config-server:8888), load &lt;service&gt;.yml
+  2. connect to MySQL; tenant-common reads the tenant registry and runs Flyway
+     migrations for every tenant schema
+  3. connect to Kafka / Redis / RabbitMQ / Elasticsearch as needed
+  4. register with Eureka (service-registry:8761) under spring.application.name
+  5. /actuator/health = UP → the gateway can now route to it
+</code></pre>
+<h2 id="multi-tenancy-summary">Multi-tenancy summary</h2>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>Where</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Tenant chosen from the URL subdomain (<code>acme.localhost</code>)</td>
+<td>gateway <code>TenantResolutionGlobalFilter</code></td>
+</tr>
+<tr>
+<td>Client-supplied <code>X-Tenant-Id</code> removed, real one set</td>
+<td>gateway</td>
+</tr>
+<tr>
+<td>JWT <code>tenant</code> claim must match</td>
+<td>gateway <code>JwtAuthGatewayFilterFactory</code></td>
+</tr>
+<tr>
+<td>DB schema <code>&lt;service_db&gt;_&lt;tenantKey&gt;</code> selected per request</td>
+<td><code>tenant-common</code> in each service</td>
+</tr>
+<tr>
+<td>New tenant's schemas created live</td>
+<td><code>tenant.events</code> Kafka topic</td>
+</tr>
+<tr>
+<td>Browser Host kept all the way through</td>
+<td>frontend nginx <code>proxy_set_header Host $http_host</code></td>
+</tr>
+</tbody>
+</table></main></div>
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+mermaid.initialize({ startOnLoad: false, theme: dark ? 'dark' : 'default', securityLevel: 'loose',
+                      flowchart: { htmlLabels: true }, sequence: { useMaxWidth: false } });
+const blocks = [...document.querySelectorAll('pre.mermaid')];
+for (let i = 0; i < blocks.length; i++) {
+  const el = blocks[i];
+  const src = el.textContent;
+  try {
+    const { svg } = await mermaid.render('mmd' + i, src);
+    el.innerHTML = svg;
+    el.setAttribute('data-processed', 'true');
+  } catch (e) {
+    el.setAttribute('data-error', 'true');
+    el.textContent = 'Diagram error: ' + e.message + ' --- ' + src;
+  }
+}
+</script>
+</body></html>

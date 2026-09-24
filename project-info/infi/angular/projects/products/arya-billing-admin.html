@@ -1,0 +1,664 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>3. Arya Billing Admin (Xmobee)</title>
+<style>
+:root{--bg:#f6f7f9;--fg:#1f2933;--muted:#5b6770;--card:#fff;--line:#e3e6ea;--accent:#3730a3;--accent-bg:#eef2ff;--head:#0f172a;--code:#f1f3f6}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1115;--fg:#e6e8eb;--muted:#9aa4ad;--card:#171a20;--line:#2a2f37;--accent:#a5b4fc;--accent-bg:#1e2240;--head:#05070b;--code:#1f232b}}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.6 system-ui,-apple-system,Segoe UI,sans-serif;background:var(--bg);color:var(--fg)}
+header{background:var(--head);color:#fff;padding:18px 16px}
+header .in{max-width:1200px;margin:0 auto}
+header h1{margin:0;font-size:22px;line-height:1.3} header p{margin:4px 0 0;opacity:.75;font-size:13px}
+header a{color:#c7d2fe}
+.wrap{max-width:1200px;margin:0 auto;padding:0 16px 60px;display:flex;gap:24px;align-items:flex-start}
+nav.toc{position:sticky;top:12px;flex:0 0 250px;max-height:calc(100vh - 24px);overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:16px;font-size:13px}
+nav.toc ul{list-style:none;margin:0;padding-left:10px} nav.toc>ul{padding-left:0}
+nav.toc a{color:var(--accent);text-decoration:none;display:block;padding:2px 0}
+main{flex:1;min-width:0}
+main h1{display:none}
+h2{font-size:20px;margin:32px 0 10px;padding-top:8px;border-top:1px solid var(--line)}
+h3{font-size:16px;margin:20px 0 8px}
+a{color:var(--accent)}
+blockquote{margin:12px 0;padding:10px 14px;background:var(--accent-bg);border-left:4px solid var(--accent);border-radius:6px}
+blockquote p{margin:4px 0}
+table{border-collapse:collapse;width:100%;background:var(--card);font-size:14px;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:6px 10px;text-align:left;vertical-align:top}
+th{background:var(--accent-bg)}
+code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:13px}
+pre{background:var(--code);padding:12px;border-radius:8px;overflow-x:auto;font-size:13px;line-height:1.45}
+pre code{background:none;padding:0}
+pre.mermaid{background:var(--card);border:1px solid var(--line);text-align:center}
+hr{border:0;border-top:1px solid var(--line);margin:24px 0}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin:12px 0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px}
+.card h3{margin:0 0 6px;font-size:16px}.card p{margin:0;color:var(--muted);font-size:13px}
+.card .meta{margin-top:8px;font-size:12px;color:var(--muted)}
+@media (max-width:900px){.wrap{display:block}nav.toc{position:static;max-height:none;margin-top:16px}}
+</style></head><body>
+<header><div class="in"><h1>3. Arya Billing Admin (Xmobee)</h1><p>AryaDash product <code>arya-billing-admin</code> &middot; <a href="../index.html">All projects</a> &middot; <a href="../../index.html">Interview guide</a></p></div></header>
+<div class="wrap"><nav class="toc"><b>Contents</b><div class="toc">
+<ul>
+<li><a href="#what-it-is">What it is</a></li>
+<li><a href="#key-facts">Key facts</a></li>
+<li><a href="#how-to-run">How to run</a></li>
+<li><a href="#menu-and-access">Menu and access</a></li>
+<li><a href="#product-specific-features-keys-in-globaljson">Product-specific features (keys in global.json)</a></li>
+<li><a href="#view-types-used">View types used</a></li>
+<li><a href="#flow">Flow</a></li>
+<li><a href="#screen-json-files">Screen JSON files</a></li>
+<li><a href="#talking-points-for-an-interview">Talking points for an interview</a></li>
+</ul>
+</div>
+</nav><main><h1 id="3-arya-billing-admin-xmobee">3. Arya Billing Admin (Xmobee)</h1>
+<blockquote>
+<p>Product folder: <code>aryadash-dashboard/src/config/arya-billing-admin/</code> - built from the shared AryaDash engine. <a href="../index.html">Back to all projects</a> - <a href="../../index.html">Interview guide</a></p>
+</blockquote>
+<h2 id="what-it-is">What it is</h2>
+<p>The largest product: full billing back office for an MVNO - MNO, customer, reseller, product, wallet, warehouse and SIM management, finance, dunning, invoices, tax and business-activation reports.</p>
+<h2 id="key-facts">Key facts</h2>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Browser title</td>
+<td>Xmobee</td>
+</tr>
+<tr>
+<td>Theme colours</td>
+<td>primary <code>#FFC400</code>, fade <code>#0A0A0A</code></td>
+</tr>
+<tr>
+<td>Timezone</td>
+<td>UTC+0100</td>
+</tr>
+<tr>
+<td>Default layout</td>
+<td>vertical</td>
+</tr>
+<tr>
+<td>localStorage prefix</td>
+<td><code>aryabillingadmin</code></td>
+</tr>
+<tr>
+<td>Session cookie</td>
+<td><code>SESSIONID_ARYA_BILLING_ADMIN</code></td>
+</tr>
+<tr>
+<td>Auth mode</td>
+<td>session cookie</td>
+</tr>
+<tr>
+<td>Login URL (user / admin)</td>
+<td><code>user_mgmt/admin_signin/</code> / <code>user_mgmt/admin_signin/</code></td>
+</tr>
+<tr>
+<td>Menu entries</td>
+<td>18</td>
+</tr>
+<tr>
+<td>Pages in global.json</td>
+<td>213</td>
+</tr>
+<tr>
+<td>Screen JSON files</td>
+<td>219</td>
+</tr>
+<tr>
+<td>Routes</td>
+<td>22 (login + 21) using <code>DashboardComponent</code>, <code>LoginPageComponent</code>, <code>TableviewComponent</code></td>
+</tr>
+<tr>
+<td>Environment</td>
+<td><code>{ production: false, showVersion: true, configBase: "arya-billing-admin/", productType: '' }</code></td>
+</tr>
+<tr>
+<td>Brand assets</td>
+<td><code>src/assets-arya-billing-admin/</code></td>
+</tr>
+<tr>
+<td>Backend API modules (dev proxy)</td>
+<td><code>/billing/</code>, <code>/billing_reports/</code>, <code>/catalogue_mgmt/</code>, <code>/integration/</code>, <code>/inventory_mgmt/</code>, <code>/invt_mgmt/</code>, <code>/ledger_mgmt/</code>, <code>/metrics/</code>, <code>/mno_mgmt/</code>, <code>/self_service_payment/</code>, <code>/seller_mgmt/</code>, <code>/service_mgmt/</code>, <code>/shipment_management/</code>, <code>/tax_management/</code>, <code>/user_kyc/</code>, <code>/user_mgmt/</code>, <code>/wallet_mgmt/</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="how-to-run">How to run</h2>
+<pre><code class="language-bash">cd ~/VIPLine-billing/aryadash-dashboard
+ng serve --configuration=arya-billing-admin   # http://localhost:4200
+ng build --configuration=development-arya-billing-admin
+</code></pre>
+<h2 id="menu-and-access">Menu and access</h2>
+<table>
+<thead>
+<tr>
+<th>Menu</th>
+<th>Route</th>
+<th>Sub-pages</th>
+<th>Who can see it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Dashboard</td>
+<td><code>/dashboard</code></td>
+<td>Dashboard</td>
+<td>everyone</td>
+</tr>
+<tr>
+<td>MNO Management</td>
+<td><code>/mnomanagement</code></td>
+<td>MNO Onboarding, Wholesale Plan Creation, Wholesale Plan Mapping, Pool Change Request</td>
+<td>role = Admin; mode strict</td>
+</tr>
+<tr>
+<td>Registration Management</td>
+<td><code>/registrationmanagement</code></td>
+<td>Website Order, Amazon Orders, eCommerce Payments by Date, eCommerce Payments by OrderId, Mcf Orders, Bulk Upload, Label Uploads</td>
+<td>permission list <code>veiwAccess</code> has 'Registration Management'</td>
+</tr>
+<tr>
+<td>Customer Management</td>
+<td><code>/customermanagement</code></td>
+<td>Search Subscriber, Search Order, Migrate Msisdn, Change Carrier Logs, Change MDN, Port-in, Intrevention Port-in, Port-out, Port-out by MSISDN, Sim Replacement, Offline eSIM, Validate Device, Service Requests, Pending ...</td>
+<td>permission list <code>veiwAccess</code> has 'Customer Management'</td>
+</tr>
+<tr>
+<td>Sales &amp; Marketing</td>
+<td><code>/salesandmarketing</code></td>
+<td>Product Requests, E-Balance, Promotions, Discounts, Giveaway Participants, Giveaway Winners</td>
+<td>permission list <code>veiwAccess</code> has 'Sales &amp; Marketing'</td>
+</tr>
+<tr>
+<td>Products &amp; Services</td>
+<td><code>/productsandservices</code></td>
+<td>Tariff Addons, Service Addons, Service Policies, Service Plan, Service Bundles, Ott Plan</td>
+<td>permission list <code>veiwAccess</code> has 'Products &amp; Services'</td>
+</tr>
+<tr>
+<td>User Management</td>
+<td><code>/usermanagement</code></td>
+<td>Reseller Users, Staff Users, Staff Topup</td>
+<td>permission list <code>veiwAccess</code> has 'User Management'</td>
+</tr>
+<tr>
+<td>Reseller Management</td>
+<td><code>/resellermanagement</code></td>
+<td>Reseller Approvals, Reseller Sales Location</td>
+<td>permission list <code>veiwAccess</code> has 'Reseller Management'</td>
+</tr>
+<tr>
+<td>General</td>
+<td><code>/general</code></td>
+<td>Dashboard Sessions, Reseller Sessions, User Sessions, Audit Events, Error Logs, Verizon Error Logs, T-Mobile Error Logs, Roles, Roles Configuration, View Configuration, Recharge Transfer Config, Service Blockage, Prod...</td>
+<td>permission list <code>veiwAccess</code> has 'General'</td>
+</tr>
+<tr>
+<td>Reseller Stock Return</td>
+<td><code>/resellerstockreturn</code></td>
+<td>Product Return Requests, E-topup Return Requests</td>
+<td>permission list <code>veiwAccess</code> has 'Reseller Stock Return'</td>
+</tr>
+<tr>
+<td>Finance</td>
+<td><code>/finance</code></td>
+<td>Bank, Accounts, Postpaid bill Deposit, Risk Evaluation Rules, Dunning, Dunning Configuration, Invoice, Bill runs, Manual Invoice Generation, Invoice Adjustment, Invoice &amp; Deposit Payments, General Ledger Accounts, Gen...</td>
+<td>permission list <code>veiwAccess</code> has 'Finance'</td>
+</tr>
+<tr>
+<td>Reports</td>
+<td><code>/reports</code></td>
+<td>Business Activation Reports, Tax Reports, Warehouse Reports</td>
+<td>permission list <code>veiwAccess</code> has 'Reports'</td>
+</tr>
+<tr>
+<td>Tax Reports</td>
+<td><code>/taxreports</code></td>
+<td>Voucher Sales Tax Reports, E-Balance Sales Tax Reports, Sim Sales Tax Reports, Service Bundle Recharge Tax Reports Using Airtime, Mobile Money Service Bundle Recharge Tax Reports, Staff Recharge Tax Reports, Reseller ...</td>
+<td>permission list <code>veiwAccess</code> has 'Tax Reports'</td>
+</tr>
+<tr>
+<td>Wallet</td>
+<td><code>/wallet</code></td>
+<td>All Wallets, Wallet Logs, Reports</td>
+<td>permission list <code>veiwAccess</code> has 'Wallet'</td>
+</tr>
+<tr>
+<td>Bulk Emails &amp; SMS</td>
+<td><code>/bulkemailsandsms</code></td>
+<td>Bulk Emails</td>
+<td>permission list <code>veiwAccess</code> has 'Bulk Emails &amp; SMS'</td>
+</tr>
+<tr>
+<td>Business Activation Reports</td>
+<td><code>/activationreports</code></td>
+<td>Physical Orders, Amazon Orders, Subscriptions, Auto Renewal Payments, Auto Renewal Recharges, Bundle Advanced Payments, E-Topup Sales Report, Website Stripe Payments, Website Stripe Refunds, Stripe Disputes Report, So...</td>
+<td>permission list <code>veiwAccess</code> has 'Business Activation Reports'</td>
+</tr>
+<tr>
+<td>Warehouse Management</td>
+<td><code>/warehousemanagement</code></td>
+<td>Products Catelogue, Warehouse Bins, Reseller Bins, Bin Stocks, Stock Movement Logs, Stock Movement Request, Order Movement, Product Bundles, Internal Product Bundles, Reseller Sim Assignments, Warehouse Reports</td>
+<td>permission list <code>veiwAccess</code> has 'Warehouse'</td>
+</tr>
+<tr>
+<td>Sim Configuration</td>
+<td><code>/simconfiguration</code></td>
+<td>MSISDN Block, Sim Inventory, Sim Lifecycle Update Report, Sim Lifecycle Process, Sim Details, Churn Sims</td>
+<td>permission list <code>veiwAccess</code> has 'SIM Configuration'</td>
+</tr>
+</tbody>
+</table>
+<h2 id="product-specific-features-keys-in-globaljson">Product-specific features (keys in global.json)</h2>
+<ul>
+<li><code>layout</code> - Default layout</li>
+<li><code>summary-gauges</code> - Dashboard gauges</li>
+<li><code>trend-bars</code> - Dashboard trend bars</li>
+<li><code>metrics-summary</code> - Dashboard metric tiles</li>
+</ul>
+<h2 id="view-types-used">View types used</h2>
+<p>Page items in <code>global.json -&gt; pages</code>: <code>table</code> x197, <code>modal-form</code> x43, <code>form</code> x7, <code>page-section</code> x6, <code>flexible-reports</code> x3, <code>modal-wizard</code> x3, <code>detail-view</code> x2</p>
+<p>Definitions inside screen JSON files: <code>table</code> x195, <code>form</code> x158, <code>detail-view</code> x24, <code>page-section</code> x17, <code>wizard</code> x15, <code>modal-form</code> x13, <code>list</code> x10, <code>content-tab</code> x2, <code>list-view</code> x2, <code>interntdatatable</code> x1, <code>timeline</code> x1, <code>detail</code> x1</p>
+<h2 id="flow">Flow</h2>
+<pre class="mermaid">flowchart TD
+    B[&quot;ng serve --configuration=arya-billing-admin&quot;] --&gt; C[&quot;global.json + routes.ts of arya-billing-admin baked into bundle&quot;]
+    C --&gt; LG[&quot;Login page - Xmobee&quot;]
+    LG --&gt; AU[&quot;POST user_mgmt/admin_signin/ (admin: user_mgmt/admin_signin/) - SHA-256 password&quot;]
+    AU --&gt; CK[&quot;Cookie SESSIONID_ARYA_BILLING_ADMIN + store-data in localStorage&quot;]
+    CK --&gt; LAND[&quot;Landing page (per role)&quot;]
+    LAND --&gt; G[&quot;AuthGuard + access rules&quot;]
+    G --&gt; MENU[&quot;Menu&quot;]
+    MENU --&gt; M0[&quot;Dashboard&quot;]
+    MENU --&gt; M1[&quot;MNO Management&quot;]
+    MENU --&gt; M2[&quot;Registration Management&quot;]
+    MENU --&gt; M3[&quot;Customer Management&quot;]
+    MENU --&gt; M4[&quot;Sales &amp; Marketing&quot;]
+    MENU --&gt; M5[&quot;Products &amp; Services&quot;]
+    MENU --&gt; M6[&quot;User Management&quot;]
+    MENU --&gt; M7[&quot;Reseller Management&quot;]
+    MENU --&gt; MX[&quot;+10 more&quot;]
+    M0 --&gt; TV[&quot;TableviewComponent / DashboardComponent renders page items&quot;]
+    M1 --&gt; TV
+    M2 --&gt; TV
+    M3 --&gt; TV
+    M4 --&gt; TV
+    M5 --&gt; TV
+    M6 --&gt; TV
+    M7 --&gt; TV
+    TV --&gt; JS[&quot;AppConfig.readConfig(screen JSON)&quot;]
+    JS --&gt; API[&quot;RestAPIService -&gt; /billing/, /billing_reports/, /catalogue_mgmt/, /integration/&quot;]
+    API --&gt; UI[&quot;Table / form / chart shown to user&quot;]
+</pre>
+<h2 id="screen-json-files">Screen JSON files</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>accounts.json</code></td>
+<td><code>actions.json</code></td>
+<td><code>activepostpaidbundlesreports.json</code></td>
+<td><code>activeprepaidbundles.json</code></td>
+</tr>
+<tr>
+<td><code>alias.json</code></td>
+<td><code>allwallets.json</code></td>
+<td><code>amazonorders.json</code></td>
+<td><code>amazonordersreports.json</code></td>
+</tr>
+<tr>
+<td><code>assignmentgroup.json</code></td>
+<td><code>auditevents.json</code></td>
+<td><code>bank.json</code></td>
+<td><code>billruns.json</code></td>
+</tr>
+<tr>
+<td><code>binstocks.json</code></td>
+<td><code>bulkemailsandsms.json</code></td>
+<td><code>bulkupload.json</code></td>
+<td><code>bundleadvancedpaymentsreports.json</code></td>
+</tr>
+<tr>
+<td><code>businessactivationreportebalance.json</code></td>
+<td><code>businessactivationreportetopup.json</code></td>
+<td><code>businessactivationreports.json</code></td>
+<td><code>businessactivationsimreports.json</code></td>
+</tr>
+<tr>
+<td><code>businessactivationsimswapreports.json</code></td>
+<td><code>businessactivationspecialnumberwalletreports.json</code></td>
+<td><code>businessactivationvoucherreport.json</code></td>
+<td><code>canceladvancedpayments.json</code></td>
+</tr>
+<tr>
+<td><code>cancelautorenewal.json</code></td>
+<td><code>categoryconfiguration.json</code></td>
+<td><code>change_permission.json</code></td>
+<td><code>changecarrierlogs.json</code></td>
+</tr>
+<tr>
+<td><code>changemdnlogs.json</code></td>
+<td><code>churnsims.json</code></td>
+<td><code>customerinfo.json</code></td>
+<td><code>customerrefundrequests.json</code></td>
+</tr>
+<tr>
+<td><code>customerreturnreport.json</code></td>
+<td><code>customtaxinvoicereport.json</code></td>
+<td><code>dailycallsandsms.json</code></td>
+<td><code>dashboardsessions.json</code></td>
+</tr>
+<tr>
+<td><code>datacdrsrecords.json</code></td>
+<td><code>devicereplacementreport.json</code></td>
+<td><code>devicereturnreport.json</code></td>
+<td><code>deviceswaps.json</code></td>
+</tr>
+<tr>
+<td><code>discountattachment.json</code></td>
+<td><code>discounts.json</code></td>
+<td><code>dunning.json</code></td>
+<td><code>dunningconfiguration.json</code></td>
+</tr>
+<tr>
+<td><code>e-topupreturnrequests.json</code></td>
+<td><code>eCommercepayments.json</code></td>
+<td><code>eCommercepaymentsbyorderid.json</code></td>
+<td><code>ebalance.json</code></td>
+</tr>
+<tr>
+<td><code>ebalanceactivationprocess.json</code></td>
+<td><code>ebalancesalesreport.json</code></td>
+<td><code>ebalancesalesreportdaterange.json</code></td>
+<td><code>ebalancesalestaxcutdownreport.json</code></td>
+</tr>
+<tr>
+<td><code>eblcsalestaxreports.json</code></td>
+<td><code>emailnotifications.json</code></td>
+<td><code>errorlogs.json</code></td>
+<td><code>esimrule.json</code></td>
+</tr>
+<tr>
+<td><code>etopupresellerreporttestonly.json</code></td>
+<td><code>etopupsalesreport.json</code></td>
+<td><code>etopupsalesreportdaterange.json</code></td>
+<td><code>etopupsalesreporttestonly.json</code></td>
+</tr>
+<tr>
+<td><code>etopupsalestaxcutdownreport.json</code></td>
+<td><code>faileddatacdrs.json</code></td>
+<td><code>fetchsubscriber.json</code></td>
+<td><code>fraudlentpayments.json</code></td>
+</tr>
+<tr>
+<td><code>generalledgeraccounts.json</code></td>
+<td><code>generalledgerreports.json</code></td>
+<td><code>giveawayparticipants.json</code></td>
+<td><code>giveawaywinners.json</code></td>
+</tr>
+<tr>
+<td><code>inactiveusersreport.json</code></td>
+<td><code>incomingcallsbycountry.json</code></td>
+<td><code>incomminginternationcalls.json</code></td>
+<td><code>internalproductbundles.json</code></td>
+</tr>
+<tr>
+<td><code>internalrechargetransfer.json</code></td>
+<td><code>interntdata.json</code></td>
+<td><code>intreventionportin.json</code></td>
+<td><code>invoice.json</code></td>
+</tr>
+<tr>
+<td><code>invoice_adjustment.json</code></td>
+<td><code>invoiceanddepositpayments.json</code></td>
+<td><code>labeluploads.json</code></td>
+<td><code>locationbasedreport.json</code></td>
+</tr>
+<tr>
+<td><code>manualinvoicegeneration.json</code></td>
+<td><code>mblmnyservicebdlrechtaxreports.json</code></td>
+<td><code>mcforders.json</code></td>
+<td><code>mifiblockingreturnreport.json</code></td>
+</tr>
+<tr>
+<td><code>mifipurchasereport.json</code></td>
+<td><code>mifisalesreport.json</code></td>
+<td><code>mifiscannedinventorypurchasereport.json</code></td>
+<td><code>migratemsisdn.json</code></td>
+</tr>
+<tr>
+<td><code>mmscdrsrecords.json</code></td>
+<td><code>mnoemails.json</code></td>
+<td><code>mnofeatureresetlogs.json</code></td>
+<td><code>mnoonboarding.json</code></td>
+</tr>
+<tr>
+<td><code>msisdnblock.json</code></td>
+<td><code>networkrule.json</code></td>
+<td><code>notifications.json</code></td>
+<td><code>offlineesims.json</code></td>
+</tr>
+<tr>
+<td><code>ordermovement.json</code></td>
+<td><code>ott.json</code></td>
+<td><code>ottplan.json</code></td>
+<td><code>payments.json</code></td>
+</tr>
+<tr>
+<td><code>pendingactivations.json</code></td>
+<td><code>physicalorderreports.json</code></td>
+<td><code>planattachment.json</code></td>
+<td><code>plandetach.json</code></td>
+</tr>
+<tr>
+<td><code>poolchangerequest.json</code></td>
+<td><code>portin.json</code></td>
+<td><code>portout.json</code></td>
+<td><code>portoutbymdn.json</code></td>
+</tr>
+<tr>
+<td><code>postbilldeposit.json</code></td>
+<td><code>prepaidairtime.json</code></td>
+<td><code>productactivationprocess.json</code></td>
+<td><code>productblockingprocess.json</code></td>
+</tr>
+<tr>
+<td><code>productbundle.json</code></td>
+<td><code>productbundleinformation.json</code></td>
+<td><code>productrequest.json</code></td>
+<td><code>productreturnrequest.json</code></td>
+</tr>
+<tr>
+<td><code>productscatelogue.json</code></td>
+<td><code>promotions.json</code></td>
+<td><code>proratedinvoices.json</code></td>
+<td><code>purchasedetails.json</code></td>
+</tr>
+<tr>
+<td><code>rechargetransferConfiguration.json</code></td>
+<td><code>refundshistory.json</code></td>
+<td><code>renewalpaymentsreports.json</code></td>
+<td><code>renewalrechargesreports.json</code></td>
+</tr>
+<tr>
+<td><code>reports.json</code></td>
+<td><code>resellerapprovals.json</code></td>
+<td><code>resellerbalancereport.json</code></td>
+<td><code>resellerbins.json</code></td>
+</tr>
+<tr>
+<td><code>resellercommissionreport.json</code></td>
+<td><code>resellersaleslocation.json</code></td>
+<td><code>resellersalesreport.json</code></td>
+<td><code>resellersessions.json</code></td>
+</tr>
+<tr>
+<td><code>resellersimassignments.json</code></td>
+<td><code>resellersimreports.json</code></td>
+<td><code>resellerstockbalancereport.json</code></td>
+<td><code>resellerusers.json</code></td>
+</tr>
+<tr>
+<td><code>resellervoucherreports.json</code></td>
+<td><code>resellerwalletsalestaxreport.json</code></td>
+<td><code>riskevaluationrules.json</code></td>
+<td><code>roles.json</code></td>
+</tr>
+<tr>
+<td><code>rolesConfiguration.json</code></td>
+<td><code>searchorder.json</code></td>
+<td><code>searchsubscriber.json</code></td>
+<td><code>searchsubscriberdetails.json</code></td>
+</tr>
+<tr>
+<td><code>selfrechagecctransactionreport.json</code></td>
+<td><code>selfrechargeccfailedtransactionreport.json</code></td>
+<td><code>serbdlrechrtaxrepusingairtime.json</code></td>
+<td><code>serviceaddon.json</code></td>
+</tr>
+<tr>
+<td><code>serviceblockage.json</code></td>
+<td><code>servicebundleblockingreturnreport.json</code></td>
+<td><code>servicebundles.json</code></td>
+<td><code>serviceproducts.json</code></td>
+</tr>
+<tr>
+<td><code>servicerequests.json</code></td>
+<td><code>servicesplan.json</code></td>
+<td><code>servicespolicies.json</code></td>
+<td><code>serviceusagereport.json</code></td>
+</tr>
+<tr>
+<td><code>shippinglabel.json</code></td>
+<td><code>simblockingreturnreport.json</code></td>
+<td><code>simdetails.json</code></td>
+<td><code>siminventory.json</code></td>
+</tr>
+<tr>
+<td><code>simlifecycleprocess.json</code></td>
+<td><code>simlifecycleupdatereport.json</code></td>
+<td><code>simreplacement.json</code></td>
+<td><code>simreplacementactions.json</code></td>
+</tr>
+<tr>
+<td><code>simsalesreport.json</code></td>
+<td><code>simsalestaxreports.json</code></td>
+<td><code>simstatusreport.json</code></td>
+<td><code>simusagereport.json</code></td>
+</tr>
+<tr>
+<td><code>smscdrsrecords.json</code></td>
+<td><code>softrechargesalesreport.json</code></td>
+<td><code>softresellerreport.json</code></td>
+<td><code>softreserllertaxcutdownreport.json</code></td>
+</tr>
+<tr>
+<td><code>specialnumbers.json</code></td>
+<td><code>staffairtime.json</code></td>
+<td><code>staffrechargetaxcutdownreports.json</code></td>
+<td><code>staffrechargetaxreports.json</code></td>
+</tr>
+<tr>
+<td><code>stafftopup.json</code></td>
+<td><code>staffusers.json</code></td>
+<td><code>stockmovementlogs.json</code></td>
+<td><code>stockmovementrequest.json</code></td>
+</tr>
+<tr>
+<td><code>stripedisputesreport.json</code></td>
+<td><code>subscriberactions.json</code></td>
+<td><code>subscriberhistory.json</code></td>
+<td><code>subscrinfo.json</code></td>
+</tr>
+<tr>
+<td><code>subscriptiondailyreport.json</code></td>
+<td><code>subscriptions.json</code></td>
+<td><code>subscriptionsreports.json</code></td>
+<td><code>tariffaddon.json</code></td>
+</tr>
+<tr>
+<td><code>taxinvoice.json</code></td>
+<td><code>taxreports.json</code></td>
+<td><code>ticket.json</code></td>
+<td><code>ticketmonitoring.json</code></td>
+</tr>
+<tr>
+<td><code>ticketreports.json</code></td>
+<td><code>tmobileerrorlogs.json</code></td>
+<td><code>transferrechargereport.json</code></td>
+<td><code>ucctaxreports.json</code></td>
+</tr>
+<tr>
+<td><code>usersessions.json</code></td>
+<td><code>validatedevice.json</code></td>
+<td><code>vas.json</code></td>
+<td><code>verifyrequest.json</code></td>
+</tr>
+<tr>
+<td><code>verizonerrorlogs.json</code></td>
+<td><code>viewConfiguration.json</code></td>
+<td><code>voicecdrsrecords.json</code></td>
+<td><code>voucherblockingreturnreport.json</code></td>
+</tr>
+<tr>
+<td><code>voucherreturnreport.json</code></td>
+<td><code>vouchersalesreport.json</code></td>
+<td><code>vouchersalestaxcutdownreport.json</code></td>
+<td><code>vouchersalestaxreports.json</code></td>
+</tr>
+<tr>
+<td><code>voucherstatusreport.json</code></td>
+<td><code>voucherusagereport.json</code></td>
+<td><code>walletlogs.json</code></td>
+<td><code>warehousebins.json</code></td>
+</tr>
+<tr>
+<td><code>warehousereports.json</code></td>
+<td><code>websiteorders.json</code></td>
+<td><code>websitestripepaymentsreports.json</code></td>
+<td><code>websitestriperefundsreports.json</code></td>
+</tr>
+<tr>
+<td><code>wholesaleplancreation.json</code></td>
+<td><code>wholesaleplanmapping.json</code></td>
+<td><code>zreport.json</code></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h2 id="talking-points-for-an-interview">Talking points for an interview</h2>
+<ul>
+<li>Built from the <strong>same codebase</strong> as the other products; only <code>src/config/arya-billing-admin/</code>, its environment file and asset folder differ.</li>
+<li>Adding a screen here = add a JSON file + a <code>pages</code>/<code>menu</code> entry in <code>global.json</code> + a route in <code>routes.ts</code> (component <code>TableviewComponent</code>).</li>
+<li>Uses <strong>session-cookie</strong> login: <code>sessionKey</code> from the login response is stored in cookie <code>SESSIONID_ARYA_BILLING_ADMIN</code> and sent as the <code>SESSIONID</code> header.</li>
+<li>Menu items carry <code>access</code> rules, so the menu, the route guard and the page builder all hide what the role may not see.</li>
+</ul></main></div>
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+mermaid.initialize({ startOnLoad: false, theme: dark ? 'dark' : 'default', securityLevel: 'loose', flowchart: { htmlLabels: true } });
+const blocks = [...document.querySelectorAll('pre.mermaid')];
+for (let i = 0; i < blocks.length; i++) {
+  const el = blocks[i];
+  const src = el.textContent;
+  try {
+    const { svg } = await mermaid.render('mmd' + i, src);
+    el.innerHTML = svg;
+    el.setAttribute('data-processed', 'true');
+  } catch (e) {
+    el.setAttribute('data-error', 'true');
+    el.textContent = 'Diagram error: ' + e.message + ' --- ' + src;
+  }
+}
+</script>
+</body></html>

@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>04 — Docker &amp; Infrastructure</title>
+<style>
+:root{--bg:#f6f7f9;--fg:#1f2933;--muted:#5b6770;--card:#fff;--line:#e3e6ea;--accent:#3730a3;--accent-bg:#eef2ff;--head:#0f172a;--code:#f1f3f6}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1115;--fg:#e6e8eb;--muted:#9aa4ad;--card:#171a20;--line:#2a2f37;--accent:#a5b4fc;--accent-bg:#1e2240;--head:#05070b;--code:#1f232b}}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.6 system-ui,-apple-system,Segoe UI,sans-serif;background:var(--bg);color:var(--fg)}
+header{background:var(--head);color:#fff;padding:18px 16px}
+header .in{max-width:1200px;margin:0 auto}
+header h1{margin:0;font-size:22px;line-height:1.3} header p{margin:4px 0 0;opacity:.75;font-size:13px}
+header a{color:#c7d2fe}
+.nav{max-width:1200px;margin:0 auto;padding:10px 16px 0;font-size:13px}
+.nav a{color:var(--accent);text-decoration:none;margin-right:6px;padding:3px 9px;border-radius:999px;background:var(--accent-bg);display:inline-block;margin-bottom:6px}
+.wrap{max-width:1200px;margin:0 auto;padding:0 16px 60px;display:flex;gap:24px;align-items:flex-start}
+nav.toc{position:sticky;top:12px;flex:0 0 250px;max-height:calc(100vh - 24px);overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:16px;font-size:13px}
+nav.toc ul{list-style:none;margin:0;padding-left:10px} nav.toc>ul{padding-left:0}
+nav.toc a{color:var(--accent);text-decoration:none;display:block;padding:2px 0}
+main{flex:1;min-width:0}
+main h1{display:none}
+h2{font-size:20px;margin:32px 0 10px;padding-top:8px;border-top:1px solid var(--line)}
+h3{font-size:16px;margin:20px 0 8px}
+a{color:var(--accent)}
+blockquote{margin:12px 0;padding:10px 14px;background:var(--accent-bg);border-left:4px solid var(--accent);border-radius:6px}
+blockquote p{margin:4px 0}
+table{border-collapse:collapse;width:100%;background:var(--card);font-size:14px;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:6px 10px;text-align:left;vertical-align:top}
+th{background:var(--accent-bg)}
+code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:13px}
+pre{background:var(--code);padding:12px;border-radius:8px;overflow-x:auto;font-size:13px;line-height:1.45}
+pre code{background:none;padding:0}
+pre.mermaid{background:var(--card);border:1px solid var(--line);text-align:center}
+hr{border:0;border-top:1px solid var(--line);margin:24px 0}
+@media (max-width:900px){.wrap{display:block}nav.toc{position:static;max-height:none;margin-top:16px}}
+</style></head><body>
+<header><div class="in"><h1>04 — Docker &amp; Infrastructure</h1><p>Civil Engineering Marketplace · source ~/RAJKUMAR · generated from <code style="color:#fff;background:none">docker/docker-guide.md</code></p></div></header>
+<div class="nav"><a href="../index.html">Home</a><a href="../interview-guide.html">Interview guide</a><a href="../overview/architecture.html">Architecture</a><a href="../backend/backend-guide.html">Backend</a><a href="../ui/ui-guide.html">UI</a><a href="../docker/docker-guide.html">Docker</a><a href="../overview/action-flows.html">Action flows</a><a href="../interview/rapid-fire.html">Rapid fire</a></div>
+<div class="wrap"><nav class="toc"><b>Contents</b><div class="toc">
+<ul>
+<li><a href="#files">Files</a></li>
+<li><a href="#containers">Containers</a><ul>
+<li><a href="#infrastructure">Infrastructure</a></li>
+<li><a href="#application">Application</a></li>
+</ul>
+</li>
+<li><a href="#startup-order-what-compose-does">Startup order (what Compose does)</a></li>
+<li><a href="#networking">Networking</a></li>
+<li><a href="#volumes-data-survives-docker-compose-down">Volumes (data survives docker compose down)</a></li>
+<li><a href="#key-env-settings">Key .env settings</a></li>
+</ul>
+</div>
+</nav><main><h1 id="04-docker-infrastructure">04 — Docker &amp; Infrastructure</h1>
+<p>All containers are defined in <strong><code>docker/docker-compose.yml</code></strong>. The Compose project name is pinned
+to <code>rajkumar</code>, so container and volume names don't change if the folder moves.
+Settings come from <strong><code>docker/.env</code></strong>, which Compose reads automatically when you run it from <code>docker/</code>.</p>
+<h2 id="files">Files</h2>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>docker/docker-compose.yml</code></td>
+<td>The full stack: infrastructure + 16 Spring services + frontend + nginx</td>
+</tr>
+<tr>
+<td><code>docker/docker-compose.lean.yml</code></td>
+<td>Overlay that caps JVM heap/memory (<code>MaxRAMPercentage=50</code>, SerialGC, <code>mem_limit</code> 512–768 MB). Use it on a laptop</td>
+</tr>
+<tr>
+<td><code>docker/.env</code></td>
+<td>Real values: host ports, DB users, providers, secrets. <strong>Do not commit.</strong></td>
+</tr>
+<tr>
+<td><code>docker/.env.example</code></td>
+<td>Template for <code>.env</code></td>
+</tr>
+<tr>
+<td><code>docker/database/init/01-create-databases.sql</code></td>
+<td>Runs <strong>once</strong>, on first MySQL start: creates each service's database and the <code>civil_user</code>/<code>civil_pass</code> user</td>
+</tr>
+<tr>
+<td><code>docker/database/init/02-tenant-grants.sql</code></td>
+<td>Grants for per-tenant schemas</td>
+</tr>
+<tr>
+<td><code>docker/monitoring/prometheus.yml</code></td>
+<td>Prometheus scrape targets</td>
+</tr>
+<tr>
+<td><code>docker/monitoring/grafana/</code></td>
+<td>Grafana datasources and dashboards provisioning</td>
+</tr>
+<tr>
+<td><code>docker/nginx/</code></td>
+<td>Optional edge reverse proxy (<code>sites/</code> is empty, so it isn't wired up yet)</td>
+</tr>
+<tr>
+<td><code>backend/&lt;svc&gt;/Dockerfile</code></td>
+<td><code>eclipse-temurin:21-jre-alpine</code> + <code>COPY backend/&lt;svc&gt;/target/*.jar app.jar</code></td>
+</tr>
+<tr>
+<td><code>frontend/Dockerfile</code></td>
+<td>Multi-stage node build → nginx</td>
+</tr>
+</tbody>
+</table>
+<p>Build context for every image is the <strong>repo root</strong> (<code>context: ..</code>), which is why the Dockerfiles use
+repo-relative paths such as <code>backend/auth-service/target/*.jar</code>.</p>
+<h2 id="containers">Containers</h2>
+<h3 id="infrastructure">Infrastructure</h3>
+<table>
+<thead>
+<tr>
+<th>Service</th>
+<th>Image</th>
+<th>Host port(s)</th>
+<th>Used for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>mysql (<code>civil_mysql</code>)</td>
+<td>mysql:8.0</td>
+<td><strong>3309</strong>→3306</td>
+<td>One DB per service, one schema per tenant. Volume <code>mysql_data</code></td>
+</tr>
+<tr>
+<td>redis (<code>civil_redis</code>)</td>
+<td>redis:7-alpine</td>
+<td><strong>6381</strong>→6379</td>
+<td>OTPs, sessions, gateway rate limit, caching</td>
+</tr>
+<tr>
+<td>zookeeper</td>
+<td>cp-zookeeper:7.5.0</td>
+<td>2181</td>
+<td>Kafka coordination</td>
+</tr>
+<tr>
+<td>kafka (<code>civil_kafka</code>)</td>
+<td>cp-kafka:7.5.0</td>
+<td>9092, <strong>29093</strong>→29092</td>
+<td>Event bus. Inside Docker <code>kafka:9092</code>; from the host <code>localhost:29093</code>. Topics are auto-created</td>
+</tr>
+<tr>
+<td>rabbitmq</td>
+<td>rabbitmq:3.12-management</td>
+<td>5672, 15672 (UI)</td>
+<td>Queues for notification-service. UI guest/guest</td>
+</tr>
+<tr>
+<td>elasticsearch</td>
+<td>elasticsearch:8.11.0</td>
+<td>9200, 9300</td>
+<td>Search indices (single-node, security off, 512 MB heap)</td>
+</tr>
+<tr>
+<td>zipkin</td>
+<td>openzipkin/zipkin:2.24</td>
+<td>9411</td>
+<td>Distributed tracing (in-memory)</td>
+</tr>
+<tr>
+<td>prometheus</td>
+<td>prom/prometheus</td>
+<td>9090</td>
+<td>Scrapes <code>/actuator/prometheus</code></td>
+</tr>
+<tr>
+<td>grafana</td>
+<td>grafana/grafana</td>
+<td>3001→3000</td>
+<td>Dashboards (admin/admin)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="application">Application</h3>
+<table>
+<thead>
+<tr>
+<th>Service</th>
+<th>Host port</th>
+<th>depends_on (startup gates)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>config-server</td>
+<td>8889</td>
+<td>— (healthcheck <code>/actuator/health</code>)</td>
+</tr>
+<tr>
+<td>service-registry</td>
+<td>8761</td>
+<td>config-server healthy</td>
+</tr>
+<tr>
+<td>api-gateway</td>
+<td>8080</td>
+<td>redis healthy, service-registry healthy, config-server healthy</td>
+</tr>
+<tr>
+<td>auth-service</td>
+<td>8093</td>
+<td>mysql, redis healthy, kafka, registry healthy, config healthy</td>
+</tr>
+<tr>
+<td>user-service</td>
+<td>8094</td>
+<td>mysql, kafka, registry, config</td>
+</tr>
+<tr>
+<td>booking-service</td>
+<td>8083</td>
+<td>mysql, redis, kafka, registry, config</td>
+</tr>
+<tr>
+<td>payment-service</td>
+<td>8084</td>
+<td>mysql, kafka, registry, config</td>
+</tr>
+<tr>
+<td>notification-service</td>
+<td>8085</td>
+<td>mysql, kafka, redis, rabbitmq, registry, config</td>
+</tr>
+<tr>
+<td>admin-service</td>
+<td>8086</td>
+<td>mysql, kafka, registry, config</td>
+</tr>
+<tr>
+<td>project-service</td>
+<td>8096</td>
+<td>mysql, kafka, registry, config</td>
+</tr>
+<tr>
+<td>tenant-service</td>
+<td>8099</td>
+<td>mysql, kafka, registry, config</td>
+</tr>
+<tr>
+<td>support-service</td>
+<td>8098</td>
+<td>mysql, kafka, registry, config</td>
+</tr>
+<tr>
+<td>review-service</td>
+<td>8089</td>
+<td>mysql, registry, config</td>
+</tr>
+<tr>
+<td>audit-service</td>
+<td>8095</td>
+<td>mysql, kafka, registry, config</td>
+</tr>
+<tr>
+<td>messaging-service</td>
+<td>8097 (→8096)</td>
+<td>mysql, kafka, registry, config</td>
+</tr>
+<tr>
+<td>search-service</td>
+<td>8092</td>
+<td>elasticsearch, mysql, kafka, registry, config</td>
+</tr>
+<tr>
+<td>frontend</td>
+<td>3000</td>
+<td>api-gateway</td>
+</tr>
+<tr>
+<td>nginx</td>
+<td>8010, 8443</td>
+<td>api-gateway, frontend</td>
+</tr>
+</tbody>
+</table>
+<h2 id="startup-order-what-compose-does">Startup order (what Compose does)</h2>
+<pre><code>1. mysql, redis, zookeeper, rabbitmq, elasticsearch, zipkin, prometheus   (in parallel)
+   kafka (after zookeeper) · grafana (after prometheus)
+          │
+2. config-server ──(wait until healthy)──┐
+          │                              │
+3. service-registry ──(wait until healthy)
+          │
+4. api-gateway + all business services (in parallel)
+     each one: fetch config from config-server → connect MySQL/Redis/Kafka →
+               run Flyway for every tenant schema → register in Eureka
+          │
+5. frontend (nginx) → nginx edge
+</code></pre>
+<p>Note that <code>service_started</code> for mysql only means the container has started, not that MySQL is ready.
+A service that boots before MySQL finishes its first-time initialization can fail. Restarting that
+service fixes it: <code>docker compose restart &lt;service&gt;</code>.</p>
+<p>The <strong>tenant-service</strong> is not in anyone's <code>depends_on</code>. Other services read the tenant registry
+directly over JDBC at boot, so MySQL (not the tenant-service container) is what they need.</p>
+<h2 id="networking">Networking</h2>
+<ul>
+<li>One bridge network: <code>civil-network</code>. Containers reach each other by <strong>service name</strong>:
+  <code>mysql:3306</code>, <code>redis:6379</code>, <code>kafka:9092</code>, <code>rabbitmq:5672</code>, <code>elasticsearch:9200</code>,
+  <code>config-server:8888</code>, <code>service-registry:8761</code>, <code>api-gateway:8080</code>.</li>
+<li>From your <strong>host machine</strong>, use <code>localhost:&lt;host port&gt;</code> (e.g. MySQL at <code>localhost:3309</code>).</li>
+<li>Kafka has two listeners: <code>PLAINTEXT://kafka:9092</code> for containers and
+  <code>PLAINTEXT_HOST://localhost:29093</code> for the host.</li>
+</ul>
+<h2 id="volumes-data-survives-docker-compose-down">Volumes (data survives <code>docker compose down</code>)</h2>
+<p><code>mysql_data</code>, <code>redis_data</code>, <code>kafka_data</code>, <code>rabbitmq_data</code>, <code>elasticsearch_data</code>,
+<code>prometheus_data</code>, <code>grafana_data</code>.</p>
+<p><code>docker compose down -v</code> <strong>deletes</strong> them, including all database data. After that, MySQL re-runs
+the <code>database/init</code> scripts on the next start.</p>
+<h2 id="key-env-settings">Key <code>.env</code> settings</h2>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Current value</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>HOST_PORT_GATEWAY</code></td>
+<td>8080</td>
+<td>Gateway on the host</td>
+</tr>
+<tr>
+<td><code>HOST_PORT_FRONTEND</code></td>
+<td>3000</td>
+<td>UI on the host</td>
+</tr>
+<tr>
+<td><code>HOST_PORT_CONFIG</code></td>
+<td>8889</td>
+<td>Config server on the host</td>
+</tr>
+<tr>
+<td><code>HOST_PORT_MYSQL</code></td>
+<td>3309</td>
+<td>MySQL on the host</td>
+</tr>
+<tr>
+<td><code>HOST_PORT_AUTH</code> / <code>USER</code> / <code>PROJECT</code></td>
+<td>8093 / 8094 / 8096</td>
+<td>Direct service ports</td>
+</tr>
+<tr>
+<td><code>HOST_PORT_REDIS</code> / <code>KAFKA</code></td>
+<td>6381 / 29093</td>
+<td></td>
+</tr>
+<tr>
+<td><code>HOST_PORT_NGINX</code> / <code>_SSL</code></td>
+<td>8010 / 8443</td>
+<td>Edge nginx</td>
+</tr>
+<tr>
+<td><code>AUTH_PROFILE</code></td>
+<td><code>docker</code></td>
+<td>Seeds test users. <code>docker,social</code> also turns on Google/Facebook login</td>
+</tr>
+<tr>
+<td><code>EMAIL_PROVIDER</code> / <code>SMS_PROVIDER</code> / <code>WHATSAPP_PROVIDER</code></td>
+<td>brevo / log / log</td>
+<td><code>log</code> = print to the log only</td>
+</tr>
+<tr>
+<td><code>JWT_SECRET</code></td>
+<td>(secret)</td>
+<td>Shared by auth-service (signs) and api-gateway (verifies). <strong>They must match</strong></td>
+</tr>
+<tr>
+<td><code>RAZORPAY_KEY_ID/SECRET/WEBHOOK_SECRET</code></td>
+<td>(secret)</td>
+<td>payment-service</td>
+</tr>
+<tr>
+<td><code>GEMINI_API_KEY</code></td>
+<td>(secret)</td>
+<td>support-service's Ask AI</td>
+</tr>
+<tr>
+<td><code>*_DB_USERNAME</code> / <code>*_DB_PASSWORD</code></td>
+<td>civil_user / civil_pass</td>
+<td>Per-service DB credentials</td>
+</tr>
+</tbody>
+</table></main></div>
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+mermaid.initialize({ startOnLoad: false, theme: dark ? 'dark' : 'default', securityLevel: 'loose',
+                      flowchart: { htmlLabels: true }, sequence: { useMaxWidth: false } });
+const blocks = [...document.querySelectorAll('pre.mermaid')];
+for (let i = 0; i < blocks.length; i++) {
+  const el = blocks[i];
+  const src = el.textContent;
+  try {
+    const { svg } = await mermaid.render('mmd' + i, src);
+    el.innerHTML = svg;
+    el.setAttribute('data-processed', 'true');
+  } catch (e) {
+    el.setAttribute('data-error', 'true');
+    el.textContent = 'Diagram error: ' + e.message + ' --- ' + src;
+  }
+}
+</script>
+</body></html>

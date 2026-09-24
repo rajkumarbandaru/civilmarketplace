@@ -25,7 +25,13 @@ import {
   Work,
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
-import { useAppSelector } from '../../hooks';
+import { useAppDispatch, useAppSelector } from '../../hooks';
+import FileUploadButton from '../../components/FileUploadButton';
+import { setUser } from '../../store/slices/authSlice';
+import { setProfilePicture } from '../../services/profileApi';
+import { ADMIN_ROLES } from '../../components/AdminRoute';
+import KycSection from './KycSection';
+import PortfolioSection from './PortfolioSection';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -41,7 +47,10 @@ const TabPanel: React.FC<TabPanelProps> = ({ children, value, index }) => (
 
 const ProfilePage: React.FC = () => {
   const { user } = useAppSelector((state) => state.auth);
+  const dispatch = useAppDispatch();
   const [tabValue, setTabValue] = useState(0);
+  // Portfolios are for people offering work; customers and staff have nothing to show there.
+  const showPortfolio = !!user?.role && user.role !== 'CUSTOMER' && !ADMIN_ROLES.includes(user.role);
   const [isEditing, setIsEditing] = useState(false);
 
   const profileInfo = [
@@ -75,19 +84,30 @@ const ProfilePage: React.FC = () => {
               >
                 {user?.name?.charAt(0)}
               </Avatar>
-              <IconButton
-                sx={{
-                  position: 'absolute',
-                  bottom: 0,
-                  right: 0,
-                  bgcolor: '#fff',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-                  '&:hover': { bgcolor: '#f1f5f9' },
-                }}
-                size="small"
-              >
-                <CameraAlt sx={{ fontSize: 18, color: 'primary.main' }} />
-              </IconButton>
+              <Box sx={{ position: 'absolute', bottom: 0, right: 0 }}>
+                <FileUploadButton
+                  purpose="AVATAR"
+                  showHint={false}
+                  onUploaded={async (media) => {
+                    dispatch(setUser(await setProfilePicture(media.id)));
+                  }}
+                  renderTrigger={(open, busy) => (
+                    <IconButton
+                      aria-label="Change profile photo"
+                      onClick={open}
+                      disabled={busy}
+                      sx={{
+                        bgcolor: '#fff',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                        '&:hover': { bgcolor: '#f1f5f9' },
+                      }}
+                      size="small"
+                    >
+                      <CameraAlt sx={{ fontSize: 18, color: 'primary.main' }} />
+                    </IconButton>
+                  )}
+                />
+              </Box>
             </Box>
             <Box sx={{ color: '#fff' }}>
               <Typography variant="h4" sx={{ fontWeight: 800 }}>
@@ -157,6 +177,8 @@ const ProfilePage: React.FC = () => {
             <Tab label="Personal Info" />
             <Tab label="Addresses" />
             <Tab label="Account Settings" />
+            <Tab label="Verification" />
+            {showPortfolio && <Tab label="Portfolio" />}
           </Tabs>
         </Box>
 
@@ -304,6 +326,16 @@ const ProfilePage: React.FC = () => {
               </Button>
             </Box>
           </TabPanel>
+
+          <TabPanel value={tabValue} index={3}>
+            <KycSection />
+          </TabPanel>
+
+          {showPortfolio && (
+            <TabPanel value={tabValue} index={4}>
+              <PortfolioSection />
+            </TabPanel>
+          )}
         </CardContent>
       </Card>
     </Container>

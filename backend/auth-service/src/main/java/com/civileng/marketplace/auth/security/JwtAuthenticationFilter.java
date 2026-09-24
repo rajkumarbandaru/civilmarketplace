@@ -35,6 +35,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (StringUtils.hasText(token)) {
             try {
                 Claims claims = jwtTokenProvider.validateToken(token);
+                // Refresh tokens and MFA tickets are not access tokens (see the gateway's filter).
+                if (claims.get("type") != null) {
+                    throw new io.jsonwebtoken.JwtException("Not an access token");
+                }
                 String userId = claims.getSubject();
                 String role = claims.get("role", String.class);
                 String email = claims.get("email", String.class);

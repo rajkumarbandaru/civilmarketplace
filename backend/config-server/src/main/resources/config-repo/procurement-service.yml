@@ -1,0 +1,86 @@
+server:
+  port: 8101
+
+spring:
+  application:
+    name: procurement-service
+  datasource:
+    url: jdbc:mysql://mysql:3306/civil_engineer_procurement?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    username: ${PROCUREMENT_DB_USERNAME:civil_user}
+    password: ${PROCUREMENT_DB_PASSWORD:civil_pass}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      idle-timeout: 300000
+      connection-timeout: 20000
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: true
+    open-in-view: false
+  flyway:
+    # Off deliberately: tenant-common runs Flyway once per tenant schema. Boot's own Flyway would
+    # migrate only the single legacy schema named in the datasource URL, where no tenant's data is.
+    enabled: false
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        "[interceptor.classes]": com.civileng.marketplace.tenant.common.TenantKafkaProducerInterceptor
+
+eureka:
+  instance:
+    prefer-ip-address: true
+    hostname: procurement-service
+  client:
+    service-url:
+      defaultZone: http://service-registry:8761/eureka/
+    register-with-eureka: true
+    fetch-registry: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+# Schema-per-tenant. Each tenant's rows live in civil_engineer_procurement_<tenantKey>; the schema named
+# in the datasource URL is only the connection default and holds no live data once this is on.
+platform:
+  # Shared HTTP layer (web-common).
+  web:
+    admin-guard:
+      enabled: false
+  tenant:
+    enabled: true
+    schema-prefix: civil_engineer_procurement
+    registry:
+      url: jdbc:mysql://mysql:3306/civil_engineer_tenants?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      username: ${TENANT_DB_USERNAME:civil_user}
+      password: ${TENANT_DB_PASSWORD:civil_pass}
+
+
+# Procurement rules. The approval threshold is the default for an organization that has not set
+# its own; the tolerance is how far an invoice's unit price may stray from the order's before the
+# three-way match flags it.
+procurement:
+  approval-threshold: ${PROCUREMENT_APPROVAL_THRESHOLD:100000}
+  price-tolerance-percent: ${PROCUREMENT_PRICE_TOLERANCE_PERCENT:2}
