@@ -78,6 +78,65 @@ public class AdminUserService {
         }
     }
 
+    static final Set<String> INVITING_ROLES = Set.of("SUPER_ADMIN", "ADMIN");
+
+    public Map<String, Object> inviteUser(String actorRole, Map<String, String> request) {
+        requireInviter(actorRole);
+        return forwardingClientErrors(() -> authServiceClient.inviteMember(actorRole, request).getBody());
+    }
+
+    public Map<String, Object> resendInvitation(String actorRole, Long userId, Map<String, String> request) {
+        requireInviter(actorRole);
+        Map<String, String> body = new HashMap<>();
+        body.put("linkBase", request.get("linkBase"));
+        body.put("workspaceName", request.get("workspaceName"));
+        Map<String, Object> result = forwardingClientErrors(
+                () -> authServiceClient.resendInvitation(userId, body).getBody());
+        Map<String, Object> response = new HashMap<>(createSuccessResponse("Invitation sent"));
+        response.put("data", result);
+        return response;
+    }
+
+    public Map<String, Object> roles(String actorRole) {
+        requireInviter(actorRole);
+        return forwardingClientErrors(() -> authServiceClient.getRoles().getBody());
+    }
+
+    private static void requireInviter(String actorRole) {
+        if (actorRole == null || !INVITING_ROLES.contains(actorRole)) {
+            throw new com.civileng.marketplace.web.common.AccessDeniedException("An admin role is required to add users");
+        }
+    }
+
+    /** auth-service's 4xx message ("that email already has an account") reaches the form as a 400. */
+    private Map<String, Object> forwardingClientErrors(java.util.function.Supplier<Map<String, Object>> call) {
+        try {
+            Map<String, Object> body = call.get();
+            return body != null ? body : createSuccessResponse("Done");
+        } catch (feign.FeignException e) {
+            if (e.status() == 403) {
+                throw new com.civileng.marketplace.web.common.AccessDeniedException(feignMessage(e));
+            }
+            if (e.status() >= 400 && e.status() < 500) {
+                throw new IllegalArgumentException(feignMessage(e));
+            }
+            throw e;
+        }
+    }
+
+    static String feignMessage(feign.FeignException e) {
+        String content = e.contentUTF8();
+        if (content != null && !content.isBlank()) {
+            try {
+                Object message = new com.fasterxml.jackson.databind.ObjectMapper().readValue(content, Map.class).get("message");
+                if (message != null) return message.toString();
+            } catch (Exception ignored) {
+                // Not JSON: fall through to the generic message.
+            }
+        }
+        return "The user could not be added (auth-service returned " + e.status() + ")";
+    }
+
     private void enrichUserProfiles(Map<String, Object> response) {
         // Enrich with profile data if available from user-service
         try {

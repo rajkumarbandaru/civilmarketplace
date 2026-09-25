@@ -37,13 +37,15 @@ class TenantIntegrationResolverTest {
     }
 
     @Test
-    void aTenantWithNothingConfiguredNeverFallsBackToThePlatform() {
+    void aTenantWithNothingConfiguredRunsOnThePlatformDefault() {
         TenantContext.set("acme");
 
-        assertThatThrownBy(() -> resolver.require(IntegrationCapability.PAYMENT))
-                .isInstanceOf(IntegrationNotConfiguredException.class)
-                .hasMessageContaining("payment");
-        assertThat(resolver.find(IntegrationCapability.SMS)).isEmpty();
+        for (IntegrationCapability capability : IntegrationCapability.values()) {
+            ResolvedIntegration resolved = resolver.require(capability);
+            assertThat(resolved.source()).isEqualTo(ResolvedIntegration.Source.PLATFORM_SHARED);
+            assertThat(resolved.tenantKey()).isEqualTo("acme");
+            assertThat(resolved.secrets()).isEmpty();
+        }
     }
 
     @Test
@@ -70,14 +72,32 @@ class TenantIntegrationResolverTest {
     }
 
     @Test
-    void sharedModeIsRefusedForCapabilitiesThatMustBeTenantOwned() {
-        // Written around the API, a shared payment row must still not reach the platform's account.
+    void sharedModeIsAllowedForEveryCapability() {
         store.put(row("acme", IntegrationCapability.PAYMENT, IntegrationMode.PLATFORM_SHARED,
                 Map.of(), Map.of(), true));
         TenantContext.set("acme");
 
-        assertThatThrownBy(() -> resolver.require(IntegrationCapability.PAYMENT))
-                .isInstanceOf(IntegrationNotConfiguredException.class);
+        assertThat(resolver.require(IntegrationCapability.PAYMENT).usesPlatformCredentials()).isTrue();
+    }
+
+    @Test
+    void aSwitchedOffCapabilityIsNotConfiguredEvenThoughThePlatformHasOne() {
+        store.put(row("acme", IntegrationCapability.WHATSAPP, IntegrationMode.PLATFORM_SHARED,
+                Map.of(), Map.of(), false));
+        TenantContext.set("acme");
+
+        assertThatThrownBy(() -> resolver.require(IntegrationCapability.WHATSAPP))
+                .isInstanceOf(IntegrationNotConfiguredException.class)
+                .hasMessageContaining("whatsapp");
+    }
+
+    @Test
+    void aiProvidersTakeAnOptionalModel() {
+        assertThat(IntegrationCapability.AI.providers()).containsOnlyKeys("gemini", "openai", "anthropic");
+        IntegrationCapability.ProviderSpec openai = IntegrationCapability.AI.provider("openai").orElseThrow();
+        assertThat(openai.settings()).isEmpty();
+        assertThat(openai.optionalSettings()).containsExactly("model");
+        assertThat(openai.allKeys()).containsExactly("model", "apiKey");
     }
 
     @Test

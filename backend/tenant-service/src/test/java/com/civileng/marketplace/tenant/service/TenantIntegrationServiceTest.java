@@ -162,13 +162,31 @@ class TenantIntegrationServiceTest {
     }
 
     @Test
-    void paymentSmsAndWhatsappCannotBorrowThePlatformsAccount() {
-        for (String capability : List.of("payment", "sms", "whatsapp")) {
-            assertThatThrownBy(() -> service.save("acme", capability,
-                    new SaveIntegrationRequest("PLATFORM_SHARED", null, true, Map.of(), Map.of()), "7"))
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("own provider account");
+    void everyCapabilityMayRunOnThePlatformsAccount() {
+        for (String capability : List.of("payment", "sms", "whatsapp", "email", "ai")) {
+            IntegrationView view = service.save("acme", capability,
+                    new SaveIntegrationRequest("PLATFORM_SHARED", null, true, Map.of(), Map.of()), "7");
+            assertThat(view.mode()).isEqualTo("PLATFORM_SHARED");
         }
+    }
+
+    @Test
+    void anAiProviderKeepsItsOptionalModelAndDropsUnknownSettings() {
+        IntegrationView view = service.save("acme", "ai", new SaveIntegrationRequest("BYO", "anthropic", true,
+                Map.of("model", "claude-sonnet-5", "colour", "red"), Map.of("apiKey", "sk-ant-0123456789abcd")), "7");
+
+        assertThat(view.provider()).isEqualTo("anthropic");
+        assertThat(view.settings()).containsExactly(Map.entry("model", "claude-sonnet-5"));
+        assertThat(view.secretHints()).containsEntry("apiKey", "••••abcd");
+    }
+
+    @Test
+    void anAiProviderNeedsNoModel() {
+        IntegrationView view = service.save("acme", "ai", new SaveIntegrationRequest("BYO", "openai", true,
+                Map.of(), Map.of("apiKey", "sk-openai-0123456789")), "7");
+
+        assertThat(view.provider()).isEqualTo("openai");
+        assertThat(view.settings()).isEmpty();
     }
 
     @Test

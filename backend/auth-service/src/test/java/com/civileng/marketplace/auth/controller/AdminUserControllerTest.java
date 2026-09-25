@@ -67,6 +67,9 @@ class AdminUserControllerTest {
     @MockBean
     private com.civileng.marketplace.auth.service.RefreshTokenService refreshTokenService;
 
+    @MockBean
+    private com.civileng.marketplace.auth.service.InvitationService invitationService;
+
     private Role adminRole;
     private Role customerRole;
     private User sampleUser;
@@ -406,6 +409,41 @@ class AdminUserControllerTest {
                     .andExpect(jsonPath("$.pendingVerifications").value(5))
                     .andExpect(jsonPath("$.suspendedUsers").value(10))
                     .andExpect(jsonPath("$.bannedUsers").value(5));
+        }
+    }
+
+    @Nested
+    @DisplayName("POST /admin/users/invitations - add a user")
+    class InviteMember {
+
+        @Test
+        @DisplayName("An admin adds a user with a role and they are invited")
+        void adminInvites() throws Exception {
+            when(invitationService.inviteMember("Ravi", "ravi@acme.in", "SITE_ENGINEER", "ADMIN",
+                    "http://acme.localhost:3000", "Acme"))
+                    .thenReturn(new com.civileng.marketplace.auth.service.InvitationService.Member(
+                            7L, "ravi@acme.in", "Ravi", "SITE_ENGINEER", LocalDateTime.of(2026, 9, 28, 10, 0)));
+
+            mockMvc.perform(post("/api/v1/auth/admin/users/invitations")
+                            .header("X-User-Role", "ADMIN")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(Map.of("name", "Ravi", "email", "ravi@acme.in",
+                                    "role", "SITE_ENGINEER", "linkBase", "http://acme.localhost:3000",
+                                    "workspaceName", "Acme"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.userId").value(7))
+                    .andExpect(jsonPath("$.data.role").value("SITE_ENGINEER"));
+        }
+
+        @Test
+        @DisplayName("A non-admin cannot add users")
+        void customerRefused() throws Exception {
+            mockMvc.perform(post("/api/v1/auth/admin/users/invitations")
+                            .header("X-User-Role", "CUSTOMER")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"email\":\"x@y.in\",\"role\":\"ADMIN\",\"linkBase\":\"http://a\"}"))
+                    .andExpect(status().isForbidden());
+            verifyNoInteractions(invitationService);
         }
     }
 }

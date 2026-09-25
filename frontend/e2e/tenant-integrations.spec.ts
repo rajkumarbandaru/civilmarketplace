@@ -9,9 +9,9 @@ const tenant = {
 };
 
 const catalog = [
-  { capability: 'payment', allowsPlatformShared: false,
+  { capability: 'payment',
     providers: { razorpay: { settings: ['keyId'], secrets: ['keySecret', 'webhookSecret'] } } },
-  { capability: 'email', allowsPlatformShared: true,
+  { capability: 'email',
     providers: { brevo: { settings: ['fromAddress', 'fromName'], secrets: ['apiKey'] } } },
 ];
 
@@ -41,13 +41,14 @@ test.describe('Tenant integrations (Super Admin)', () => {
     await page.getByRole('button', { name: 'Configure' }).click();
 
     const row = page.getByTestId('integration-payment');
-    await expect(row.getByText('Not configured')).toBeVisible();
+    await expect(row.getByText('Platform default')).toBeVisible();
     await expect(page.getByTestId('integration-email').getByText('Platform account')).toBeVisible();
 
-    await row.getByRole('button', { name: 'Set up' }).click();
+    await row.getByRole('button', { name: 'Change' }).click();
     const dialog = page.getByRole('dialog');
-    // Payments can never borrow the platform's account, so the choice is not even offered.
-    await expect(dialog.getByText("Use the platform's account", { exact: false })).toHaveCount(0);
+    // Every tenant starts on the platform's account; the form opens there.
+    await expect(dialog.getByLabel(/Use the platform's account/)).toBeChecked();
+    await dialog.getByLabel('Use our own account').check();
     await dialog.getByRole('button', { name: 'Save' }).click();
     await expect(dialog.getByText('Required')).toHaveCount(3);
 
@@ -65,7 +66,7 @@ test.describe('Tenant integrations (Super Admin)', () => {
     await expect(page.getByText('super-secret-9f2a')).toHaveCount(0);
 
     // Editing again: the secret box is empty and saving without typing keeps the stored one.
-    await row.getByRole('button', { name: 'Edit' }).click();
+    await row.getByRole('button', { name: 'Change' }).click();
     await expect(dialog.getByLabel(/Key secret/)).toHaveValue('');
     await dialog.getByRole('button', { name: 'Save' }).click();
     await expect(dialog).toBeHidden();

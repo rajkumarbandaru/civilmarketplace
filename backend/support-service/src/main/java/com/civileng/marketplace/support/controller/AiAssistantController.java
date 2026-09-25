@@ -2,7 +2,7 @@ package com.civileng.marketplace.support.controller;
 
 import com.civileng.marketplace.support.dto.AiChatRequest;
 import com.civileng.marketplace.support.dto.AiChatResponse;
-import com.civileng.marketplace.support.service.GeminiClient;
+import com.civileng.marketplace.support.service.AiAssistant;
 import com.civileng.marketplace.support.service.SiteRateService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -37,11 +37,11 @@ import java.util.concurrent.ConcurrentLinkedDeque;
 @Tag(name = "Civil AI Assistant", description = "LLM-backed assistant")
 public class AiAssistantController {
 
-    /** Per-user ceiling, sized to sit well inside Gemini's free-tier per-minute allowance. */
+    /** Per-user ceiling, sized to sit well inside a free tier's per-minute allowance (Gemini's, by default). */
     private static final int MAX_REQUESTS = 10;
     private static final Duration WINDOW = Duration.ofMinutes(1);
 
-    private final GeminiClient gemini;
+    private final AiAssistant assistant;
     private final SiteRateService siteRates;
 
     /**
@@ -58,9 +58,12 @@ public class AiAssistantController {
     public ResponseEntity<Map<String, Object>> status() {
         // The panel asks this on open so it can show a plain "not configured" state instead of
         // letting the user type a question and only then discover there is nothing behind it.
-        return ResponseEntity.ok(Map.of(
-                "available", gemini.isConfigured(),
-                "siteRates", siteRates.status()));
+        String provider = assistant.provider();
+        Map<String, Object> body = new java.util.LinkedHashMap<>();
+        body.put("available", provider != null);
+        body.put("provider", provider);
+        body.put("siteRates", siteRates.status());
+        return ResponseEntity.ok(body);
     }
 
     @PostMapping("/chat")
@@ -69,7 +72,7 @@ public class AiAssistantController {
             @RequestHeader("X-User-Id") String userId,
             @Valid @RequestBody AiChatRequest request) {
 
-        if (!gemini.isConfigured()) {
+        if (!assistant.isConfigured()) {
             return ResponseEntity.ok(AiChatResponse.unavailable(
                     "The Civil AI Assistant is not switched on for this environment yet. "
                             + "You can still raise a support ticket and a person will reply."));
@@ -82,7 +85,7 @@ public class AiAssistantController {
 
         // Site rates are resolved per question rather than baked into the prompt: providers
         // sign up and change their rates while the service is running.
-        String reply = gemini.ask(request.getMessage(), request.getHistory(), siteRates.rateCard());
+        String reply = assistant.ask(request.getMessage(), request.getHistory(), siteRates.rateCard());
         if (reply == null) {
             // 200 with available=false rather than a 5xx: the panel renders this as a message in
             // the thread, and an error status would send the frontend's axios interceptor down the

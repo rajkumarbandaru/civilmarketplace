@@ -120,6 +120,8 @@ public class PaymentService {
             orderRequest.put("currency", "INR");
             orderRequest.put("receipt", payment.getPaymentCode());
             orderRequest.put("payment_capture", 1);
+            // Names the workspace, so the platform account's webhook can settle it in the right one.
+            orderRequest.put("notes", new JSONObject().put("tenant_key", merchant.tenantKey()));
 
             Order razorpayOrder = merchant.client().orders.create(orderRequest);
             payment.setRazorpayOrderId(razorpayOrder.get("id"));

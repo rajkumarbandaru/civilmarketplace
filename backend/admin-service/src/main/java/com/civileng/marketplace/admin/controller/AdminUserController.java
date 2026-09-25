@@ -31,6 +31,35 @@ public class AdminUserController {
         return ResponseEntity.ok(result);
     }
 
+    /**
+     * Adds someone to this workspace: {@code name}, {@code email}, {@code role}, plus the
+     * workspace's address ({@code linkBase}) and name for the invitation email.
+     */
+    @PostMapping
+    @Operation(summary = "Add a user with a role; they are emailed a link to set their password")
+    public ResponseEntity<Map<String, Object>> inviteUser(
+            @RequestHeader(value = "X-User-Role", required = false) String actorRole,
+            @RequestBody Map<String, String> request) {
+        return ResponseEntity.ok(adminUserService.inviteUser(actorRole, request));
+    }
+
+    /** The roles a user can be added with: every role in this workspace. */
+    @GetMapping("/roles")
+    @Operation(summary = "Roles a new user can be given")
+    public ResponseEntity<Map<String, Object>> roles(
+            @RequestHeader(value = "X-User-Role", required = false) String actorRole) {
+        return ResponseEntity.ok(adminUserService.roles(actorRole));
+    }
+
+    @PostMapping("/{userId}/invitation")
+    @Operation(summary = "Send a pending user a fresh invitation link")
+    public ResponseEntity<Map<String, Object>> resendInvitation(
+            @PathVariable Long userId,
+            @RequestHeader(value = "X-User-Role", required = false) String actorRole,
+            @RequestBody Map<String, String> request) {
+        return ResponseEntity.ok(adminUserService.resendInvitation(actorRole, userId, request));
+    }
+
     @GetMapping("/{userId}")
     @Operation(summary = "Get user by ID with full details")
     public ResponseEntity<Map<String, Object>> getUserById(@PathVariable Long userId) {

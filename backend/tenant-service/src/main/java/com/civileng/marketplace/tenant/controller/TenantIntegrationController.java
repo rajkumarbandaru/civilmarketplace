@@ -19,8 +19,8 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 /**
- * A tenant's provider accounts — payment gateway, mail, SMS, WhatsApp, AI. Operator-only, like the
- * rest of tenant administration: these are the credentials a tenant's money moves through.
+ * Any tenant's provider accounts — payment gateway, mail, SMS, WhatsApp, AI — from the operator
+ * console. A workspace's own admins manage theirs through {@link WorkspaceSettingsController}.
  *
  * <p>There is no endpoint that returns a secret, by construction: the response type has nowhere to
  * put one.

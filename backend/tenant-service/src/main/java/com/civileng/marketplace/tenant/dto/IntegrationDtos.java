@@ -43,10 +43,9 @@ public final class IntegrationDtos {
     /** One capability as the console renders its form. */
     public record CapabilityView(
             String capability,
-            boolean allowsPlatformShared,
             Map<String, ProviderView> providers) {
     }
 
-    public record ProviderView(List<String> settings, List<String> secrets) {
+    public record ProviderView(List<String> settings, List<String> secrets, List<String> optionalSettings) {
     }
 }

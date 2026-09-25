@@ -56,6 +56,43 @@ public class InvitationService {
 
     public record InvitationPreview(String email, String name, LocalDateTime expiresAt) { }
 
+    public record Member(Long userId, String email, String name, String role, LocalDateTime expiresAt) { }
+
+    /**
+     * A workspace admin adding someone: the account is created in this workspace with the chosen
+     * role and no password, and they get the same single-use link an owner does. Only a SUPER_ADMIN
+     * may make another SUPER_ADMIN.
+     */
+    @Transactional
+    public Member inviteMember(String name, String email, String roleName, String actorRole,
+                               String linkBase, String workspaceName) {
+        if (linkBase == null || !linkBase.matches("https?://[^\\s/]+(/.*)?")) {
+            throw new IllegalArgumentException("linkBase must be the workspace's http(s) address");
+        }
+        String normalised = identifiers.normaliseEmail(email);
+        if (normalised == null || !normalised.contains("@")) {
+            throw new IllegalArgumentException("A valid email address is required");
+        }
+        String wanted = roleName == null ? "" : roleName.trim().toUpperCase();
+        if (OWNER_ROLE.equals(wanted) && !OWNER_ROLE.equals(actorRole)) {
+            throw new SecurityException("Only a SUPER_ADMIN can add another SUPER_ADMIN");
+        }
+        Role role = roles.findByName(wanted)
+                .orElseThrow(() -> new IllegalArgumentException("No role named '" + roleName + "' in this workspace"));
+        if (users.findByEmailAndIsDeletedFalse(normalised).isPresent()) {
+            throw new IllegalArgumentException("Someone with that email already has an account here");
+        }
+        User user = new User();
+        user.setName(name == null || name.isBlank() ? normalised : name.trim());
+        user.setEmail(normalised);
+        user.setRole(role);
+        user.setStatus(UserStatus.PENDING_VERIFICATION);
+        user = users.save(user);
+        LocalDateTime expires = invite(user.getId(), linkBase, workspaceName);
+        log.info("User {} added with role {} by a {}", user.getId(), role.getName(), actorRole);
+        return new Member(user.getId(), user.getEmail(), user.getName(), role.getName(), expires);
+    }
+
     /**
      * The workspace's owner account, created without a password. Idempotent: a retried
      * provisioning step finds the account it made last time.

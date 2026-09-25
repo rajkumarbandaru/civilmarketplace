@@ -52,6 +52,7 @@ const EmailTemplateManagement = lazy(() => import('./pages/admin/EmailTemplateMa
 const EmailLogPage = lazy(() => import('./pages/admin/EmailLogPage'));
 const WorkspaceManagement = lazy(() => import('./pages/admin/WorkspaceManagement'));
 const TenantManagement = lazy(() => import('./pages/admin/TenantManagement'));
+const WorkspaceSettingsPage = lazy(() => import('./pages/admin/WorkspaceSettingsPage'));
 const KycReviewPage = lazy(() => import('./pages/admin/KycReviewPage'));
 const ReportsPage = lazy(() => import('./pages/admin/ReportsPage'));
 const InvoicesPage = lazy(() => import('./pages/admin/InvoicesPage'));
@@ -182,6 +183,7 @@ const App: React.FC = () => {
             <Route path="analytics" element={<AnalyticsPage />} />
             <Route path="revenue" element={<RevenuePage />} />
             <Route path="tenants" element={<TenantManagement />} />
+            <Route path="workspace-settings" element={<WorkspaceSettingsPage />} />
             <Route path="workspaces" element={<WorkspaceManagement />} />
             <Route path="theme" element={<ThemeSettings />} />
             <Route path="content" element={<SiteContentManagement />} />

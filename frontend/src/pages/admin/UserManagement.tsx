@@ -8,9 +8,13 @@ import {
 } from '@mui/material';
 import {
   Search, MoreVert, Edit, Delete, Block, CheckCircle, FilterList, PersonAdd,
+  Send,
 } from '@mui/icons-material';
 import { userApi, AdminUser } from '../../services/adminApi';
 import { useDateTime } from '../../providers/UiConfigProvider';
+import { useWorkspace } from '../../providers/WorkspaceProvider';
+import { apiErrorMessage } from '../../services/apiError';
+import AddUserDialog, { roleLabel } from './AddUserDialog';
 import { SortableTableCell, useTableSort } from '../../components/admin/SortableTable';
 
 const roleColors: Record<string, string> = {
@@ -31,6 +35,8 @@ const UserManagement: React.FC = () => {
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [adding, setAdding] = useState(false);
+  const workspace = useWorkspace();
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({ open: false, message: '', severity: 'success' });
 
   const fetchUsers = useCallback(async () => {
@@ -99,6 +105,20 @@ const UserManagement: React.FC = () => {
     }
   };
 
+  const handleResendInvitation = async () => {
+    if (!selectedUser) return;
+    try {
+      await userApi.resendInvitation(selectedUser.id, {
+        linkBase: window.location.origin,
+        workspaceName: workspace?.branding?.brandName || workspace?.name || 'your workspace',
+      });
+      setSnackbar({ open: true, message: `A new invitation was sent to ${selectedUser.email}`, severity: 'success' });
+    } catch (err) {
+      setSnackbar({ open: true, message: apiErrorMessage(err, 'The invitation could not be sent'), severity: 'error' });
+    }
+    setAnchorEl(null);
+  };
+
   const handleDeleteUser = async () => {
     if (!selectedUser) return;
     try {
@@ -131,7 +151,7 @@ const UserManagement: React.FC = () => {
           <Typography variant="h5" sx={{ fontWeight: 800, mb: 0.5 }}>User Management</Typography>
           <Typography variant="body2" sx={{ color: '#64748b' }}>{totalElements} users total</Typography>
         </Box>
-        <Button variant="contained" startIcon={<PersonAdd />} sx={{ borderRadius: 2 }}>Add User</Button>
+        <Button variant="contained" startIcon={<PersonAdd />} sx={{ borderRadius: 2 }} onClick={() => setAdding(true)}>Add User</Button>
       </Box>
 
       <Card sx={{ borderRadius: 3, p: 2, mb: 3 }}>
@@ -256,6 +276,9 @@ const UserManagement: React.FC = () => {
         <MenuItem onClick={() => { setOpenDialog(true); setAnchorEl(null); }}><Edit fontSize="small" sx={{ mr: 1.5 }} /> Edit User</MenuItem>
         <MenuItem onClick={() => handleStatusAction('Verify')}><CheckCircle fontSize="small" sx={{ mr: 1.5 }} /> Verify</MenuItem>
         <MenuItem onClick={() => handleStatusAction('Suspend')} sx={{ color: '#f59e0b' }}><Block fontSize="small" sx={{ mr: 1.5 }} /> Suspend</MenuItem>
+        {selectedUser?.status === 'PENDING_VERIFICATION' && (
+          <MenuItem onClick={handleResendInvitation}><Send fontSize="small" sx={{ mr: 1.5 }} /> Resend invitation</MenuItem>
+        )}
         <MenuItem onClick={handleDeleteUser} sx={{ color: '#ef4444' }}><Delete fontSize="small" sx={{ mr: 1.5 }} /> Delete</MenuItem>
       </Menu>
 
@@ -297,6 +320,16 @@ const UserManagement: React.FC = () => {
           <Button variant="contained" onClick={handleUpdateUser}>Save Changes</Button>
         </DialogActions>
       </Dialog>
+
+      <AddUserDialog
+        open={adding}
+        onClose={() => setAdding(false)}
+        onAdded={(user) => {
+          setAdding(false);
+          setSnackbar({ open: true, message: `${user.email} added as ${roleLabel(user.role)} and invited by email`, severity: 'success' });
+          fetchUsers();
+        }}
+      />
 
       <Snackbar open={snackbar.open} autoHideDuration={4000} onClose={() => setSnackbar({ ...snackbar, open: false })}>
         <Alert severity={snackbar.severity} sx={{ borderRadius: 2 }}>{snackbar.message}</Alert>

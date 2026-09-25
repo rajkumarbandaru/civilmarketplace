@@ -12,5 +12,8 @@ export default defineConfig({
     css: false,
     // Pin the zone so date assertions read the same on every machine and in CI.
     env: { TZ: 'UTC' },
+    // Form tests type character by character; on a loaded machine running every file in parallel
+    // the 5s default is hit by a test that takes 1s alone.
+    testTimeout: 15000,
   },
 })

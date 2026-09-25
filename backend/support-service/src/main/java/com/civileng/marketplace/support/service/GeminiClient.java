@@ -1,96 +1,33 @@
 package com.civileng.marketplace.support.service;
 
 import com.civileng.marketplace.support.dto.AiChatRequest;
-import com.civileng.marketplace.tenant.common.integration.IntegrationCapability;
-import com.civileng.marketplace.tenant.common.integration.ResolvedIntegration;
-import com.civileng.marketplace.tenant.common.integration.TenantIntegrationResolver;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 
 /**
- * Calls Google's Gemini API for the Civil AI Assistant.
- *
- * <p>This lives server-side for one reason: the API key. A key placed in any {@code VITE_} variable
- * is inlined into the JavaScript bundle and handed to every visitor, so the browser never talks to
- * Gemini directly — it talks to this service, which holds the key and is the only thing that can
- * spend the quota.
- *
- * <p>Distinct from {@code SupportChatWidget}'s scripted FAQ on the frontend, which stays as-is: that
- * one cannot state a policy we do not honour, this one can, which is why the system prompt below
- * forbids it from inventing prices, refund windows or timelines.
+ * Google's Gemini API — the platform's default assistant model, and one a workspace can choose with
+ * its own key. See {@link AiAssistant} for which workspace uses which model.
  */
 @Component
-@RequiredArgsConstructor
 @Slf4j
-public class GeminiClient {
+public class GeminiClient implements ChatModel {
 
     private static final String ENDPOINT_TEMPLATE =
             "https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent";
 
-    /**
-     * How many prior turns are forwarded. Enough for a follow-up question to make sense
-     * ("what about cancelling it?") without letting a long session grow the per-request token
-     * count without bound — the free tier is quota-limited per minute and per day.
-     */
-    private static final int MAX_HISTORY_TURNS = 12;
+    private final RestClient restClient = ChatModel.restClient();
 
-    /**
-     * The assistant's brief: a construction estimator that must show its assumptions, defer
-     * structural design to a qualified engineer, and never pass an invented rate off as a market
-     * price. It lives in a resource file rather than a string constant because it is product copy
-     * that is edited far more often than this class, and a text file diffs readably.
-     */
-    private static final String PROMPT_RESOURCE = "ai/civil-assistant-prompt.txt";
-
-    private static final String SYSTEM_PROMPT = loadPrompt();
-
-    /**
-     * Appended when the site rate card could not be built. Without it the model fills the "site
-     * rate" column from nowhere, which is the exact failure the card exists to prevent.
-     */
-    private static final String NO_SITE_RATES = """
-
-
-            LIVE SITE DATA
-            Site rates are unavailable for this answer — no registered provider rates could be read.
-            Say so plainly wherever a site rate would have appeared, leave those cells as
-            "not available", and give the market/actual side of the estimate only.
-            """;
-
-    private static String loadPrompt() {
-        var resource = new org.springframework.core.io.ClassPathResource(PROMPT_RESOURCE);
-        try (var in = resource.getInputStream()) {
-            return new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
-        } catch (Exception e) {
-            // Failing the whole service over a missing prompt would take the support APIs down
-            // with it, so the assistant falls back to a minimal brief and says so loudly.
-            log.error("[CivilAI] Could not read {} — falling back to a minimal prompt", PROMPT_RESOURCE, e);
-            return "You are a professional civil engineering and construction assistant. "
-                    + "State your assumptions, never invent market rates, and recommend a "
-                    + "qualified structural engineer verifies any structural guidance.";
-        }
-    }
-
-    private final RestClient restClient = RestClient.builder()
-            .requestFactory(timeoutFactory())
-            .build();
-
-    /** The platform's own key: the operator tenant's, and tenants on the shared AI account. */
+    /** The platform's own key: the default assistant every workspace starts on. */
     @Value("${app.ai.gemini.api-key:}")
     private String apiKey;
-
-    private final TenantIntegrationResolver integrationResolver;
 
     /** Overridable so the model can be changed by config when a free tier is retired. */
     @Value("${app.ai.gemini.model:gemini-3.6-flash}")
@@ -107,65 +44,28 @@ public class GeminiClient {
     @Value("${app.ai.gemini.fallback-models:gemini-3.5-flash,gemini-flash-latest}")
     private String fallbackModels;
 
-    @Value("${app.ai.enabled:true}")
-    private boolean enabled;
-
-    /**
-     * A timeout is not optional here: this call happens while someone watches a "Thinking…"
-     * indicator, and the default factory would wait indefinitely on a hung connection, holding a
-     * request thread with it.
-     */
-    private static org.springframework.http.client.ClientHttpRequestFactory timeoutFactory() {
-        var factory = new org.springframework.http.client.SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout((int) Duration.ofSeconds(5).toMillis());
-        factory.setReadTimeout((int) Duration.ofSeconds(90).toMillis());
-        return factory;
+    @Override
+    public String provider() {
+        return "gemini";
     }
 
-    /** Whether the current tenant has an AI key to use — its own, or the shared platform one. */
-    public boolean isConfigured() {
-        return enabled && currentKey() != null;
-    }
-
-    /**
-     * The current tenant's key: its own when it brings one, the platform's when it is on the shared
-     * AI account, and none at all when it has no AI integration — never the platform's by default.
-     */
-    private String currentKey() {
-        Optional<ResolvedIntegration> resolved = integrationResolver.find(IntegrationCapability.AI);
-        if (resolved.isEmpty()) {
-            return null;
-        }
-        String key = resolved.get().usesPlatformCredentials() ? apiKey : resolved.get().secret("apiKey");
-        return key == null || key.isBlank() ? null : key;
+    @Override
+    public String platformKey() {
+        return apiKey;
     }
 
     /**
      * @return the model's answer, or null when the call failed — the caller decides what the user
      *         sees, because "the assistant is down" is a support message, not an API detail
      */
-    public String ask(String message, List<AiChatRequest.Turn> history, String siteRateCard) {
-        String key = currentKey();
-        if (key == null) {
-            return null;
-        }
+    @Override
+    public String ask(String key, String requestedModel, String instruction, List<AiChatRequest.Turn> history,
+                      String message) {
         List<Map<String, Object>> contents = new ArrayList<>();
-
-        // The rate card rides in the system instruction, not in the conversation: it is data the
-        // assistant is given, and a turn in the transcript would let a later message argue with it
-        // or be mistaken for something the user said.
-        String instruction = siteRateCard == null || siteRateCard.isBlank()
-                ? SYSTEM_PROMPT + NO_SITE_RATES
-                : SYSTEM_PROMPT + "\n\nLIVE SITE DATA\n" + siteRateCard;
+        String primary = requestedModel == null || requestedModel.isBlank() ? model : requestedModel.trim();
 
         if (history != null) {
-            // Oldest turns are dropped, not newest: the recent exchange is what a follow-up
-            // question actually depends on.
-            List<AiChatRequest.Turn> recent = history.size() > MAX_HISTORY_TURNS
-                    ? history.subList(history.size() - MAX_HISTORY_TURNS, history.size())
-                    : history;
-            for (AiChatRequest.Turn turn : recent) {
-                if (turn == null || turn.getText() == null || turn.getText().isBlank()) continue;
+            for (AiChatRequest.Turn turn : history) {
                 // Gemini names the assistant role "model"; anything not explicitly the assistant
                 // is attributed to the user, so a malformed role cannot put words in our mouth.
                 String role = "assistant".equalsIgnoreCase(turn.getRole()) ? "model" : "user";
@@ -184,10 +84,10 @@ public class GeminiClient {
 
         // Primary first, then the fallbacks, so a busy model costs a retry rather than the answer.
         List<String> candidates = new ArrayList<>();
-        candidates.add(model);
+        candidates.add(primary);
         for (String fallback : fallbackModels.split(",")) {
             String trimmed = fallback.trim();
-            if (!trimmed.isEmpty() && !trimmed.equals(model)) candidates.add(trimmed);
+            if (!trimmed.isEmpty() && !trimmed.equals(primary)) candidates.add(trimmed);
         }
 
         for (int i = 0; i < candidates.size(); i++) {
@@ -214,7 +114,7 @@ public class GeminiClient {
                 }
                 if (i > 0) {
                     log.info("[CivilAI] Answered with fallback model {} after {} was unavailable",
-                            candidate, model);
+                            candidate, primary);
                 }
                 return text.trim();
             } catch (Exception e) {

@@ -126,7 +126,42 @@ export const userApi = {
 
   getUserStats: () =>
     api.get<ApiResponse<{ totalUsers: number; pendingVerifications: number }>>(`${ADMIN_BASE}/users/stats`),
+
+  /** Roles a new user can be given in this workspace. */
+  getRoles: () => api.get<ApiResponse<WorkspaceRole[]>>(`${ADMIN_BASE}/users/roles`),
+
+  /** Adds someone with a role; they are emailed a link to set their own password. */
+  inviteUser: (data: InviteUserRequest) =>
+    api.post<ApiResponse<InvitedUser>>(`${ADMIN_BASE}/users`, data),
+
+  /** A fresh link for someone who has not set a password yet. */
+  resendInvitation: (userId: number, data: Pick<InviteUserRequest, 'linkBase' | 'workspaceName'>) =>
+    api.post<ApiResponse<{ expiresAt: string }>>(`${ADMIN_BASE}/users/${userId}/invitation`, data),
 };
+
+export interface WorkspaceRole {
+  name: string;
+  description: string;
+  systemRole: boolean;
+  userCount: number;
+}
+
+export interface InviteUserRequest {
+  name: string;
+  email: string;
+  role: string;
+  /** This workspace's address: the invitation link points here. */
+  linkBase: string;
+  workspaceName: string;
+}
+
+export interface InvitedUser {
+  userId: number;
+  email: string;
+  name: string;
+  role: string;
+  expiresAt: string;
+}
 
 // ============================================================================
 // Categories

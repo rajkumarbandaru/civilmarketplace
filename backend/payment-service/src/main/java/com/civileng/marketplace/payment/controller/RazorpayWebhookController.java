@@ -34,6 +34,38 @@ public class RazorpayWebhookController {
     private final RazorpayGateway razorpayGateway;
     private final PaymentService paymentService;
 
+    /**
+     * The platform merchant account's webhook, shared by every workspace that runs on it. The
+     * signature is checked with the platform's webhook secret first; only then is the workspace
+     * read from the order's notes, and it must be one that is on the platform's account.
+     */
+    @PostMapping("/webhooks/payments/razorpay/platform")
+    public ResponseEntity<Map<String, Object>> receivePlatform(
+            @RequestBody String payload,
+            @RequestHeader(value = "X-Razorpay-Signature", required = false) String signature) {
+        return razorpayGateway.forPlatformWebhook(tenantOf(payload))
+                .filter(merchant -> merchant.webhookSignatureMatches(payload, signature))
+                .map(merchant -> {
+                    TenantContext.runAs(merchant.tenantKey(), () -> paymentService.applyWebhookEvent(payload));
+                    return ResponseEntity.ok(Map.<String, Object>of("status", "ok"));
+                })
+                .orElseGet(() -> {
+                    log.warn("Rejected platform Razorpay webhook: bad signature or workspace not on the platform account");
+                    return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                            .body(Map.of("status", "rejected"));
+                });
+    }
+
+    /** {@code payload.payment.entity.notes.tenant_key}, or null. */
+    static String tenantOf(String payload) {
+        try {
+            return new org.json.JSONObject(payload).getJSONObject("payload").getJSONObject("payment")
+                    .getJSONObject("entity").getJSONObject("notes").optString("tenant_key", null);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     @PostMapping("/webhooks/payments/razorpay/{token}")
     public ResponseEntity<Map<String, Object>> receive(
             @PathVariable String token,

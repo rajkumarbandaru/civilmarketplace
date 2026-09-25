@@ -47,6 +47,7 @@ class RazorpayWebhookControllerTest {
                 merchant("acme", "tok-acme", "acme-webhook-secret"),
                 merchant("bhoomi", "tok-bhoomi", "bhoomi-webhook-secret")));
         RazorpayGateway gateway = new RazorpayGateway(new TenantIntegrationResolver(store, "platform"));
+        org.springframework.test.util.ReflectionTestUtils.setField(gateway, "platformWebhookSecret", "platform-webhook-secret");
         doAnswer(inv -> {
             tenantSeenByService.set(TenantContext.get());
             return null;
@@ -69,6 +70,48 @@ class RazorpayWebhookControllerTest {
 
         assertThat(tenantSeenByService.get()).isEqualTo("acme");
         assertThat(TenantContext.get()).isNull();
+    }
+
+    private static String platformBody(String tenant) {
+        return "{\"event\":\"payment.captured\",\"payload\":{\"payment\":{\"entity\":{\"notes\":{\"tenant_key\":\""
+                + tenant + "\"}}}}}";
+    }
+
+    @Test
+    void thePlatformWebhookSettlesAWorkspaceThatRunsOnThePlatformAccount() throws Exception {
+        String body = platformBody("sunrise");
+        mvc.perform(post("/webhooks/payments/razorpay/platform")
+                        .contentType(MediaType.APPLICATION_JSON).content(body)
+                        .header("X-Razorpay-Signature", sign(body, "platform-webhook-secret")))
+                .andExpect(status().isOk());
+
+        assertThat(tenantSeenByService.get()).isEqualTo("sunrise");
+    }
+
+    @Test
+    void thePlatformWebhookRefusesAWorkspaceWithItsOwnMerchantAccount() throws Exception {
+        String body = platformBody("acme");
+        mvc.perform(post("/webhooks/payments/razorpay/platform")
+                        .contentType(MediaType.APPLICATION_JSON).content(body)
+                        .header("X-Razorpay-Signature", sign(body, "platform-webhook-secret")))
+                .andExpect(status().isUnauthorized());
+
+        verify(paymentService, never()).applyWebhookEvent(anyString());
+    }
+
+    @Test
+    void thePlatformWebhookNeedsThePlatformsSignature() throws Exception {
+        String body = platformBody("sunrise");
+        mvc.perform(post("/webhooks/payments/razorpay/platform")
+                        .contentType(MediaType.APPLICATION_JSON).content(body)
+                        .header("X-Razorpay-Signature", sign(body, "acme-webhook-secret")))
+                .andExpect(status().isUnauthorized());
+        mvc.perform(post("/webhooks/payments/razorpay/platform")
+                        .contentType(MediaType.APPLICATION_JSON).content(BODY)
+                        .header("X-Razorpay-Signature", sign(BODY, "platform-webhook-secret")))
+                .andExpect(status().isUnauthorized());
+
+        verify(paymentService, never()).applyWebhookEvent(anyString());
     }
 
     @Test

@@ -204,6 +204,7 @@ python3 scripts/ops/phase6_pitr_drill.py                      # single-tenant po
 python3 scripts/ops/phase6_domains_check.py                   # custom domain → DNS proof → ACME cert → HTTPS
 python3 scripts/ops/phase6_secrets_check.py                   # secrets broker (Vault) + crypto-shredding
 python3 scripts/ops/phase6_warehouse_check.py                 # change-data capture into the analytics warehouse
+python3 scripts/tenancy/workspace_selfservice_check.py        # a workspace's own modules, providers and users
 python3 -m unittest scripts/ops/test_ops.py                   # the ops tooling's own tests
 ```
 These checks sign in as a dedicated `drill-operator@civileng.test` SUPER_ADMIN (created on demand) and

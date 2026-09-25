@@ -99,8 +99,11 @@ try:
     opens = [l for l in log.splitlines() if f"transit/decrypt/payment-tenant-{KEY}" in l and '"type":"request"' in l]
     check("Vault's audit log records the open, by payment-service",
           opens and all('"display_name":"token-payment-service"' in l for l in opens), len(opens))
-    check("…and not a single open by tenant-service", not any('token-tenant-service' in l and "/decrypt/" in l
-                                                               for l in log.splitlines()))
+    # This run's tenant only, and only opens Vault allowed: the log is cumulative, and holds the
+    # refused attempts this check itself makes further down (on earlier runs' tenants).
+    check("…and not a single open by tenant-service", not any(
+        'token-tenant-service' in l and f"/decrypt/payment-tenant-{KEY}" in l and "permission denied" not in l
+        for l in log.splitlines()))
 
     one = sealed["keySecret"]
     code, out = vault_as("tenant-service", "write", f"transit/decrypt/payment-tenant-{KEY}", f"ciphertext={one}")

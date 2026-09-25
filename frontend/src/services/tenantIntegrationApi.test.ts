@@ -11,7 +11,6 @@ import {
 
 const email: CapabilitySpec = {
   capability: 'email',
-  allowsPlatformShared: true,
   providers: {
     smtp: { settings: ['host', 'port', 'username', 'fromAddress', 'fromName'], secrets: ['password'] },
     brevo: { settings: ['fromAddress', 'fromName'], secrets: ['apiKey'] },
@@ -19,7 +18,6 @@ const email: CapabilitySpec = {
 };
 const payment: CapabilitySpec = {
   capability: 'payment',
-  allowsPlatformShared: false,
   providers: { razorpay: { settings: ['keyId'], secrets: ['keySecret', 'webhookSecret'] } },
 };
 
@@ -30,9 +28,9 @@ const stored = (over: Partial<TenantIntegration>): TenantIntegration => ({
 });
 
 describe('tenant integration helpers', () => {
-  it('seeds an empty form for an unconfigured capability', () => {
+  it('seeds an unconfigured capability on the platform account, its default', () => {
     const d = draftFrom(payment, { ...stored({}), configured: false, mode: null, provider: null, settings: {} });
-    expect(d).toEqual({ mode: 'BYO', provider: 'razorpay', enabled: true, settings: {}, secrets: {} });
+    expect(d).toEqual({ mode: 'PLATFORM_SHARED', provider: 'razorpay', enabled: true, settings: {}, secrets: {} });
   });
 
   it('seeds settings but never secrets from what is stored', () => {
@@ -42,7 +40,7 @@ describe('tenant integration helpers', () => {
   });
 
   it('requires every setting and secret for a new own-account setup', () => {
-    const d = draftFrom(payment);
+    const d = { ...draftFrom(payment), mode: 'BYO' as const };
     expect(missingFields(payment, d)).toEqual(['keyId', 'keySecret', 'webhookSecret']);
   });
 
@@ -75,10 +73,22 @@ describe('tenant integration helpers', () => {
   });
 
   it('describes each state', () => {
-    expect(integrationStatus(stored({ configured: false })).label).toBe('Not configured');
-    expect(integrationStatus(stored({ enabled: false })).label).toBe('Disabled');
+    expect(integrationStatus(stored({ configured: false })).label).toBe('Platform default');
+    expect(integrationStatus(stored({ enabled: false })).label).toBe('Off');
     expect(integrationStatus(stored({ mode: 'PLATFORM_SHARED' })).label).toBe('Platform account');
     expect(integrationStatus(stored({})).label).toBe('Own account · Razorpay');
+  });
+
+  it('sends an AI provider\'s optional model only when one is typed', () => {
+    const ai: CapabilitySpec = {
+      capability: 'ai',
+      providers: { anthropic: { settings: [], secrets: ['apiKey'], optionalSettings: ['model'] } },
+    };
+    const base = { mode: 'BYO' as const, provider: 'anthropic', enabled: true, secrets: { apiKey: 'sk-ant' } };
+    expect(toSaveRequest(ai, { ...base, settings: { model: ' claude-sonnet-5 ' } }).settings)
+      .toEqual({ model: 'claude-sonnet-5' });
+    expect(toSaveRequest(ai, { ...base, settings: { model: '' } }).settings).toEqual({});
+    expect(missingFields(ai, { ...base, settings: {} })).toEqual([]);
   });
 
   it('labels fields readably', () => {

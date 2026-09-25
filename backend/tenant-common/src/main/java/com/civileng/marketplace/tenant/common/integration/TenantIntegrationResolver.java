@@ -8,9 +8,10 @@ import java.util.Optional;
  * The one place an adapter asks "whose credentials do I use for this?".
  *
  * <p>The answer always comes from the tenant bound to the current thread, never from a request
- * parameter. There is no silent fallback: a tenant with nothing configured gets
- * {@link IntegrationNotConfiguredException}, not the platform's account. Only the operator tenant
- * resolves to the platform's own credentials — that is the Super Admin's separate set.
+ * parameter. A tenant with no row of its own runs on the platform's account (the default every
+ * tenant starts with); a tenant that brought its own account uses that; a tenant that switched the
+ * capability off gets {@link IntegrationNotConfiguredException}. The operator tenant always
+ * resolves to the platform's own credentials.
  */
 public class TenantIntegrationResolver {
 
@@ -39,9 +40,11 @@ public class TenantIntegrationResolver {
             return Optional.of(new ResolvedIntegration(tenantKey, capability,
                     ResolvedIntegration.Source.PLATFORM, null, null, null));
         }
-        return store.find(tenantKey, capability)
-                .filter(TenantIntegration::enabled)
-                .flatMap(row -> toResolved(row, capability));
+        Optional<TenantIntegration> row = store.find(tenantKey, capability);
+        if (row.isEmpty()) {
+            return Optional.of(platformDefault(tenantKey, capability, java.util.Map.of()));
+        }
+        return row.filter(TenantIntegration::enabled).map(r -> toResolved(r, capability));
     }
 
     /** The tenant an inbound webhook belongs to, with that tenant's credentials to verify it. */
@@ -49,21 +52,21 @@ public class TenantIntegrationResolver {
         return store.findByWebhookToken(capability, token)
                 .filter(TenantIntegration::enabled)
                 .filter(row -> row.mode() == IntegrationMode.BYO)
-                .flatMap(row -> toResolved(row, capability));
+                .map(row -> toResolved(row, capability));
     }
 
-    private Optional<ResolvedIntegration> toResolved(TenantIntegration row,
-                                                     IntegrationCapability capability) {
+    private ResolvedIntegration toResolved(TenantIntegration row, IntegrationCapability capability) {
         if (row.mode() == IntegrationMode.PLATFORM_SHARED) {
-            // A row written before a capability stopped allowing sharing, or written around the
-            // API, must not smuggle a tenant onto the platform's merchant or DLT account.
-            if (!capability.allowsPlatformShared()) {
-                return Optional.empty();
-            }
-            return Optional.of(new ResolvedIntegration(row.tenantKey(), capability,
-                    ResolvedIntegration.Source.PLATFORM_SHARED, null, row.settings(), null));
+            return platformDefault(row.tenantKey(), capability, row.settings());
         }
-        return Optional.of(new ResolvedIntegration(row.tenantKey(), capability,
-                ResolvedIntegration.Source.TENANT, row.provider(), row.settings(), row.secrets()));
+        return new ResolvedIntegration(row.tenantKey(), capability,
+                ResolvedIntegration.Source.TENANT, row.provider(), row.settings(), row.secrets());
+    }
+
+    /** The platform's account on the tenant's behalf, with the tenant's own labels (sender name). */
+    private static ResolvedIntegration platformDefault(String tenantKey, IntegrationCapability capability,
+                                                       java.util.Map<String, String> settings) {
+        return new ResolvedIntegration(tenantKey, capability, ResolvedIntegration.Source.PLATFORM_SHARED,
+                null, settings, null);
     }
 }

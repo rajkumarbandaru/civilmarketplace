@@ -210,6 +210,14 @@ public class GatewayConfig {
                         .filters(f -> f.stripPrefix(0)
                                 .filter(jwtAuthFilter.apply(new JwtAuthGatewayFilterFactory.Config())))
                         .uri("lb://tenant-service"))
+                // A workspace's own settings (modules, provider accounts), for its own admins.
+                // Not module-gated: every workspace has settings. tenant-service scopes each call
+                // to the caller's tenant and requires an admin role.
+                .route("workspace-settings", r -> r
+                        .path("/api/v1/workspace-settings/**")
+                        .filters(f -> f.stripPrefix(0)
+                                .filter(jwtAuthFilter.apply(new JwtAuthGatewayFilterFactory.Config())))
+                        .uri("lb://tenant-service"))
                 .build();
     }
 

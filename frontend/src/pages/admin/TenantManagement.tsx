@@ -292,6 +292,46 @@ const toBrandingForm = (branding: TenantBranding | null): BrandingForm => ({
 });
 
 /**
+ * "Start from an existing tenant": a faster, more uniform way to create a similar workspace than
+ * setting every tab again. Only live customer tenants are offered.
+ */
+export const StartFromTenant: React.FC<{ onApply: (tenant: Tenant) => void }> = ({ onApply }) => {
+  const tenants = useQuery({ queryKey: ['tenants'], queryFn: fetchTenants, retry: false });
+  const [chosen, setChosen] = useState('');
+  const [applied, setApplied] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+  const options = (tenants.data ?? []).filter((t) => t.tenantKey !== 'platform' && t.status === 'ACTIVE');
+  if (options.length === 0) return null;
+  const apply = async (key: string) => {
+    setChosen(key);
+    setFailed(false);
+    setApplied(null);
+    if (!key) return;
+    try {
+      // The list omits navigation overrides; the single tenant carries them.
+      const full = await fetchTenant(key);
+      onApply(full);
+      setApplied(full.name);
+    } catch {
+      setFailed(true);
+    }
+  };
+  return (
+    <Box sx={{ mb: 2 }} data-testid="start-from-tenant">
+      <TextField select fullWidth size="small" label="Start from an existing tenant (optional)" value={chosen}
+        onChange={(e) => apply(e.target.value)}
+        SelectProps={{ inputProps: { 'aria-label': 'Start from an existing tenant' } }}
+        helperText="Copies its product, plan, modules, navigation and look. Nothing that identifies it, and none of its data.">
+        <MenuItem value="">Start blank</MenuItem>
+        {options.map((t) => <MenuItem key={t.tenantKey} value={t.tenantKey}>{t.name} ({t.tenantKey})</MenuItem>)}
+      </TextField>
+      {applied && <Alert severity="success" sx={{ mt: 1 }}>Copied {applied}'s setup. Review the other tabs, then name this tenant.</Alert>}
+      {failed && <Alert severity="error" sx={{ mt: 1 }}>That tenant could not be loaded.</Alert>}
+    </Box>
+  );
+};
+
+/**
  * Drops the empty fields, so an untouched form sends nothing rather than a wall of nulls.
  *
  * `presetKey` alone is not enough to count as branding: it is bookkeeping about where a palette came
@@ -1211,6 +1251,20 @@ const NewTenantDialog: React.FC<{
     setSaveState('saved');
   }, [open, draft]);
 
+  /**
+   * Starting from an existing tenant: its product, plan, modules, navigation and look are copied;
+   * nothing that identifies it (name, key, emails, domain) or its data comes along.
+   */
+  const applyTemplate = (source: Tenant) => {
+    setVertical(source.vertical);
+    setModules(new Set(source.modules.filter((m) => !(HORIZONTAL_MODULES as readonly string[]).includes(m)
+      && m !== 'tenantadmin')));
+    setOverrides(new Map((source.menuOverrides ?? []).map((o) => [o.itemKey, o])));
+    setLandingPath(source.landingPath ?? null);
+    setBranding(toBrandingForm(source.branding));
+    if (source.plan) setPlan(source.plan);
+  };
+
   // Follows the name until the operator types a key of their own, then stops — re-deriving it
   // after that would silently overwrite a deliberate choice on the next keystroke of the name.
   const tenantKey = keyOverride ?? previewTenantKey(name);
@@ -1364,6 +1418,7 @@ const NewTenantDialog: React.FC<{
         </Tabs>
 
         <Box hidden={tab !== 0}>
+          {!draft && <StartFromTenant onApply={applyTemplate} />}
           <TextField
             autoFocus
             fullWidth

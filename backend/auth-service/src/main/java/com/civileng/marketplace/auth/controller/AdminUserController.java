@@ -34,6 +34,7 @@ public class AdminUserController {
     private final RoleRepository roleRepository;
     private final AccountIdentifiers identifiers;
     private final RefreshTokenService refreshTokenService;
+    private final com.civileng.marketplace.auth.service.InvitationService invitationService;
 
     @GetMapping("/users")
     @Operation(summary = "Get paginated list of all users with search and filters")
@@ -74,6 +75,25 @@ public class AdminUserController {
                 "totalElements", userPage.getTotalElements(),
                 "totalPages", userPage.getTotalPages()
         ));
+    }
+
+    public record InviteMemberRequest(String name, String email, String role, String linkBase, String workspaceName) { }
+
+    /**
+     * Adds someone to this workspace with a role and emails them a link to set their password.
+     * Internal (admin-service proxies the console); the actor's role rides as a header.
+     */
+    @PostMapping("/users/invitations")
+    @Operation(summary = "Add a user with a role and email them an invitation")
+    public ResponseEntity<Map<String, Object>> inviteMember(
+            @RequestHeader(value = "X-User-Role", required = false) String actorRole,
+            @RequestBody InviteMemberRequest request) {
+        if (actorRole == null || !java.util.Set.of("SUPER_ADMIN", "ADMIN").contains(actorRole)) {
+            throw new SecurityException("An admin role is required to add users");
+        }
+        var member = invitationService.inviteMember(request.name(), request.email(), request.role(), actorRole,
+                request.linkBase(), request.workspaceName());
+        return ResponseEntity.ok(Map.of("success", true, "data", member));
     }
 
     @GetMapping("/users/{userId}")

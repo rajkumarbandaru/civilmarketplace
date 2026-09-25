@@ -3,7 +3,6 @@ package com.civileng.marketplace.payment.service;
 import com.civileng.marketplace.tenant.common.TenantContext;
 import com.civileng.marketplace.tenant.common.integration.IntegrationCapability;
 import com.civileng.marketplace.tenant.common.integration.IntegrationMode;
-import com.civileng.marketplace.tenant.common.integration.IntegrationNotConfiguredException;
 import com.civileng.marketplace.tenant.common.integration.TenantIntegration;
 import com.civileng.marketplace.tenant.common.integration.TenantIntegrationResolver;
 import com.civileng.marketplace.tenant.common.integration.TenantIntegrationStore;
@@ -16,7 +15,6 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class RazorpayGatewayTest {
 
@@ -65,14 +63,24 @@ class RazorpayGatewayTest {
     }
 
     @Test
-    void aTenantWithoutAMerchantAccountIsRefusedNotRoutedToThePlatform() {
+    void aTenantWithoutAMerchantAccountPaysIntoThePlatformsAccount() {
         TenantContext.set("bhoomi");
 
-        assertThatThrownBy(gateway::current).isInstanceOf(IntegrationNotConfiguredException.class);
+        RazorpayGateway.Credentials credentials = gateway.current();
+        assertThat(credentials.tenantKey()).isEqualTo("bhoomi");
+        assertThat(credentials.keyId()).isEqualTo("rzp_platform");
     }
 
     @Test
-    void onlyTheOperatorTenantUsesThePlatformsAccount() {
+    void thePlatformWebhookOnlyServesWorkspacesOnThePlatformAccount() {
+        assertThat(gateway.forPlatformWebhook("bhoomi")).get()
+                .extracting(RazorpayGateway.Credentials::webhookSecret).isEqualTo("platform-wh");
+        assertThat(gateway.forPlatformWebhook("acme")).isEmpty();
+        assertThat(gateway.forPlatformWebhook(null)).isEmpty();
+    }
+
+    @Test
+    void theOperatorTenantUsesThePlatformsAccount() {
         TenantContext.set("platform");
 
         assertThat(gateway.current().keyId()).isEqualTo("rzp_platform");

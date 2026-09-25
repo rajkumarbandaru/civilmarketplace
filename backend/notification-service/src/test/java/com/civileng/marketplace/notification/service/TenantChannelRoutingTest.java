@@ -23,7 +23,7 @@ import static org.mockito.Mockito.mock;
 
 /**
  * Which account each tenant's SMS, WhatsApp and email go out on. The rule under test: a tenant's
- * own account, or nothing — never the platform's by default.
+ * own account, the platform's by default, or nothing when it switched the channel off.
  */
 class TenantChannelRoutingTest {
 
@@ -82,8 +82,20 @@ class TenantChannelRoutingTest {
     }
 
     @Test
-    void aTenantWithoutAnSmsAccountIsLoggedNotSentOnThePlatformsAccount() {
+    void aTenantWithoutAnSmsAccountSendsOnThePlatformsAccountByDefault() {
         TenantContext.set("bhoomi");
+
+        TwilioGateway.Route route = smsRoute();
+
+        assertThat(route.sendable()).isTrue();
+        assertThat(route.account().accountSid()).isEqualTo(PLATFORM_SID);
+    }
+
+    @Test
+    void aTenantThatSwitchedSmsOffSendsNothing() {
+        rows.add(new TenantIntegration("quiet", IntegrationCapability.SMS, IntegrationMode.PLATFORM_SHARED, null,
+                false, Map.of(), Map.of(), null));
+        TenantContext.set("quiet");
 
         TwilioGateway.Route route = smsRoute();
 
@@ -149,8 +161,21 @@ class TenantChannelRoutingTest {
     }
 
     @Test
-    void aTenantWithNoEmailIntegrationIsLoggedNotSent() {
+    void aTenantWithNoEmailIntegrationSendsOnThePlatformsAccount() {
         TenantContext.set("bhoomi");
+
+        EmailService.EmailRoute route =
+                emailService(mock(JavaMailSender.class), "smtp", "real-user", "real-pass").route();
+
+        assertThat(route.provider()).isNotEqualTo("log");
+        assertThat(route.skipReason()).isNull();
+    }
+
+    @Test
+    void aTenantThatSwitchedEmailOffIsLoggedNotSent() {
+        rows.add(new TenantIntegration("quiet", IntegrationCapability.EMAIL, IntegrationMode.PLATFORM_SHARED, null,
+                false, Map.of(), Map.of(), null));
+        TenantContext.set("quiet");
 
         EmailService.EmailRoute route =
                 emailService(mock(JavaMailSender.class), "smtp", "real-user", "real-pass").route();

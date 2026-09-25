@@ -128,4 +128,54 @@ class InvitationServiceTest {
         owner.setPasswordHash("x");
         assertThatThrownBy(() -> service.invite(42L, "http://x", "X")).hasMessageContaining("already has a password");
     }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void anAdminAddsAMemberWithARoleAndTheyGetALink() {
+        Role engineer = new Role();
+        engineer.setName("SITE_ENGINEER");
+        when(roles.findByName("SITE_ENGINEER")).thenReturn(Optional.of(engineer));
+        when(users.findByEmailAndIsDeletedFalse("ravi@acme.in")).thenReturn(Optional.empty());
+        User[] created = new User[1];
+        doAnswer(inv -> {
+            User u = inv.getArgument(0);
+            if (u.getId() == null) u.setId(77L);
+            created[0] = u;
+            return u;
+        }).when(users).save(any());
+        when(users.findById(77L)).thenAnswer(inv -> Optional.of(created[0]));
+
+        InvitationService.Member member = service.inviteMember("Ravi", " Ravi@Acme.in", "site_engineer", "ADMIN",
+                "http://acme.localhost:3000", "Acme Builders");
+
+        assertThat(member.role()).isEqualTo("SITE_ENGINEER");
+        assertThat(member.email()).isEqualTo("ravi@acme.in");
+        assertThat(created[0].getPasswordHash()).isNull();
+        assertThat(created[0].getStatus()).isEqualTo(UserStatus.PENDING_VERIFICATION);
+        ArgumentCaptor<Object> event = ArgumentCaptor.forClass(Object.class);
+        verify(kafka).send(eq("user.invited"), event.capture());
+        assertThat(((Map<String, Object>) event.getValue()).get("link").toString())
+                .startsWith("http://acme.localhost:3000/invite/");
+    }
+
+    @Test
+    void onlyASuperAdminCanAddASuperAdmin() {
+        assertThatThrownBy(() -> service.inviteMember("X", "x@acme.in", "SUPER_ADMIN", "ADMIN",
+                "http://acme.localhost:3000", "Acme"))
+                .isInstanceOf(SecurityException.class);
+    }
+
+    @Test
+    void membersNeedAKnownRoleAFreeEmailAndAProperLink() {
+        when(roles.findByName("PILOT")).thenReturn(Optional.empty());
+        assertThatThrownBy(() -> service.inviteMember("X", "x@acme.in", "PILOT", "ADMIN",
+                "http://acme.localhost:3000", "Acme")).hasMessageContaining("No role");
+
+        when(users.findByEmailAndIsDeletedFalse("asha@acme.in")).thenReturn(Optional.of(owner));
+        assertThatThrownBy(() -> service.inviteMember("Asha", "asha@acme.in", "SUPER_ADMIN", "SUPER_ADMIN",
+                "http://acme.localhost:3000", "Acme")).hasMessageContaining("already has an account");
+
+        assertThatThrownBy(() -> service.inviteMember("X", "x@acme.in", "SUPER_ADMIN", "SUPER_ADMIN",
+                "javascript:alert(1)", "Acme")).hasMessageContaining("linkBase");
+    }
 }

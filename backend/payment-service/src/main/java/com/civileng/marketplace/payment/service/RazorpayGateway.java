@@ -54,6 +54,20 @@ public class RazorpayGateway {
         return resolver.forWebhook(IntegrationCapability.PAYMENT, token).map(this::from);
     }
 
+    /**
+     * For the platform account's own webhook: the tenant named in the order's notes, with the
+     * platform's credentials — but only if that tenant really runs on the platform's account, so a
+     * tenant with its own merchant account can never be settled through the platform's webhook.
+     */
+    public Optional<Credentials> forPlatformWebhook(String tenantKey) {
+        if (tenantKey == null || tenantKey.isBlank()) {
+            return Optional.empty();
+        }
+        return resolver.find(tenantKey, IntegrationCapability.PAYMENT)
+                .filter(ResolvedIntegration::usesPlatformCredentials)
+                .map(this::from);
+    }
+
     private Credentials from(ResolvedIntegration integration) {
         if (integration.usesPlatformCredentials()) {
             return new Credentials(integration.tenantKey(), platformKeyId, platformKeySecret,

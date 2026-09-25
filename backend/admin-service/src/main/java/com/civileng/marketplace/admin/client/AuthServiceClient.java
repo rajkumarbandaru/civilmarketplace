@@ -52,4 +52,16 @@ public interface AuthServiceClient {
     ResponseEntity<Map<String, Object>> createRole(
             @RequestHeader("X-User-Role") String actorRole,
             @RequestBody Map<String, String> request);
+
+    /** Adds a user to this workspace with a role and emails them an invitation. */
+    @PostMapping("/admin/users/invitations")
+    ResponseEntity<Map<String, Object>> inviteMember(
+            @RequestHeader("X-User-Role") String actorRole,
+            @RequestBody Map<String, String> request);
+
+    /** A fresh invitation link for someone who has not set a password yet. */
+    @PostMapping("/admin/users/{userId}/invitation")
+    ResponseEntity<Map<String, Object>> resendInvitation(
+            @PathVariable Long userId,
+            @RequestBody Map<String, String> request);
 }

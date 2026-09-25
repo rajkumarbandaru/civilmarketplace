@@ -46,7 +46,10 @@ public class TenantIntegrationService {
     private static final String ENTITY = "TenantIntegration";
     private static final TypeReference<Map<String, String>> STRING_MAP = new TypeReference<>() {
     };
-    /** Capabilities a new tenant starts with on the platform's account; see V5. */
+    /**
+     * Rows a new tenant starts with; see V5. Only a record of the choice: a tenant with no row at
+     * all runs on the platform's account too (see TenantIntegrationResolver).
+     */
     private static final Set<IntegrationCapability> SHARED_BY_DEFAULT =
             Set.of(IntegrationCapability.EMAIL, IntegrationCapability.AI);
 
@@ -64,13 +67,14 @@ public class TenantIntegrationService {
                 .map(capability -> {
                     Map<String, ProviderView> providers = new LinkedHashMap<>();
                     capability.providers().forEach((key, spec) ->
-                            providers.put(key, new ProviderView(spec.settings(), spec.secrets())));
-                    return new CapabilityView(capability.key(), capability.allowsPlatformShared(), providers);
+                            providers.put(key, new ProviderView(spec.settings(), spec.secrets(),
+                                    spec.optionalSettings())));
+                    return new CapabilityView(capability.key(), providers);
                 })
                 .toList();
     }
 
-    /** Every capability for the tenant, configured or not, so the console can show the gaps. */
+    /** Every capability for the tenant; one with no row runs on the platform's account. */
     public List<IntegrationView> list(String tenantKey) {
         requireCustomerTenant(tenantKey);
         Map<String, TenantIntegrationEntity> rows = new LinkedHashMap<>();
@@ -94,10 +98,6 @@ public class TenantIntegrationService {
         boolean created = row.getCreatedAt() == null;
 
         if (mode == IntegrationMode.PLATFORM_SHARED) {
-            if (!capability.allowsPlatformShared()) {
-                throw new IllegalArgumentException(capability.key()
-                        + " must use the tenant's own provider account; the platform's cannot be shared");
-            }
             row.setMode(mode.name());
             row.setProvider(null);
             row.setSettingsJson(write(clean(request.settings())));
@@ -125,7 +125,9 @@ public class TenantIntegrationService {
             keep.forEach(k -> present.put(k, "(kept)"));
 
             Map<String, String> settings = clean(request.settings());
-            settings.keySet().retainAll(spec.settings());
+            java.util.Set<String> allowedSettings = new java.util.HashSet<>(spec.settings());
+            allowedSettings.addAll(spec.optionalSettings());
+            settings.keySet().retainAll(allowedSettings);
 
             requireAll(capability, "setting", spec.settings(), settings);
             requireAll(capability, "secret", spec.secrets(), present);

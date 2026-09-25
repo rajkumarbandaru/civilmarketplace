@@ -6,45 +6,40 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * An external capability a tenant runs through its own provider account.
+ * An external capability a tenant runs through a provider account.
  *
- * <p>{@link #allowsPlatformShared} is the ownership rule from the architecture spec (06 §9.1):
- * money, DLT-registered SMS and a WhatsApp business number belong to the tenant and can never be
- * borrowed from the platform, whereas mail and AI may run on the platform's account on the tenant's
- * behalf. That rule lives here, next to the providers, so tenant-service (which stores the choice)
- * and every adapter (which honours it) cannot disagree about it.
+ * <p>Every capability defaults to the platform's own account (configured in each service), so a
+ * tenant works out of the box. A tenant can bring its own provider account for any of them, or
+ * switch one off; see {@link TenantIntegrationResolver}.
  */
 public enum IntegrationCapability {
 
-    PAYMENT(false, Map.of(
+    PAYMENT(Map.of(
             "razorpay", new ProviderSpec(List.of("keyId"), List.of("keySecret", "webhookSecret")))),
 
-    EMAIL(true, Map.of(
+    EMAIL(Map.of(
             "smtp", new ProviderSpec(List.of("host", "port", "username", "fromAddress", "fromName"),
                     List.of("password")),
             "brevo", new ProviderSpec(List.of("fromAddress", "fromName"), List.of("apiKey")))),
 
-    SMS(false, Map.of(
+    SMS(Map.of(
             "twilio", new ProviderSpec(List.of("accountSid", "fromNumber", "senderId"),
                     List.of("authToken")))),
 
-    WHATSAPP(false, Map.of(
+    WHATSAPP(Map.of(
             "twilio", new ProviderSpec(List.of("accountSid", "fromNumber", "senderName"),
                     List.of("authToken")))),
 
-    AI(true, Map.of(
-            "gemini", new ProviderSpec(List.of(), List.of("apiKey"))));
+    /** The assistant's model provider; {@code model} is optional and each adapter has a default. */
+    AI(Map.of(
+            "gemini", new ProviderSpec(List.of(), List.of("apiKey"), List.of("model")),
+            "openai", new ProviderSpec(List.of(), List.of("apiKey"), List.of("model")),
+            "anthropic", new ProviderSpec(List.of(), List.of("apiKey"), List.of("model"))));
 
-    private final boolean allowsPlatformShared;
     private final Map<String, ProviderSpec> providers;
 
-    IntegrationCapability(boolean allowsPlatformShared, Map<String, ProviderSpec> providers) {
-        this.allowsPlatformShared = allowsPlatformShared;
+    IntegrationCapability(Map<String, ProviderSpec> providers) {
         this.providers = providers;
-    }
-
-    public boolean allowsPlatformShared() {
-        return allowsPlatformShared;
     }
 
     public Map<String, ProviderSpec> providers() {
@@ -73,10 +68,15 @@ public enum IntegrationCapability {
      * What one provider needs. Settings are stored and shown in the clear (an account SID, a
      * from-address); secrets are encrypted at rest and never returned by any API.
      */
-    public record ProviderSpec(List<String> settings, List<String> secrets) {
+    public record ProviderSpec(List<String> settings, List<String> secrets, List<String> optionalSettings) {
+
+        public ProviderSpec(List<String> settings, List<String> secrets) {
+            this(settings, secrets, List.of());
+        }
 
         public Set<String> allKeys() {
             java.util.Set<String> keys = new java.util.LinkedHashSet<>(settings);
+            keys.addAll(optionalSettings);
             keys.addAll(secrets);
             return keys;
         }
