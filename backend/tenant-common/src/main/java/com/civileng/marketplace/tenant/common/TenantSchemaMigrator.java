@@ -25,8 +25,16 @@ public class TenantSchemaMigrator {
     private final TenantProperties properties;
     private final FlywayProperties flywayProperties;
 
+    /** The cluster a tenant's schemas are on. Null: all on {@link #dataSource}. */
+    private final java.util.function.Function<String, DataSource> router;
+
+    public TenantSchemaMigrator(DataSource dataSource, TenantSchemas schemas, TenantProperties properties,
+                                FlywayProperties flywayProperties) {
+        this(dataSource, schemas, properties, flywayProperties, null);
+    }
+
     public void migrate(String tenantKey) {
-        migrateSchema(schemas.schemaFor(tenantKey));
+        migrateSchema(router == null ? dataSource : router.apply(tenantKey), schemas.schemaFor(tenantKey));
         log.info("Tenant '{}' migrated to current version in schema {}",
                 tenantKey, schemas.schemaFor(tenantKey));
     }
@@ -40,7 +48,11 @@ public class TenantSchemaMigrator {
      * table that is perfectly correct in every schema anyone actually reads.
      */
     public void migrateSchema(String schema) {
-        createSchemaIfMissing(schema);
+        migrateSchema(dataSource, schema);
+    }
+
+    private void migrateSchema(DataSource dataSource, String schema) {
+        createSchemaIfMissing(dataSource, schema);
 
         FluentConfiguration configuration = Flyway.configure()
                 .dataSource(dataSource)
@@ -74,7 +86,7 @@ public class TenantSchemaMigrator {
         configuration.load().migrate();
     }
 
-    private void createSchemaIfMissing(String schema) {
+    private static void createSchemaIfMissing(DataSource dataSource, String schema) {
         // schema is derived from a TenantKey-validated key, so it cannot carry anything but
         // [a-z0-9_] by the time it reaches this DDL.
         try (Connection connection = dataSource.getConnection();

@@ -16,7 +16,8 @@ export type RfqStatus = 'OPEN' | 'AWARDED' | 'CANCELLED';
 export type QuotationStatus = 'SUBMITTED' | 'ACCEPTED' | 'REJECTED';
 export type PoStatus =
   | 'PENDING_APPROVAL' | 'ISSUED' | 'ACKNOWLEDGED' | 'PARTIALLY_RECEIVED' | 'RECEIVED' | 'CLOSED' | 'CANCELLED';
-export type InvoiceStatus = 'MATCHED' | 'EXCEPTION' | 'APPROVED' | 'REJECTED';
+export type InvoiceStatus = 'MATCHED' | 'EXCEPTION' | 'APPROVED' | 'REJECTED' | 'PAID';
+export type PriceListStatus = 'ACTIVE' | 'PROPOSED' | 'DECLINED' | 'TERMINATED';
 export type TradeRole = 'BUYER' | 'SUPPLIER';
 
 export const CAPABILITY_LABELS: Record<Capability, string> = {
@@ -53,7 +54,7 @@ export interface Organization {
 export interface OrgMember { id: number; email: string; role: MemberRole; joined: boolean }
 export interface OrgRelationship { id: number; targetOrgId: number; targetOrgName: string; type: RelationshipType }
 export interface OrganizationDetail { organization: Organization; members: OrgMember[]; relationships: OrgRelationship[] }
-export interface DirectoryEntry { id: number; name: string; capabilities: Capability[]; preferred: boolean }
+export interface DirectoryEntry { id: number; name: string; capabilities: Capability[]; preferred: boolean; contracted: boolean }
 
 export interface OrganizationInput {
   name: string;
@@ -95,6 +96,15 @@ export interface RfqDetail extends Omit<RfqSummary, 'quotations'> {
   invitedSuppliers: OrgRef[];
   quotations: Quotation[];
   purchaseOrderId: number | null;
+  /** The caller's own prices for lines, as a supplier: CONTRACT is a ceiling, CATALOGUE a suggestion. */
+  priceHints: PriceHint[];
+}
+export interface PriceHint {
+  rfqLineId: number;
+  supplierOrgId: number;
+  unitPrice: number;
+  taxPercent: number;
+  source: 'CONTRACT' | 'CATALOGUE';
 }
 export interface RfqInput {
   buyerOrgId: number;
@@ -121,13 +131,26 @@ export interface PoLine {
   unitPrice: number;
   taxPercent: number;
   amount: number;
+  dispatchedQty: number;
   receivedQty: number;
   acceptedQty: number;
   invoicedQty: number;
 }
+export interface Dispatch {
+  id: number;
+  number: string;
+  vehicleNumber: string;
+  transporter: string | null;
+  ewayBillNumber: string | null;
+  consignmentValue: number;
+  lines: { poLineId: number; quantity: number }[];
+  receiptId: number | null;
+  dispatchedAt: string;
+}
 export interface Receipt {
   id: number;
   number: string;
+  dispatchId: number | null;
   notes: string | null;
   lines: { poLineId: number; receivedQty: number; rejectedQty: number }[];
   receivedAt: string;
@@ -142,6 +165,9 @@ export interface SupplierInvoice {
   matchIssues: string[];
   lines: { poLineId: number; quantity: number; unitPrice: number; taxPercent: number }[];
   decisionNote: string | null;
+  dueDate: string | null;
+  paidAt: string | null;
+  paymentReference: string | null;
   submittedAt: string;
 }
 export interface PoSummary {
@@ -160,9 +186,13 @@ export interface PoDetail extends Omit<PoSummary, 'total'> {
   taxTotal: number;
   total: number;
   approvalThreshold: number;
+  /** Net N from the contract the order was placed under; 0 = due on approval. */
+  paymentTermsDays: number;
+  contractId: number | null;
   deliverySite: string | null;
   reference: string | null;
   lines: PoLine[];
+  dispatches: Dispatch[];
   receipts: Receipt[];
   invoices: SupplierInvoice[];
   canApprove: boolean;
@@ -211,8 +241,83 @@ export const rejectPurchaseOrder = async (id: number, note?: string) =>
 export const acknowledgePurchaseOrder = async (id: number) =>
   (await api.post<PoDetail>(`${BASE}/purchase-orders/${id}/acknowledge`)).data;
 export const recordReceipt = async (
-  id: number, lines: { poLineId: number; receivedQty: number; rejectedQty: number }[], notes?: string,
-) => (await api.post<PoDetail>(`${BASE}/purchase-orders/${id}/receipts`, { lines, notes })).data;
+  id: number, lines: { poLineId: number; receivedQty: number; rejectedQty: number }[], notes?: string, dispatchId?: number | null,
+) => (await api.post<PoDetail>(`${BASE}/purchase-orders/${id}/receipts`, { lines, notes, dispatchId: dispatchId ?? null })).data;
+
+/** Above this value of goods (incl. tax) GST law requires an e-way bill; the server enforces it too. */
+export const EWAY_BILL_THRESHOLD = 50000;
+
+export const dispatchGoods = async (id: number, input: {
+  vehicleNumber: string; transporter?: string; ewayBillNumber?: string; lines: { poLineId: number; quantity: number }[];
+}) => (await api.post<PoDetail>(`${BASE}/purchase-orders/${id}/dispatches`, input)).data;
+
+export interface PaymentCheckout {
+  invoiceId: number;
+  paymentId: number;
+  razorpayOrderId: string;
+  razorpayKeyId: string;
+  amount: number;
+  description: string;
+}
+export const startInvoicePayment = async (poId: number, invoiceId: number) =>
+  (await api.post<PaymentCheckout>(`${BASE}/purchase-orders/${poId}/invoices/${invoiceId}/pay`)).data;
+
+// ---------------------------------------------------------------- price lists and contracts
+
+export interface PriceListItem { id?: number; description: string; uom: string; unitPrice: number; taxPercent: number }
+export interface PriceList {
+  id: number;
+  supplier: OrgRef;
+  buyer: OrgRef | null;
+  name: string;
+  status: PriceListStatus;
+  contract: boolean;
+  paymentTermsDays: number;
+  creditLimit: number | null;
+  /** What the buyer has open with the supplier under an active contract. */
+  exposure: number | null;
+  validFrom: string | null;
+  validUntil: string | null;
+  items: PriceListItem[];
+  roles: TradeRole[];
+  createdAt: string;
+  decidedAt: string | null;
+}
+export interface ContractInput {
+  supplierOrgId: number;
+  buyerOrgId: number;
+  name: string;
+  paymentTermsDays: number;
+  creditLimit?: number | null;
+  validFrom?: string | null;
+  validUntil?: string | null;
+  items: PriceListItem[];
+}
+export const fetchPriceLists = async () => (await api.get<PriceList[]>(`${BASE}/price-lists`)).data;
+export const saveCatalogue = async (supplierOrgId: number, items: PriceListItem[], name?: string) =>
+  (await api.put<PriceList>(`${BASE}/price-lists/catalogue`, { supplierOrgId, name, items })).data;
+export const proposeContract = async (input: ContractInput) =>
+  (await api.post<PriceList>(`${BASE}/price-lists/contracts`, input)).data;
+export const decideContract = async (id: number, action: 'accept' | 'decline' | 'terminate') =>
+  (await api.post<PriceList>(`${BASE}/price-lists/contracts/${id}/${action}`)).data;
+
+// ---------------------------------------------------------------- party migration
+
+/** Account types that already are a business, and what their organization does. */
+export const ROLE_CAPABILITIES: Record<string, Capability[]> = {
+  MATERIAL_SUPPLIER: ['SUPPLIER'],
+  LABOUR_CONTRACTOR: ['CONTRACTOR', 'BUYER'],
+  EQUIPMENT_RENTAL: ['EQUIPMENT_PROVIDER'],
+};
+export interface MigrationEntry {
+  userId: number; email: string; name: string; role: string; capabilities: Capability[];
+  outcome: 'CREATED' | 'WOULD_CREATE' | 'ALREADY_MIGRATED'; organizationId: number | null; catalogueItems: number;
+}
+export interface MigrationReport { dryRun: boolean; accounts: number; created: number; alreadyMigrated: number; entries: MigrationEntry[] }
+export const createOrganizationFromProfile = async () =>
+  (await api.post<Organization>(`${BASE}/organizations/from-profile`)).data;
+export const migrateAccounts = async (dryRun: boolean) =>
+  (await api.post<MigrationReport>(`${BASE}/organizations/migration`, null, { params: { dryRun } })).data;
 export const submitInvoice = async (
   id: number, invoiceNumber: string, lines: { poLineId: number; quantity: number; unitPrice: number; taxPercent: number }[],
 ) => (await api.post<PoDetail>(`${BASE}/purchase-orders/${id}/invoices`, { invoiceNumber, lines })).data;

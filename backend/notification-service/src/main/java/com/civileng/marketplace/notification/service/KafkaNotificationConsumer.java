@@ -65,6 +65,36 @@ public class KafkaNotificationConsumer {
         }
     }
 
+    /**
+     * B2B procurement (procurement-service): an RFQ to quote, an order to approve or supply, an
+     * invoice decided or paid. One event names every person to tell; each gets an in-app
+     * notification (once they have signed in to procurement, so their account is known) and an
+     * email with a link back to the document.
+     */
+    @KafkaListener(topics = "procurement.events", groupId = "notification-service-group")
+    @SuppressWarnings("unchecked")
+    public void handleProcurementEvent(Map<String, Object> data) {
+        try {
+            String type = str(data, "type");
+            String title = str(data, "title");
+            String link = str(data, "link");
+            String message = str(data, "message") + (link == null ? "" : "\n\nOpen: " + link);
+            String referenceType = "PROCUREMENT_" + str(data, "referenceType");
+            Long referenceId = asLong(data, "referenceId");
+            List<Map<String, Object>> recipients = (List<Map<String, Object>>) data.getOrDefault("recipients", List.of());
+            for (Map<String, Object> r : recipients) {
+                Long userId = asLong(r, "userId");
+                String email = str(r, "email");
+                List<String> channels = userId == null ? List.of("EMAIL") : List.of("IN_APP", "EMAIL");
+                dispatcher.dispatch(new NotificationRequest(userId, type, title, message, email, null, channels,
+                        referenceType, referenceId, link == null ? null : objectMapper.writeValueAsString(Map.of("link", link))));
+            }
+            log.info("{} delivered to {} recipient(s)", type, recipients.size());
+        } catch (Exception e) {
+            log.error("Failed to process procurement.events event: {}", e.getMessage());
+        }
+    }
+
     @KafkaListener(topics = "otp.sent", groupId = "notification-service-group")
     public void handleOtpSent(Map<String, Object> data) {
         try {

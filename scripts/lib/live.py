@@ -5,8 +5,10 @@ import base64, hashlib, hmac, json, os, re, struct, subprocess, time, urllib.req
 GW = os.environ.get("GATEWAY_URL", "http://localhost:8080") + "/api/v1"
 _ROOT = os.path.join(os.path.dirname(__file__), "..", "..")
 _SEEDER = open(os.path.join(_ROOT, "backend/auth-service/src/main/java/com/civileng/marketplace/auth/service/DevUserSeeder.java")).read()
-OP_EMAIL = re.search(r'SUPER_ADMIN_EMAIL\s*=\s*"([^"]+)"', _SEEDER).group(1)
-OP_PASSWORD = re.search(r'SUPER_ADMIN_PASSWORD\s*=\s*"([^"]+)"', _SEEDER).group(1)
+# The live checks sign in as their own SUPER_ADMIN, never as the owner's account: they enrol and
+# reset this account's MFA freely, which on the real Super Admin would wipe the owner's authenticator.
+OP_EMAIL = "drill-operator@civileng.test"
+OP_PASSWORD = "Password123!"
 
 
 class Checks:
@@ -43,6 +45,15 @@ def sql(q):
     return subprocess.run(["docker", "exec", "civil_mysql", "mysql", "-uroot", f"-p{pw}", "-N", "-e", q], capture_output=True, text=True).stdout
 
 
+def ensure_drill_operator(tenant="platform"):
+    """Creates the drill operator in a workspace once: a SUPER_ADMIN with the dev seed password (copied
+    from that workspace's seeded ADMIN). Idempotent."""
+    db = f"civil_engineer_auth_{tenant}"
+    sql(f"INSERT IGNORE INTO {db}.users (email, name, password_hash, email_verified, status, role_id) "
+        f"SELECT '{OP_EMAIL}', 'Drill Operator', a.password_hash, 1, 'ACTIVE', r.id "
+        f"FROM {db}.users a JOIN {db}.roles r ON r.name = 'SUPER_ADMIN' WHERE a.email = 'admin@civileng.test'")
+
+
 def sign_in_enrolling(email, password, host=None):
     """Password, then first-time authenticator enrolment (what a Super Admin does). Returns the session."""
     s, r = call("POST", "/auth/login", {"email": email, "password": password}, host=host)
@@ -54,6 +65,8 @@ def sign_in_enrolling(email, password, host=None):
 
 
 def reset_mfa(email, tenant="platform"):
+    if email == OP_EMAIL:
+        ensure_drill_operator(tenant)
     sql(f"UPDATE civil_engineer_auth_{tenant}.users SET two_factor_enabled=0, two_factor_secret=NULL, "
         f"two_factor_last_step=NULL, two_factor_recovery_codes=NULL WHERE email='{email}'")
 

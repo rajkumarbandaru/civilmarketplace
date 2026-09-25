@@ -104,6 +104,32 @@ export const payWithRazorpay = async (options: CheckoutOptions): Promise<Checkou
     return { status: 'failed', message: PAYMENTS_NOT_CONFIGURED };
   }
 
+  return openCheckout(
+    { razorpayOrderId: order.razorpayOrderId, razorpayKeyId: keyId, totalAmount: order.totalAmount, currency: order.currency },
+    options.description || `Booking #${options.bookingId}`,
+    options.customer,
+  );
+};
+
+/** An order some service already created, ready to pay. */
+export interface CheckoutOrder {
+  razorpayOrderId: string;
+  razorpayKeyId: string;
+  /** Rupees. */
+  totalAmount: number;
+  currency?: string;
+}
+
+/**
+ * Opens Razorpay Checkout for an existing order and verifies the result with payment-service.
+ * Shared by booking payments (above) and supplier-invoice payments (procurement), which differ
+ * only in who creates the order.
+ */
+export const openCheckout = async (
+  order: CheckoutOrder,
+  description: string,
+  customer?: CheckoutOptions['customer'],
+): Promise<CheckoutOutcome> => {
   await loadCheckoutScript();
 
   return new Promise<CheckoutOutcome>((resolve, reject) => {
@@ -118,18 +144,18 @@ export const payWithRazorpay = async (options: CheckoutOptions): Promise<Checkou
     };
 
     const razorpay = new window.Razorpay!({
-      key: keyId,
+      key: order.razorpayKeyId,
       order_id: order.razorpayOrderId,
       // Read back from the order rather than the caller's argument, so the modal can never show a
       // different figure from the one the order was created for.
       amount: Math.round(Number(order.totalAmount) * 100),
       currency: order.currency || 'INR',
       name: 'Civil Engineering Marketplace',
-      description: options.description || `Booking #${options.bookingId}`,
+      description,
       prefill: {
-        name: options.customer?.name || '',
-        email: options.customer?.email || '',
-        contact: options.customer?.contact || '',
+        name: customer?.name || '',
+        email: customer?.email || '',
+        contact: customer?.contact || '',
       },
       handler: async (response: RazorpayHandlerResponse) => {
         try {

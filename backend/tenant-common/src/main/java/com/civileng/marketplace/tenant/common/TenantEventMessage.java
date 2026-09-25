@@ -45,6 +45,12 @@ public class TenantEventMessage {
     private java.util.Set<String> modules;
 
     /**
+     * True when the event announces that the tenant's data moved to another cluster: services
+     * re-read the placement map and route there. Nothing is provisioned.
+     */
+    private boolean placementChanged;
+
+    /**
      * The operator's per-tenant navigation decisions: what is hidden, what is renamed, what order
      * it sits in. On top of what the module set already decides, so a module the tenant does not
      * have takes its items with it whether or not there is a row here.

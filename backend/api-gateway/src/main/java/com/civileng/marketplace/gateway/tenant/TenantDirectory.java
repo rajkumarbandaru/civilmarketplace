@@ -43,9 +43,12 @@ public class TenantDirectory {
         this.webClient = loadBalancedWebClientBuilder.baseUrl(uri).build();
     }
 
+    /** Replaceable in tests, so cache expiry can be exercised without waiting it out. */
+    java.time.Clock clock = java.time.Clock.systemUTC();
+
     public Mono<TenantDescriptor> resolve(String host) {
         CacheEntry cached = cache.get(host);
-        if (cached != null && cached.isFresh()) {
+        if (cached != null && cached.isFresh(clock.instant())) {
             return Mono.just(cached.descriptor());
         }
 
@@ -55,8 +58,16 @@ public class TenantDirectory {
                 .retrieve()
                 .bodyToMono(TenantDescriptor.class)
                 .doOnNext(descriptor ->
-                        cache.put(host, new CacheEntry(descriptor, Instant.now().plus(ttlFor(descriptor)))))
+                        cache.put(host, new CacheEntry(descriptor, clock.instant().plus(ttlFor(descriptor)))))
                 .onErrorResume(e -> {
+                    // An answer, not an outage: tenant-service says no tenant serves this host
+                    // (any more — a removed custom domain, an archived tenant). Forget it; serving
+                    // the stale entry here would route a released host forever.
+                    if (e instanceof org.springframework.web.reactive.function.client.WebClientResponseException r
+                            && r.getStatusCode().is4xxClientError()) {
+                        cache.remove(host);
+                        return Mono.empty();
+                    }
                     // A stale entry beats a platform-wide outage: if tenant-service is down,
                     // hosts we already know keep serving rather than every request failing.
                     if (cached != null) {
@@ -78,8 +89,8 @@ public class TenantDirectory {
     }
 
     private record CacheEntry(TenantDescriptor descriptor, Instant expiresAt) {
-        boolean isFresh() {
-            return Instant.now().isBefore(expiresAt);
+        boolean isFresh(Instant now) {
+            return now.isBefore(expiresAt);
         }
     }
 }

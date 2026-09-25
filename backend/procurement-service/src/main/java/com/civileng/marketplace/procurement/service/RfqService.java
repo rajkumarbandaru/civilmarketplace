@@ -37,6 +37,8 @@ public class RfqService {
     private final OrganizationService organizations;
     private final Memberships memberships;
     private final PurchaseOrderService purchaseOrders;
+    private final PriceListService priceLists;
+    private final Notifier notifier;
     private final Audit audit;
     private final Clock clock;
 
@@ -82,6 +84,14 @@ public class RfqService {
         rfq.setNumber("RFQ-%05d".formatted(rfq.getId()));
         audit.record(actor.userId(), AuditAction.CREATE, ENTITY, rfq.getId(),
                 rfq.getNumber() + " to " + request.supplierOrgIds().size() + " supplier(s)");
+        for (Long supplierId : request.supplierOrgIds()) {
+            notifier.toOrg(supplierId, Notifier.EVERYONE, actor.userId(), "PROCUREMENT_RFQ_INVITED",
+                    buyer.getName() + " asks for your quotation",
+                    "%s: %s (%d item%s)%s. Quote from the Procurement workspace.".formatted(rfq.getNumber(), rfq.getTitle(),
+                            rfq.getLines().size(), rfq.getLines().size() == 1 ? "" : "s",
+                            rfq.getNeededBy() == null ? "" : ", needed by " + rfq.getNeededBy()),
+                    ENTITY, rfq.getId(), "/procurement/rfqs/" + rfq.getId());
+        }
         return detail(rfq, memberships.byOrganization(actor).keySet());
     }
 
@@ -138,6 +148,21 @@ public class RfqService {
         if (!priced.equals(rfqLines.keySet())) {
             throw new IllegalArgumentException("Price each line of the RFQ exactly once");
         }
+        // A contract's rates are a ceiling: the supplier agreed to them for this buyer.
+        Optional<PriceList> contract = priceLists.contractFor(rfq.getBuyerOrgId(), request.supplierOrgId());
+        if (contract.isPresent()) {
+            for (QuoteLineRequest l : request.lines()) {
+                RfqLine line = rfqLines.get(l.rfqLineId());
+                contract.get().getItems().stream()
+                        .filter(i -> i.matches(line.getDescription(), line.getUom()))
+                        .findFirst()
+                        .filter(i -> l.unitPrice().compareTo(i.getUnitPrice()) > 0)
+                        .ifPresent(i -> {
+                            throw new IllegalArgumentException("Line %d: your contract rate with this buyer is %s per %s"
+                                    .formatted(line.getLineNo(), i.getUnitPrice().toPlainString(), i.getUom()));
+                        });
+            }
+        }
 
         Quotation q = quotations.findByRfqIdAndSupplierOrgId(rfqId, request.supplierOrgId()).orElseGet(Quotation::new);
         boolean revision = q.getId() != null;
@@ -163,6 +188,11 @@ public class RfqService {
         quotations.save(q);
         audit.record(actor.userId(), revision ? AuditAction.UPDATE : AuditAction.CREATE, "QUOTATION", q.getId(),
                 rfq.getNumber() + " total " + q.getTotal());
+        String supplierName = organizations.find(request.supplierOrgId()).getName();
+        notifier.toOrg(rfq.getBuyerOrgId(), Notifier.EVERYONE, actor.userId(), "PROCUREMENT_QUOTATION_RECEIVED",
+                supplierName + (revision ? " revised its quotation" : " sent a quotation"),
+                "%s for %s: total %s incl. tax.".formatted(supplierName, rfq.getNumber(), q.getTotal().toPlainString()),
+                ENTITY, rfq.getId(), "/procurement/rfqs/" + rfq.getId());
         return detail(rfq, memberships.byOrganization(actor).keySet());
     }
 
@@ -188,6 +218,14 @@ public class RfqService {
         }
         rfq.setStatus(RfqStatus.AWARDED);
         audit.record(actor.userId(), AuditAction.APPROVE, "QUOTATION", chosen.getId(), rfq.getNumber());
+        for (Quotation q : all) {
+            if (q != chosen) {
+                notifier.toOrg(q.getSupplierOrgId(), Notifier.EVERYONE, null, "PROCUREMENT_QUOTATION_DECLINED",
+                        "Quotation not selected: " + rfq.getNumber(),
+                        "The buyer chose another supplier for " + rfq.getTitle() + ". Thank you for quoting.",
+                        ENTITY, rfq.getId(), "/procurement/rfqs/" + rfq.getId());
+            }
+        }
         return purchaseOrders.raise(actor, rfq, chosen);
     }
 
@@ -237,12 +275,42 @@ public class RfqService {
                         Money.amount(lines.get(l.getRfqLineId()).getQuantity(), l.getUnitPrice()))).toList(),
                 q.getCreatedAt())).toList();
 
+        List<PriceHint> hints = new ArrayList<>();
+        if (roles.contains(SUPPLIER)) {
+            for (Long supplierId : rfq.getInvitedSupplierIds()) {
+                if (myOrgs.contains(supplierId)) {
+                    hints.addAll(priceHints(rfq, supplierId));
+                }
+            }
+        }
         Long poId = rfq.getStatus() == RfqStatus.AWARDED ? orders.findByRfqId(rfq.getId()).map(PurchaseOrder::getId).orElse(null) : null;
         return new RfqDetail(rfq.getId(), rfq.getNumber(), rfq.getTitle(), new OrgRef(rfq.getBuyerOrgId(), names.get(rfq.getBuyerOrgId())),
                 rfq.getStatus(), rfq.getDeliverySite(), rfq.getNeededBy(), rfq.getReference(),
                 rfq.getLines().stream().map(l -> new RfqLineView(l.getId(), l.getLineNo(), l.getDescription(), l.getQuantity(), l.getUom())).toList(),
                 rfq.getInvitedSupplierIds().stream().map(id -> new OrgRef(id, names.get(id))).toList(),
-                quoteViews, roles, poId, rfq.getCreatedAt());
+                quoteViews, roles, poId, hints, rfq.getCreatedAt());
+    }
+
+    /**
+     * For each RFQ line the supplier has a price for: its contract rate with this buyer (a
+     * ceiling), else its catalogue price (a suggestion).
+     */
+    private List<PriceHint> priceHints(Rfq rfq, Long supplierId) {
+        Optional<PriceList> contract = priceLists.contractFor(rfq.getBuyerOrgId(), supplierId);
+        Optional<PriceList> catalogue = priceLists.catalogueOf(supplierId);
+        List<PriceHint> hints = new ArrayList<>();
+        for (RfqLine line : rfq.getLines()) {
+            Optional<PriceHint> hint = contract.flatMap(c -> match(c, line))
+                    .map(i -> new PriceHint(line.getId(), supplierId, i.getUnitPrice(), i.getTaxPercent(), "CONTRACT"))
+                    .or(() -> catalogue.flatMap(c -> match(c, line))
+                            .map(i -> new PriceHint(line.getId(), supplierId, i.getUnitPrice(), i.getTaxPercent(), "CATALOGUE")));
+            hint.ifPresent(hints::add);
+        }
+        return hints;
+    }
+
+    private static Optional<PriceListItem> match(PriceList list, RfqLine line) {
+        return list.getItems().stream().filter(i -> i.matches(line.getDescription(), line.getUom())).findFirst();
     }
 
     private static String blankToNull(String s) {

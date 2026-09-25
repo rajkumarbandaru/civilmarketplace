@@ -18,6 +18,13 @@ public enum TenantStatus {
     /** Serving traffic; its schemas exist in every service. */
     ACTIVE,
 
+    /**
+     * Live but read-only for a few seconds while its data is moved between clusters or restored:
+     * the gateway serves reads and refuses writes with 503 and Retry-After. Only a move or a
+     * restore puts a tenant here, and takes it out again.
+     */
+    MAINTENANCE,
+
     /** Reachable domain, but the gateway refuses requests — non-payment, or an operator hold. */
     SUSPENDED,
 

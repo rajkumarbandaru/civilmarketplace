@@ -24,6 +24,7 @@ import java.util.List;
 public class OrganizationController {
 
     private final OrganizationService service;
+    private final com.civileng.marketplace.procurement.service.PartyMigration migration;
 
     @GetMapping("/mine")
     @Operation(summary = "The organizations the caller acts for")
@@ -39,6 +40,26 @@ public class OrganizationController {
                                    @RequestHeader(value = "X-User-Email", required = false) String email,
                                    @Valid @RequestBody OrganizationRequest request) {
         return service.create(new Actor(userId, email), request);
+    }
+
+    @PostMapping("/from-profile")
+    @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Turn the caller's supplier / contractor account into an organization")
+    public OrganizationView fromProfile(@RequestHeader(value = "X-User-Id", required = false) Long userId,
+                                        @RequestHeader(value = "X-User-Email", required = false) String email,
+                                        @RequestHeader(value = "X-User-Role", required = false) String role,
+                                        @RequestHeader(value = "X-User-Name", required = false) String name) {
+        return migration.fromProfile(new Actor(userId, email), role, name);
+    }
+
+    @PostMapping("/migration")
+    @Operation(summary = "Staff: turn every supplier / contractor account into an organization (dryRun to preview)")
+    public com.civileng.marketplace.procurement.dto.MigrationDtos.MigrationReport migrateAll(
+            @RequestHeader(value = "X-User-Id", required = false) Long userId,
+            @RequestHeader(value = "X-User-Email", required = false) String email,
+            @RequestHeader(value = "X-User-Role", required = false) String role,
+            @RequestParam(defaultValue = "true") boolean dryRun) {
+        return migration.migrateAll(new Actor(userId, email), role, dryRun);
     }
 
     @GetMapping("/directory")

@@ -55,6 +55,14 @@ public class PurchaseOrderController {
         return service.acknowledge(new Actor(userId, email), poId);
     }
 
+    @PostMapping("/{poId}/dispatches")
+    @Operation(summary = "The supplier records a consignment (vehicle, e-way bill)")
+    public PoDetail dispatch(@RequestHeader(value = "X-User-Id", required = false) Long userId,
+                             @RequestHeader(value = "X-User-Email", required = false) String email,
+                             @PathVariable Long poId, @Valid @RequestBody DispatchRequest request) {
+        return service.dispatch(new Actor(userId, email), poId, request);
+    }
+
     @PostMapping("/{poId}/receipts")
     @Operation(summary = "Record a goods receipt (GRN)")
     public PoDetail receive(@RequestHeader(value = "X-User-Id", required = false) Long userId,
@@ -77,6 +85,14 @@ public class PurchaseOrderController {
                                    @PathVariable Long poId, @PathVariable Long invoiceId,
                                    @Valid @RequestBody(required = false) DecisionRequest request) {
         return service.decideInvoice(new Actor(userId, email), poId, invoiceId, true, request == null ? null : request.note());
+    }
+
+    @PostMapping("/{poId}/invoices/{invoiceId}/pay")
+    @Operation(summary = "Start paying an approved invoice: returns what Razorpay Checkout needs")
+    public PaymentCheckout pay(@RequestHeader(value = "X-User-Id", required = false) Long userId,
+                               @RequestHeader(value = "X-User-Email", required = false) String email,
+                               @PathVariable Long poId, @PathVariable Long invoiceId) {
+        return service.pay(new Actor(userId, email), poId, invoiceId);
     }
 
     @PostMapping("/{poId}/invoices/{invoiceId}/reject")

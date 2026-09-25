@@ -14,8 +14,9 @@ GW = os.environ.get("GATEWAY_URL", "http://localhost:8080") + "/api/v1"
 SEEDER = os.path.join(os.path.dirname(__file__),
                       "../../backend/auth-service/src/main/java/com/civileng/marketplace/auth/service/DevUserSeeder.java")
 src = open(SEEDER).read()
-OP_EMAIL = re.search(r'SUPER_ADMIN_EMAIL\s*=\s*"([^"]+)"', src).group(1)
-OP_PASSWORD = re.search(r'SUPER_ADMIN_PASSWORD\s*=\s*"([^"]+)"', src).group(1)
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
+# Never the owner's Super Admin: these checks enrol and reset MFA (see scripts/lib/live.py).
+from live import OP_EMAIL as OP_EMAIL, OP_PASSWORD as OP_PASSWORD, ensure_drill_operator
 KEY = "demo" + str(int(time.time()) % 1000000)
 OWNER = f"owner@{KEY}.example.com"
 OWNER_PASSWORD = "correct horse battery staple"
@@ -63,6 +64,7 @@ def sign_in_with_new_authenticator(email, password, host=None):
 
 
 def reset_operator_mfa():
+    ensure_drill_operator("platform")
     sql(f"UPDATE civil_engineer_auth_platform.users SET two_factor_enabled=0, two_factor_secret=NULL, "
         f"two_factor_last_step=NULL, two_factor_recovery_codes=NULL WHERE email='{OP_EMAIL}'")
 

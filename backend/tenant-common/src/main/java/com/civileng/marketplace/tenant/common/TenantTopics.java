@@ -11,6 +11,12 @@ public final class TenantTopics {
      */
     public static final String TENANT_PROVISIONED = "tenant.provisioned";
 
+    /**
+     * Each service's report that it now routes a tenant to its new cluster: what a tenant move
+     * waits on before writes resume. JSON: {@link TenantPlacementAck}.
+     */
+    public static final String TENANT_PLACEMENT_ACKS = "tenant.placement.acks";
+
     private TenantTopics() {
     }
 }

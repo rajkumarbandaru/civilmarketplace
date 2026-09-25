@@ -45,6 +45,8 @@ public class TenantService {
     private final TenantLifecycle lifecycle;
     private final EntitlementService entitlements;
     private final TenantSubscriptionRepository subscriptions;
+    private final com.civileng.marketplace.tenant.domain.DomainService customDomains;
+    private final com.civileng.marketplace.tenant.domain.DomainProperties domainProperties;
 
     @Transactional
     /**
@@ -198,10 +200,28 @@ public class TenantService {
     public Tenant byHost(String host) {
         String hostname = host == null ? "" : host.toLowerCase().split(":")[0];
 
-        return tenantRepository.findByCustomDomain(hostname)
-                .or(() -> tenantRepository.findBySubdomain(hostname.split("\\.")[0]))
+        // A verified, certified custom domain (the Domain Manager) first; then the legacy
+        // custom_domain column; then the platform subdomain.
+        return customDomains.tenantFor(hostname).flatMap(tenantRepository::findByTenantKey)
+                .or(() -> tenantRepository.findByCustomDomain(hostname))
+                .or(() -> platformSubdomain(hostname).flatMap(tenantRepository::findBySubdomain))
                 .orElseThrow(() -> new IllegalArgumentException(
                         "No tenant serves host '" + host + "'"));
+    }
+
+    /**
+     * The tenant label of a platform host: {@code acme} for {@code acme.civilengineer.com} or
+     * {@code acme.localhost}. Empty for any other host — once the edge accepts arbitrary custom
+     * domains, {@code acme.anything.example} must not resolve to tenant {@code acme}.
+     */
+    java.util.Optional<String> platformSubdomain(String hostname) {
+        for (String zone : domainProperties.platformDomains()) {
+            if (hostname.endsWith("." + zone)) {
+                String label = hostname.substring(0, hostname.length() - zone.length() - 1);
+                return label.contains(".") ? java.util.Optional.empty() : java.util.Optional.of(label);
+            }
+        }
+        return java.util.Optional.empty();
     }
 
     /** An operator's lifecycle action on a live tenant: suspend, reinstate, archive, restore. */
@@ -508,6 +528,19 @@ public class TenantService {
      */
     void publishAfterCommit(Tenant tenant, TenantBranding branding,
                                     List<TenantMenuOverride> overrides) {
+        publishAfterCommit(tenant, branding, overrides, false);
+    }
+
+    /**
+     * Tells every service the tenant's data is now on another cluster (after commit): they re-read
+     * the placement map, route there, and acknowledge. Carries the usual state too.
+     */
+    public void announcePlacement(Tenant tenant) {
+        publishAfterCommit(tenant, null, menuOverrides(tenant.getTenantKey()), true);
+    }
+
+    private void publishAfterCommit(Tenant tenant, TenantBranding branding,
+                                    List<TenantMenuOverride> overrides, boolean placementChanged) {
         TenantEventMessage event = TenantEventMessage.builder()
                 .tenantKey(tenant.getTenantKey())
                 .name(tenant.getName())
@@ -518,6 +551,7 @@ public class TenantService {
                 .modules(entitlements.runningModules(tenant))
                 .menuOverrides(overrides == null ? List.of() : overrides)
                 .landingPath(tenant.getLandingPath())
+                .placementChanged(placementChanged)
                 .occurredAt(Instant.now())
                 .build();
 

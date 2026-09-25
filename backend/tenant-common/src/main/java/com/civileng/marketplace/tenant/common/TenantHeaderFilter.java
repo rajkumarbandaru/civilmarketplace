@@ -25,6 +25,15 @@ public class TenantHeaderFilter extends OncePerRequestFilter implements Ordered 
 
     private final TenantProperties properties;
 
+    /** Where tenants are and whether their writes are paused. Null in a service with no schema layer. */
+    private final java.util.function.Supplier<TenantPlacements> placements;
+
+    public TenantHeaderFilter(TenantProperties properties) {
+        this(properties, () -> null);
+    }
+
+    private static final java.util.Set<String> READS = java.util.Set.of("GET", "HEAD", "OPTIONS");
+
     @Override
     public int getOrder() {
         // Ahead of Spring Security: authentication may itself hit a tenant-scoped table.
@@ -42,6 +51,19 @@ public class TenantHeaderFilter extends OncePerRequestFilter implements Ordered 
             response.getWriter().write(
                     "{\"success\":false,\"message\":\"No tenant on this request\",\"status\":400}");
             log.warn("Rejected untenanted request to {}", request.getRequestURI());
+            return;
+        }
+
+        // A tenant being moved or restored is read-only for a few seconds. Enforced here as well as
+        // at the gateway: the gateway's cache may not know yet, and other services call in directly.
+        TenantPlacements current = placements.get();
+        if (current != null && !READS.contains(request.getMethod())
+                && current.inMaintenance(TenantKey.normalise(tenantId))) {
+            response.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
+            response.setHeader("Retry-After", "5");
+            response.setContentType("application/json");
+            response.getWriter().write("{\"success\":false,\"code\":\"TENANT_MAINTENANCE\",\"message\":"
+                    + "\"This workspace is being maintained. Changes are paused for a moment; please try again.\",\"status\":503}");
             return;
         }
 

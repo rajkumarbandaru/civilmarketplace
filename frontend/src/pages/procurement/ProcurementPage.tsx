@@ -8,9 +8,13 @@ import {
 import { useDateTime } from '../../providers/UiConfigProvider';
 import { apiErrorMessage } from '../../services/apiError';
 import {
-  PO_STATUS_LABELS, PoStatus, RfqStatus, createOrganization, fetchMyOrganizations, fetchPurchaseOrders, fetchRfqs,
-  formatMoney,
+  PO_STATUS_LABELS, PoStatus, ROLE_CAPABILITIES, RfqStatus, createOrganization, createOrganizationFromProfile,
+  fetchMyOrganizations, fetchPurchaseOrders, fetchRfqs, formatMoney, CAPABILITY_LABELS,
 } from '../../services/procurementApi';
+import { useAppSelector } from '../../hooks';
+import { ADMIN_ROLES } from '../../components/AdminRoute';
+import PriceListsPanel from './PriceListsPanel';
+import MigrationCard from './MigrationCard';
 import OrganizationsPanel, { OrganizationForm } from './OrganizationsPanel';
 import NewRfqDialog from './NewRfqDialog';
 
@@ -26,7 +30,7 @@ const RoleChips: React.FC<{ roles: string[] }> = ({ roles }) => (
   <>{roles.map((r) => <Chip key={r} size="small" variant="outlined" label={r === 'BUYER' ? 'Buying' : 'Selling'} sx={{ mr: 0.5 }} />)}</>
 );
 
-const TABS = ['rfqs', 'orders', 'organizations'] as const;
+const TABS = ['rfqs', 'orders', 'prices', 'organizations'] as const;
 type TabKey = typeof TABS[number];
 
 /**
@@ -49,6 +53,13 @@ const ProcurementPage: React.FC = () => {
     mutationFn: createOrganization,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['procurement-orgs'] }),
   });
+  const fromProfile = useMutation({
+    mutationFn: createOrganizationFromProfile,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['procurement-orgs'] }),
+  });
+  const user = useAppSelector((s) => s.auth.user);
+  const profileCaps = user?.role ? ROLE_CAPABILITIES[user.role] : undefined;
+  const staff = !!user?.role && ADMIN_ROLES.includes(user.role);
   const buyers = orgs.data?.filter((o) => o.capabilities.includes('BUYER')) ?? [];
 
   if (orgs.isLoading) return <Container sx={{ py: 4 }}><CircularProgress /></Container>;
@@ -67,10 +78,26 @@ const ProcurementPage: React.FC = () => {
               Buy materials from suppliers with RFQs and purchase orders, or sell to buyers here as a supplier.
               You can add colleagues once it exists.
             </Typography>
+            {profileCaps && (
+              <Box sx={{ mb: 3 }} data-testid="from-profile">
+                <Alert severity="info" sx={{ mb: 1 }}>
+                  Your account already trades as a {profileCaps.map((c) => CAPABILITY_LABELS[c].toLowerCase()).join(' and ')}.
+                  Set up your organization from it{profileCaps.includes('SUPPLIER') ? ' — your published material rates become your catalogue' : ''}.
+                </Alert>
+                <Button variant="contained" disabled={fromProfile.isPending} onClick={() => fromProfile.mutate()}>
+                  Set up from my profile
+                </Button>
+                {fromProfile.isError && (
+                  <Alert severity="error" sx={{ mt: 1 }}>{apiErrorMessage(fromProfile.error, 'That did not work.')}</Alert>
+                )}
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>Or register a different one:</Typography>
+              </Box>
+            )}
             <OrganizationForm submitLabel="Create organization" pending={firstOrg.isPending} error={firstOrg.error}
               onSubmit={(i) => firstOrg.mutate(i)} />
           </CardContent>
         </Card>
+        {staff && <Box sx={{ mt: 3 }}><MigrationCard /></Box>}
       </Container>
     );
   }
@@ -84,6 +111,7 @@ const ProcurementPage: React.FC = () => {
       <Tabs value={tab} onChange={(_, v) => setParams({ tab: v })} sx={{ mb: 2 }} variant="scrollable">
         <Tab value="rfqs" label="RFQs" />
         <Tab value="orders" label="Purchase orders" />
+        <Tab value="prices" label="Prices & contracts" />
         <Tab value="organizations" label="Organizations" />
       </Tabs>
 
@@ -152,7 +180,13 @@ const ProcurementPage: React.FC = () => {
         </Box>
       )}
 
-      {tab === 'organizations' && <OrganizationsPanel organizations={orgs.data ?? []} />}
+      {tab === 'prices' && <PriceListsPanel organizations={orgs.data ?? []} />}
+      {tab === 'organizations' && (
+        <>
+          <OrganizationsPanel organizations={orgs.data ?? []} />
+          {staff && <Box sx={{ mt: 3 }}><MigrationCard /></Box>}
+        </>
+      )}
 
       {raising && (
         <NewRfqDialog buyers={buyers} onClose={() => setRaising(false)} onCreated={(rfq) => {

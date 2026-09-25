@@ -26,7 +26,8 @@ class TenantModulesEntitlementTest {
     @SuppressWarnings("unchecked")
     private final TenantService service = new TenantService(tenants, mock(TenantMenuOverrideRepository.class),
             mock(KafkaTemplate.class), mock(TenantIntegrationService.class), mock(TenantLifecycle.class),
-            entitlements, mock(TenantSubscriptionRepository.class));
+            entitlements, mock(TenantSubscriptionRepository.class), mock(com.civileng.marketplace.tenant.domain.DomainService.class),
+            new com.civileng.marketplace.tenant.domain.DomainProperties(null, null, null, null, null, null, null, null, null, null));
 
     private final Tenant acme = Tenant.builder().tenantKey("acme").status(TenantStatus.ACTIVE)
             .enabledModules("auth,bookings,projects").build();
@@ -54,5 +55,14 @@ class TenantModulesEntitlementTest {
             org.springframework.transaction.support.TransactionSynchronizationManager.clearSynchronization();
         }
         assertThat(acme.moduleKeys()).contains("projects", "reviews");
+    }
+
+    @org.junit.jupiter.api.Test
+    void onlyPlatformHostsResolveBySubdomain() {
+        org.assertj.core.api.Assertions.assertThat(service.platformSubdomain("acme.localhost")).contains("acme");
+        org.assertj.core.api.Assertions.assertThat(service.platformSubdomain("acme.civilengineer.com")).contains("acme");
+        org.assertj.core.api.Assertions.assertThat(service.platformSubdomain("acme.evil.example")).isEmpty();
+        org.assertj.core.api.Assertions.assertThat(service.platformSubdomain("x.acme.localhost")).isEmpty();
+        org.assertj.core.api.Assertions.assertThat(service.platformSubdomain("www.acme-builders.test")).isEmpty();
     }
 }

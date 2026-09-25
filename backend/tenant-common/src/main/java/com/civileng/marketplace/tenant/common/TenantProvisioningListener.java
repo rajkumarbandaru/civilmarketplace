@@ -28,20 +28,41 @@ public class TenantProvisioningListener {
     /** Reports the outcome to tenant-service's provisioning saga. Null where Kafka is absent. */
     private final TenantProvisioningAcks acks;
 
+    /** Where tenants' data lives. Null in a service with no schema layer. */
+    private final java.util.function.Supplier<TenantPlacements> placements;
+
+    public TenantProvisioningListener(TenantSchemaMigrator migrator, List<TenantProvisionedCallback> callbacks,
+                                      TenantProvisioningAcks acks) {
+        this(migrator, callbacks, acks, () -> null);
+    }
+
     /** Statuses that need storage: a tenant being provisioned, and live ones (idempotent re-sync). */
-    private static final java.util.Set<String> PROVISIONABLE = java.util.Set.of("ACTIVE", "PROVISIONING", "PENDING");
+    private static final java.util.Set<String> PROVISIONABLE = java.util.Set.of("ACTIVE", "PROVISIONING", "PENDING", "MAINTENANCE");
 
     @KafkaListener(
             topics = TenantTopics.TENANT_EVENTS,
             groupId = "${spring.application.name}-tenant-provisioning",
             containerFactory = "tenantEventListenerContainerFactory")
     public void onTenantEvent(TenantEventMessage event) {
+        if (event.isPlacementChanged()) {
+            TenantPlacements current = placements.get();
+            if (current != null) {
+                current.refresh();
+            }
+            return;
+        }
         if (!PROVISIONABLE.contains(event.getStatus())) {
             log.info("Tenant '{}' is {} — nothing to provision", event.getTenantKey(),
                     event.getStatus());
             return;
         }
         try {
+            // A new tenant is not in the placement map read at boot; without this its schemas
+            // would be built on the default cluster whatever it was placed on.
+            TenantPlacements current = placements.get();
+            if (current != null) {
+                current.refresh();
+            }
             if (migrator != null) {
                 migrator.migrate(event.getTenantKey());
             }

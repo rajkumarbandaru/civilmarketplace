@@ -37,5 +37,6 @@ public final class OrganizationDtos {
     public record RelationshipView(Long id, Long targetOrgId, String targetOrgName, RelationshipType type) { }
 
     /** An organization as others see it when choosing whom to trade with. */
-    public record DirectoryEntry(Long id, String name, Set<Capability> capabilities, boolean preferred) { }
+    public record DirectoryEntry(Long id, String name, Set<Capability> capabilities, boolean preferred,
+                                 boolean contracted) { }
 }

@@ -100,6 +100,7 @@ const NewRfqDialog: React.FC<{
               } label={
                 <Stack direction="row" spacing={1} alignItems="center">
                   <span>{s.name}</span>
+                  {s.contracted && <Chip size="small" color="primary" label="Contract" />}
                   {s.preferred && <Chip size="small" color="success" label="Preferred" />}
                 </Stack>
               } />

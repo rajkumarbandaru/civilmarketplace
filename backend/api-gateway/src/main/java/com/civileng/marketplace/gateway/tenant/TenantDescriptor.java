@@ -20,6 +20,11 @@ public class TenantDescriptor {
         return "ACTIVE".equals(status);
     }
 
+    /** Live but read-only for a few seconds while its data is moved or restored. */
+    public boolean isMaintenance() {
+        return "MAINTENANCE".equals(status);
+    }
+
     public boolean hasModule(String moduleKey) {
         return modules != null && modules.contains(moduleKey);
     }

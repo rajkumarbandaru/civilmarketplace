@@ -28,7 +28,8 @@ public class TenantLifecycle {
             DRAFT, EnumSet.of(PROVISIONING),
             PROVISIONING, EnumSet.of(ACTIVE, PROVISIONING_FAILED),
             PROVISIONING_FAILED, EnumSet.of(PROVISIONING, DRAFT),
-            ACTIVE, EnumSet.of(SUSPENDED, ARCHIVED),
+            ACTIVE, EnumSet.of(SUSPENDED, ARCHIVED, MAINTENANCE),
+            MAINTENANCE, EnumSet.of(ACTIVE),
             SUSPENDED, EnumSet.of(ACTIVE, ARCHIVED),
             ARCHIVED, EnumSet.of(ACTIVE)));
 
@@ -47,7 +48,7 @@ public class TenantLifecycle {
         if (!allowed(from, to)) {
             throw new IllegalArgumentException("A " + from + " tenant cannot become " + to);
         }
-        if ("platform".equals(tenant.getTenantKey()) && to != ACTIVE) {
+        if ("platform".equals(tenant.getTenantKey()) && to != ACTIVE && to != MAINTENANCE) {
             // Suspending the operator tenant would lock every admin out of the console that is
             // the only way to un-suspend it.
             throw new IllegalArgumentException("The operator tenant cannot be suspended");

@@ -14,4 +14,6 @@ public interface OrganizationRepository extends JpaRepository<Organization, Long
     boolean existsByNameIgnoreCase(String name);
 
     List<Organization> findAllByOrderByNameAsc();
+
+    Optional<Organization> findBySourceUserId(Long sourceUserId);
 }

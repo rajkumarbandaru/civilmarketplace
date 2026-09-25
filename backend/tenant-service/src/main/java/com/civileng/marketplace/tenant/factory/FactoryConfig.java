@@ -18,7 +18,7 @@ import java.util.Map;
 
 @Configuration
 @EnableScheduling
-@EnableConfigurationProperties(FactoryProperties.class)
+@EnableConfigurationProperties({FactoryProperties.class, com.civileng.marketplace.tenant.placement.PlacementProperties.class, com.civileng.marketplace.tenant.domain.DomainProperties.class})
 public class FactoryConfig {
 
     @Bean

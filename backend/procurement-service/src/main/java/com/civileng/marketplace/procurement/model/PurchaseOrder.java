@@ -57,6 +57,13 @@ public class PurchaseOrder {
     @Column(nullable = false, precision = 15, scale = 2)
     private BigDecimal total;
 
+    /** Net N: invoices are due N days after approval. From the contract, if one applied. */
+    @Column(name = "payment_terms_days", nullable = false)
+    private int paymentTermsDays;
+
+    @Column(name = "contract_id")
+    private Long contractId;
+
     @Column(name = "delivery_site", length = 300)
     private String deliverySite;
 

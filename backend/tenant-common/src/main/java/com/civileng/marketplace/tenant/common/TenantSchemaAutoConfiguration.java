@@ -47,13 +47,36 @@ public class TenantSchemaAutoConfiguration {
         return new TenantSchemas(properties.getSchemaPrefix());
     }
 
+    /** One pool per MySQL cluster a tenant of this service is placed on. */
+    @Bean(destroyMethod = "close")
+    public ClusterDataSources clusterDataSources(DataSource dataSource,
+                                                 @org.springframework.beans.factory.annotation.Value("${spring.datasource.url:}") String url,
+                                                 @org.springframework.beans.factory.annotation.Value("${spring.datasource.username:}") String username,
+                                                 @org.springframework.beans.factory.annotation.Value("${spring.datasource.password:}") String password,
+                                                 TenantProperties properties) {
+        return new ClusterDataSources(dataSource, url, username, password, properties.getClusterPoolSize());
+    }
+
+    /** Tenant → cluster, from the control plane's placement map; says so when a tenant moves. */
+    @Bean(destroyMethod = "close")
+    public TenantPlacements tenantPlacements(TenantRegistry registry, ClusterDataSources clusters,
+                                             ObjectProvider<TenantProvisioningAcks> acks, TenantProperties properties) {
+        return new TenantPlacements(registry, clusters, placement -> {
+            TenantProvisioningAcks sender = acks.getIfAvailable();
+            if (sender != null) {
+                sender.placement(placement);
+            }
+        }, properties.getPlacementRefreshSeconds());
+    }
+
     @Bean
     public TenantSchemaMigrator tenantSchemaMigrator(DataSource dataSource, TenantSchemas schemas,
                                                      TenantProperties properties,
                                                      ObjectProvider<FlywayProperties>
-                                                             flywayProperties) {
+                                                             flywayProperties,
+                                                     TenantPlacements placements) {
         return new TenantSchemaMigrator(dataSource, schemas, properties,
-                flywayProperties.getIfAvailable());
+                flywayProperties.getIfAvailable(), placements::dataSourceFor);
     }
 
     @Bean
@@ -70,9 +93,9 @@ public class TenantSchemaAutoConfiguration {
 
     @Bean
     public HibernatePropertiesCustomizer multiTenantConnectionProviderCustomizer(
-            DataSource dataSource, TenantSchemas schemas) {
+            DataSource dataSource, TenantSchemas schemas, TenantPlacements placements) {
         SchemaMultiTenantConnectionProvider provider = new SchemaMultiTenantConnectionProvider(
-                dataSource, schemas, defaultCatalogOf(dataSource));
+                dataSource, schemas, defaultCatalogOf(dataSource), placements::dataSourceFor);
         return properties ->
                 properties.put(AvailableSettings.MULTI_TENANT_CONNECTION_PROVIDER, provider);
     }

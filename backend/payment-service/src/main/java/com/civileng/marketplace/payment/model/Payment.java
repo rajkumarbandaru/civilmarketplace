@@ -33,8 +33,17 @@ public class Payment {
     @Column(name = "payment_code", nullable = false, unique = true, length = 30)
     private String paymentCode;
 
-    @Column(name = "booking_id", nullable = false)
+    /** Null for a payment that is not for a booking; see {@link #referenceType}. */
+    @Column(name = "booking_id")
     private Long bookingId;
+
+    /** What is being paid for: BOOKING, or e.g. SUPPLIER_INVOICE from procurement-service. */
+    @Column(name = "reference_type", nullable = false, length = 30)
+    @Builder.Default
+    private String referenceType = "BOOKING";
+
+    @Column(name = "reference_id")
+    private Long referenceId;
 
     @Column(name = "user_id", nullable = false)
     private Long userId;

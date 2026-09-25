@@ -15,6 +15,9 @@ services:
   mysql:
     ports:
       - "127.0.0.1:${HOST_PORT_MYSQL:-3306}:3306"
+  mysql-b:
+    ports:
+      - "127.0.0.1:${HOST_PORT_MYSQL_B:-3307}:3306"
   redis:
     ports:
       - "127.0.0.1:${HOST_PORT_REDIS:-6381}:6379"
@@ -87,6 +90,9 @@ services:
   procurement-service:
     ports:
       - "127.0.0.1:${HOST_PORT_PROCUREMENT:-8101}:8101"
+  analytics-service:
+    ports:
+      - "127.0.0.1:${HOST_PORT_ANALYTICS:-8102}:8102"
   audit-service:
     ports:
       - "127.0.0.1:${HOST_PORT_AUDIT:-8095}:8095"

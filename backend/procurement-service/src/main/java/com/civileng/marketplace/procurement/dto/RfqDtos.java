@@ -52,12 +52,15 @@ public final class RfqDtos {
                              LocalDate neededBy, int quotations, Set<String> roles, LocalDateTime createdAt) { }
 
     /**
-     * The buyer sees every quotation; an invited supplier only its own. {@code purchaseOrderId}
-     * once a quotation has been accepted.
+     * The buyer sees every quotation; an invited supplier only its own, and its own price hints.
+     * {@code purchaseOrderId} once a quotation has been accepted.
      */
     public record RfqDetail(Long id, String number, String title, OrgRef buyer, RfqStatus status,
                             String deliverySite, LocalDate neededBy, String reference,
                             List<RfqLineView> lines, List<OrgRef> invitedSuppliers,
                             List<QuotationView> quotations, Set<String> roles, Long purchaseOrderId,
-                            LocalDateTime createdAt) { }
+                            List<PriceHint> priceHints, LocalDateTime createdAt) { }
+
+    /** A supplier's own price for an RFQ line: CONTRACT (the most it may quote) or CATALOGUE (a suggestion). */
+    public record PriceHint(Long rfqLineId, Long supplierOrgId, BigDecimal unitPrice, BigDecimal taxPercent, String source) { }
 }

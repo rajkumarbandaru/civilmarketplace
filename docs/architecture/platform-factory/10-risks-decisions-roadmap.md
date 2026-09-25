@@ -175,26 +175,64 @@ customer app and admin portal, CMS-editable block placement, component-token ove
 (advancedTheming), edge-injected critical CSS, a lint gate for literal colours.
 
 **Phase 5 status (2026-09-24).** Exit criterion met: the hybrid tenant flow of Diagram 14 runs end to
-end on the live stack (`scripts/procurement/phase5_hybrid_flow_check.py`, 45 checks). A homeowner
-books a house extension that is assigned to a contractor; the contractor's firm — one organization
-that is both CONTRACTOR and BUYER — raises an RFQ for that booking's materials, compares two
-suppliers' quotations, accepts the cheaper, has the order approved by a colleague (never by whoever
-raised it), and takes it through acknowledgement, partial and final goods receipts and supplier
-invoices, the three-way match rejecting an over-billed and an over-priced invoice, until the order
-closes. Built: `procurement-service` (schema per tenant, provisioned by the Factory before a tenant
-goes live) with organizations and capabilities, members added by email and linked on first sign-in
-(OWNER / APPROVER / MEMBER), PREFERRED_SUPPLIER and BLOCKED relationships, RFQ → quotation → PO
-(snapshot of the accepted quotation, approval above the organization's threshold, default
-₹1,00,000) → GRN (received and rejected per line, never accepting more than ordered) → invoice
-(three-way match: quantity within accepted-and-not-yet-invoiced, unit price within 2%, same tax
-rate); every step audited. Platform: a `procurement` module in the marketplace vertical, in
-Professional and Enterprise (plan version 2; version 1 subscribers moved, as it only adds) and a
-Starter add-on, gated at the gateway, and a Procurement workspace in the app (organizations, RFQs
-with side-by-side comparison, orders with receipts and invoices). Deferred: the party-model
-migration of existing users into organizations (membership is by email for now), dispatch /
-e-way bill, e-invoicing (IRN), payment of approved invoices through payment-service (Net-N,
-advance, escrow, TDS), buyer-specific price lists and CONTRACTED terms, supplier notifications of
-RFQs and orders, B2B reviews, and tenders from a builder to contractors.
+end on the live stack (`scripts/procurement/phase5_hybrid_flow_check.py`, 65 checks). A homeowner
+books a house extension that is assigned to a contractor; the supplier's existing account becomes
+an organization (its published material rate its catalogue) and offers the contractor's firm a
+contract; the firm — one organization that is both CONTRACTOR and BUYER — raises an RFQ for the
+booking's materials, the contract caps the supplier's quote, the firm accepts the cheaper
+quotation, a colleague approves (never whoever raised it), the supplier acknowledges and
+dispatches under e-way bills, the firm receives against each dispatch, the three-way match
+rejects an over-billed and an over-priced invoice, the order closes, a second order is refused
+for the credit limit, the invoices are paid through payment-service (Razorpay test mode) and,
+paid up, the second order goes through. Built: `procurement-service` (schema per tenant,
+provisioned by the Factory) with organizations and capabilities, members (OWNER / APPROVER /
+MEMBER) linked to their account when added, PREFERRED_SUPPLIER and BLOCKED relationships; RFQ →
+quotation → PO (snapshot, approval above the organization's threshold) → dispatch (vehicle,
+e-way bill required above ₹50,000) → GRN (per dispatch, received and rejected per line) →
+invoice (three-way match: quantity, price within 2%, tax rate) → payment (payment-service order,
+confirmed back over `payment.completed`); supplier catalogues and buyer contracts (CONTRACTED:
+rate ceilings, Net N due dates, credit limit on open orders); notifications to the right people
+at each step (`procurement.events` → notification-service, in-app and email); the party-model
+migration (material-supplier, labour-contractor and equipment-rental accounts become
+organizations, self-service or by staff with a dry run); every step audited. Platform: a
+`procurement` module in the marketplace vertical, in Professional and Enterprise (plan version 2)
+and a Starter add-on, gated at the gateway; payment-service takes payments for things other than
+bookings (`reference_type`/`reference_id`) and announces who paid for what. Fixed on the way:
+suppliers could not publish material rates at all (a server-assigned field was validated on the
+request), and `payment.completed` named no payer, so the "payment successful" notice went to the
+user whose id equalled the payment id. Deferred: e-invoicing (IRN), advance and escrow payment
+terms and TDS on B2B payments, B2B reviews, tenders from a builder to contractors, and absolute
+links in notification emails (they carry the app path; the tenant's host is not known to
+procurement-service).
+
+**Phase 6 status (2026-09-25).** Exit criteria met, both as live drills: a tenant moved between clusters
+(`scripts/ops/phase6_move_drill.py`, 23 checks: copied live, writes paused ~15 s while reads and
+other tenants carry on, every table verified by checksum, every service acknowledging the new
+cluster, then moved back and the old copy dropped) and a single-tenant point-in-time restore
+(`scripts/ops/phase6_pitr_drill.py`, 16 checks: per-tenant backup + binlog replay to the second
+before an admin error, diffed against live, swapped in with writes paused, other tenants untouched,
+undo kept). Built: **placement map and routing** — `db_clusters`, per-tenant `db_cluster_id` and
+epoch, a second MySQL cluster, every data service routing each tenant to its cluster (tenant-common
+`TenantPlacements` → one pool per cluster) and acknowledging changes; **MAINTENANCE** (read-only)
+enforced at the gateway and in every service; **move controller** (copy → freeze → catch-up →
+verify → flip → acks → resume, automatic resume on early failure, rollback after the flip),
+tier T2 as a DEDICATED cluster, with a Data placement card; **restore runbook**
+(`docs/operations/tenant-placement-and-restore-runbook.md`) with `tenant_backup.py`/`tenant_restore.py`
+and the `civil-ops` toolbox image (mysqlbinlog); **custom domains with ACME** — Domain Manager (TXT
+proof, HTTP-01 through the edge, Pebble locally / Let's Encrypt in production, certificates chosen
+by SNI at the edge, daily re-check with DEGRADED grace, renewal 30 days ahead; 21 checks,
+`phase6_domains_check.py`); **secrets broker** — Vault Transit, one key per (tenant, capability),
+per-service policies (tenant-service write-only, each reader its capability), audited opens,
+legacy re-seal, crypto-shredding of archived tenants (23 checks, `phase6_secrets_check.py`);
+**CDC warehouse** — analytics-service follows every cluster's binlog into tenant-partitioned facts
+with pseudonymised people, operator and workspace KPIs, resume-from-offset, purge (17 checks,
+`phase6_warehouse_check.py`). Fixed on the way: arbitrary hosts resolving to a tenant by their
+first label; the gateway serving a released host forever from its stale cache; the edge keeping
+dead container addresses after a redeploy; Maven keeping service jars with an old tenant-common;
+the live checks resetting the owner's own MFA (they now use a dedicated drill operator). Deferred:
+real multi-region cells and edge routing by cell, binlog-based catch-up during moves (moves use a
+short write freeze instead), a columnar warehouse store, KMS auto-unseal and workload identities
+for Vault, 301 primary-host redirects for custom domains, an ADMIN-surface custom domain.
 
 Each phase follows the project's standing rule: every integrated feature ships with unit/component
 tests **and** Playwright end-to-end tests that exercise it in the browser.

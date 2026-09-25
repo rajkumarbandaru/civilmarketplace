@@ -47,6 +47,13 @@ public class GatewayConfig {
     public RouteLocator customRouteLocator(RouteLocatorBuilder builder,
                                            JwtAuthGatewayFilterFactory jwtAuthFilter) {
         return builder.routes()
+                // ACME HTTP-01 checks for tenants' custom domains: the certificate authority fetches
+                // the answer over plain HTTP on the domain being certified, before it serves any
+                // tenant — so no token and no tenant (TenantResolutionGlobalFilter lets it through).
+                .route("acme-challenge", r -> r
+                        .path("/.well-known/acme-challenge/**")
+                        .filters(f -> f.stripPrefix(0))
+                        .uri("lb://tenant-service"))
                 .route("auth-service", r -> r
                         .path("/api/v1/auth/**", "/oauth2/**")
                         .filters(f -> f.stripPrefix(0))
@@ -140,6 +147,13 @@ public class GatewayConfig {
                         .filters(f -> f.stripPrefix(0)
                                 .filter(jwtAuthFilter.apply(new JwtAuthGatewayFilterFactory.Config())))
                         .uri("lb://procurement-service"))
+                // The analytics warehouse (change-data capture). The service decides who sees what:
+                // a tenant's staff their own workspace (from the signed tenant header), the operator all.
+                .route("analytics-service", r -> r
+                        .path("/api/v1/analytics/**")
+                        .filters(f -> f.stripPrefix(0)
+                                .filter(jwtAuthFilter.apply(new JwtAuthGatewayFilterFactory.Config())))
+                        .uri("lb://analytics-service"))
                 .route("review-service", r -> r
                         .path("/api/v1/reviews/**", "/api/v1/profiles/**", "/api/v1/admin/reviews/**")
                         .filters(f -> f.stripPrefix(0)

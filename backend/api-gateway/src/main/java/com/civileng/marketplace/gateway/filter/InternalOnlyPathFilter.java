@@ -42,6 +42,8 @@ public class InternalOnlyPathFilter implements GlobalFilter, Ordered {
     private static final List<String> INTERNAL_ONLY = List.of(
             "/api/v1/bookings/admin",
             "/api/v1/auth/admin",
+            // Account lookups by email, for services acting for a signed-in member.
+            "/api/v1/auth/internal",
             "/api/v1/payments/admin",
             // user-service only. NOT the whole /api/v1/users/admin prefix: KYC review lives at
             // /api/v1/users/admin/kyc and has no console proxy in front of it, so blocking the
@@ -53,7 +55,12 @@ public class InternalOnlyPathFilter implements GlobalFilter, Ordered {
             // service may do the vouching.
             "/api/v1/media/internal",
             // A tenant's plan and limits, for services enforcing quotas on their own tenant.
-            "/api/v1/tenants/internal"
+            "/api/v1/tenants/internal",
+            // Payment orders for things other than bookings: the calling service (procurement)
+            // decides who may pay what, so a browser must not reach it directly.
+            "/api/v1/payments/internal",
+            // A supplier's rates by account id, for the party migration.
+            "/api/v1/users/internal"
     );
 
     @Override

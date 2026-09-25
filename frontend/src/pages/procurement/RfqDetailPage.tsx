@@ -122,16 +122,24 @@ const QuoteForm: React.FC<{ rfq: RfqDetail; supplierOrgIds: number[] }> = ({ rfq
   const [validUntil, setValidUntil] = useState('');
   const [notes, setNotes] = useState('');
 
+  const hintFor = (lineId: number) =>
+    rfq.priceHints.find((h) => h.rfqLineId === lineId && h.supplierOrgId === supplierOrgId);
+
   useEffect(() => {
     const init: Record<number, { unitPrice: string; taxPercent: string }> = {};
     rfq.lines.forEach((l) => {
       const q = existing?.lines.find((x) => x.rfqLineId === l.id);
-      init[l.id] = { unitPrice: q ? String(q.unitPrice) : '', taxPercent: q ? String(q.taxPercent) : '18' };
+      // A fresh quotation starts from the supplier's own contract or catalogue price.
+      const h = rfq.priceHints.find((x) => x.rfqLineId === l.id && x.supplierOrgId === supplierOrgId);
+      init[l.id] = {
+        unitPrice: q ? String(q.unitPrice) : h ? String(h.unitPrice) : '',
+        taxPercent: q ? String(q.taxPercent) : h ? String(h.taxPercent) : '18',
+      };
     });
     setPrices(init);
     setValidUntil(existing?.validUntil ?? '');
     setNotes(existing?.notes ?? '');
-  }, [rfq, existing]);
+  }, [rfq, existing, supplierOrgId]);
 
   const filled = rfq.lines.every((l) => prices[l.id]?.unitPrice !== '' && prices[l.id] != null);
   const totals = useMemo(() => lineTotals(rfq.lines.map((l) => ({
@@ -183,6 +191,16 @@ const QuoteForm: React.FC<{ rfq: RfqDetail; supplierOrgIds: number[] }> = ({ rfq
                     <TextField size="small" type="number" disabled={!open} value={prices[l.id]?.unitPrice ?? ''}
                       inputProps={{ min: 0, step: '0.01', 'aria-label': `Unit price for ${l.description}` }}
                       onChange={(e) => setPrices({ ...prices, [l.id]: { ...prices[l.id], unitPrice: e.target.value } })} />
+                    {hintFor(l.id) && (
+                      <Typography variant="caption" display="block" data-testid={`price-hint-${l.id}`}
+                        color={hintFor(l.id)!.source === 'CONTRACT' && Number(prices[l.id]?.unitPrice) > hintFor(l.id)!.unitPrice
+                          ? 'error' : 'text.secondary'}>
+                        {hintFor(l.id)!.source === 'CONTRACT'
+                          ? (Number(prices[l.id]?.unitPrice) > hintFor(l.id)!.unitPrice ? 'Above your contract rate: ' : 'Contract rate: ')
+                            + `at most ${formatMoney(hintFor(l.id)!.unitPrice)}`
+                          : `Your catalogue: ${formatMoney(hintFor(l.id)!.unitPrice)}`}
+                      </Typography>
+                    )}
                   </TableCell>
                   <TableCell>
                     <TextField size="small" type="number" disabled={!open} value={prices[l.id]?.taxPercent ?? ''} sx={{ width: 90 }}

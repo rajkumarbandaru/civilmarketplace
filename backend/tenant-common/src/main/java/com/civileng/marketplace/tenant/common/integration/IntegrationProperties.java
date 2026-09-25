@@ -13,8 +13,23 @@ public class IntegrationProperties {
     /** Turns per-tenant integration resolution on for this service. */
     private boolean enabled = false;
 
-    /** Base64 AES-256 key that seals every tenant's secrets. Same value in every service. */
+    /**
+     * The previous scheme: one base64 AES-256 key shared by every service. Now only needed to read
+     * secrets sealed before the broker; leave it unset once they have been re-sealed.
+     */
     private String masterKey;
+
+    /** The secrets broker (Vault Transit). With it, new secrets are sealed per tenant and capability. */
+    private final Vault vault = new Vault();
+
+    @Data
+    public static class Vault {
+        /** e.g. http://vault:8200; blank = no broker. */
+        private String address;
+        /** This service's token; its Vault policy says what it may seal, open and destroy. */
+        private String token;
+        private String mount = "transit";
+    }
 
     /** The operator tenant: the only one that resolves to the platform's own credentials. */
     private String operatorTenant = "platform";

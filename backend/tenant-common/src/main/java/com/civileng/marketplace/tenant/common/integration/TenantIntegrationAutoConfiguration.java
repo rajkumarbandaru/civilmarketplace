@@ -19,18 +19,36 @@ import java.time.Clock;
 @ConditionalOnProperty(prefix = "platform.integrations", name = "enabled", havingValue = "true")
 public class TenantIntegrationAutoConfiguration {
 
+    /**
+     * The broker when configured, the old shared key when set (to read secrets sealed before the
+     * broker). At least one is required.
+     */
     @Bean
     @ConditionalOnMissingBean
-    public IntegrationCipher integrationCipher(IntegrationProperties properties) {
-        return new IntegrationCipher(properties.getMasterKey());
+    public IntegrationSecrets integrationSecrets(IntegrationProperties properties) {
+        IntegrationProperties.Vault v = properties.getVault();
+        SecretsBroker broker = v.getAddress() == null || v.getAddress().isBlank() ? null
+                : new VaultTransitBroker(v.getAddress(), v.getToken(), v.getMount());
+        IntegrationCipher legacy = properties.getMasterKey() == null || properties.getMasterKey().isBlank() ? null
+                : new IntegrationCipher(properties.getMasterKey());
+        return new IntegrationSecrets(broker, legacy);
+    }
+
+    /** The broker itself, for the one service that destroys keys (tenant-service). */
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "platform.integrations.vault", name = "address")
+    public SecretsBroker secretsBroker(IntegrationProperties properties) {
+        IntegrationProperties.Vault v = properties.getVault();
+        return new VaultTransitBroker(v.getAddress(), v.getToken(), v.getMount());
     }
 
     @Bean
     @ConditionalOnMissingBean
     public TenantIntegrationStore tenantIntegrationStore(TenantProperties tenantProperties,
-                                                         IntegrationCipher cipher,
+                                                         IntegrationSecrets secrets,
                                                          IntegrationProperties properties) {
-        return new JdbcTenantIntegrationStore(tenantProperties.getRegistry(), cipher,
+        return new JdbcTenantIntegrationStore(tenantProperties.getRegistry(), secrets,
                 properties.getCacheTtl(), Clock.systemUTC());
     }
 

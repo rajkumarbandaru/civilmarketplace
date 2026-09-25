@@ -43,6 +43,8 @@ class RfqServiceTest {
     private final QuotationRepository quotations = mock(QuotationRepository.class);
     private final OrganizationService organizations = mock(OrganizationService.class);
     private final PurchaseOrderService purchaseOrders = mock(PurchaseOrderService.class);
+    private final PriceListService priceLists = mock(PriceListService.class);
+    private final Notifier notifier = mock(Notifier.class);
     private final OrgMemberRepository memberRepo = mock(OrgMemberRepository.class);
     private RfqService service;
 
@@ -92,7 +94,7 @@ class RfqServiceTest {
                 .findFirst());
 
         service = new RfqService(rfqs, quotations, mock(PurchaseOrderRepository.class), organizations,
-                new Memberships(memberRepo), purchaseOrders, mock(Audit.class),
+                new Memberships(memberRepo), purchaseOrders, priceLists, notifier, mock(Audit.class),
                 Clock.fixed(Instant.parse("2026-09-24T10:00:00Z"), ZoneOffset.UTC));
     }
 
@@ -174,5 +176,59 @@ class RfqServiceTest {
         assertThatThrownBy(() -> service.quote(CEMENT, rfq.id(), quote(2L, rfq, "1", "1")))
                 .isInstanceOf(IllegalStateException.class);
         assertThatThrownBy(() -> service.accept(BUYER, rfq.id(), cheapest)).isInstanceOf(IllegalStateException.class);
+    }
+
+    private static PriceList prices(Long buyerOrgId, String cement, PriceListStatus status) {
+        PriceList p = new PriceList();
+        p.setSupplierOrgId(2L);
+        p.setBuyerOrgId(buyerOrgId);
+        p.setStatus(status);
+        PriceListItem item = new PriceListItem();
+        item.setDescription("opc 53  CEMENT");   // matched ignoring case and spacing
+        item.setUom("Bag");
+        item.setUnitPrice(new BigDecimal(cement));
+        item.setTaxPercent(new BigDecimal("28"));
+        p.addItem(item);
+        return p;
+    }
+
+    @Test
+    void aContractRateIsTheMostTheSupplierMayQuoteThatBuyer() {
+        RfqDetail rfq = service.create(BUYER, request(1L, 2L));
+        when(priceLists.contractFor(1L, 2L)).thenReturn(Optional.of(prices(1L, "380.00", PriceListStatus.ACTIVE)));
+        assertThatThrownBy(() -> service.quote(CEMENT, rfq.id(), quote(2L, rfq, "380.01", "65000")))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("contract rate with this buyer is 380.00 per Bag");
+        assertThat(service.quote(CEMENT, rfq.id(), quote(2L, rfq, "375.00", "65000")).quotations()).hasSize(1);
+    }
+
+    @Test
+    void theSupplierSeesItsContractRateOrElseItsCatalogueAsAHint() {
+        RfqDetail rfq = service.create(BUYER, request(1L, 2L));
+        when(priceLists.catalogueOf(2L)).thenReturn(Optional.of(prices(null, "410.00", PriceListStatus.ACTIVE)));
+        assertThat(service.get(CEMENT, rfq.id()).priceHints()).singleElement()
+                .satisfies(h -> {
+                    assertThat(h.source()).isEqualTo("CATALOGUE");
+                    assertThat(h.unitPrice()).isEqualByComparingTo("410.00");
+                    assertThat(h.rfqLineId()).isEqualTo(rfq.lines().get(0).id());
+                });
+        when(priceLists.contractFor(1L, 2L)).thenReturn(Optional.of(prices(1L, "380.00", PriceListStatus.ACTIVE)));
+        assertThat(service.get(CEMENT, rfq.id()).priceHints()).singleElement()
+                .extracting(PriceHint::source).isEqualTo("CONTRACT");
+        assertThat(service.get(BUYER, rfq.id()).priceHints()).isEmpty();
+    }
+
+    @Test
+    void invitedSuppliersAreToldAndTheBuyerHearsOfEachQuotation() {
+        RfqDetail rfq = service.create(BUYER, request(1L, 2L, 3L));
+        verify(notifier).toOrg(eq(2L), same(Notifier.EVERYONE), eq(10L), eq("PROCUREMENT_RFQ_INVITED"), any(), any(),
+                eq("RFQ"), eq(rfq.id()), eq("/procurement/rfqs/" + rfq.id()));
+        verify(notifier).toOrg(eq(3L), any(), any(), eq("PROCUREMENT_RFQ_INVITED"), any(), any(), any(), any(), any());
+        service.quote(CEMENT, rfq.id(), quote(2L, rfq, "400.00", "65000.00"));
+        verify(notifier).toOrg(eq(1L), any(), eq(20L), eq("PROCUREMENT_QUOTATION_RECEIVED"), eq("CementCo sent a quotation"),
+                any(), any(), any(), any());
+        service.quote(STEEL, rfq.id(), quote(3L, rfq, "395.00", "64000.00"));
+        service.accept(BUYER, rfq.id(), service.get(BUYER, rfq.id()).quotations().get(0).id());
+        verify(notifier).toOrg(eq(2L), any(), any(), eq("PROCUREMENT_QUOTATION_DECLINED"), any(), any(), any(), any(), any());
+        verify(notifier, never()).toOrg(eq(3L), any(), any(), eq("PROCUREMENT_QUOTATION_DECLINED"), any(), any(), any(), any(), any());
     }
 }

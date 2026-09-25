@@ -218,6 +218,8 @@ export interface Tenant {
   landingPath: string | null;
   branding: TenantBranding | null;
   createdAt: string;
+  /** When its encryption keys were destroyed in the secrets broker (crypto-shredding). */
+  keysDestroyedAt?: string | null;
 }
 
 /** Mirrors `CreateTenantRequest`; optional fields are omitted rather than sent empty. */
@@ -508,3 +510,59 @@ export const entitledModules = (catalog: PlanCatalog | undefined, planKey: strin
 /** "bookings.monthly" -> 5000, or "Unlimited" when absent. */
 export const formatLimit = (value: number | null | undefined) =>
   value === null || value === undefined ? 'Unlimited' : value.toLocaleString();
+
+// ---------------------------------------------------------------- placement (Phase 6)
+
+export interface DbCluster {
+  clusterId: string; cell: string; host: string; port: number; kind: 'SHARED' | 'DEDICATED';
+  status: 'ACTIVE' | 'DRAINING' | 'RETIRED'; capacity: number; tenants: number;
+}
+export type MoveStep = 'COPY' | 'FREEZE' | 'SYNC' | 'VERIFY' | 'FLIP' | 'AWAIT_ACKS' | 'RESUME' | 'DONE' | 'FAILED' | 'ROLLED_BACK';
+export interface TenantMove {
+  id: number; tenantKey: string; sourceClusterId: string; targetClusterId: string; step: MoveStep; lastError: string | null;
+  schemasCopied: number; tablesCopied: number; rowsCopied: number; tablesResynced: number;
+  acknowledged: string[]; waitingFor: string[];
+  /** How long writes were (or have so far been) paused. */
+  freezeMillis: number | null;
+  report: { tablesVerified?: number; mismatches?: string[] } | null;
+  requestedBy: string; startedAt: string; finishedAt: string | null; sourceDroppedAt: string | null;
+}
+export interface TenantPlacement {
+  tenantKey: string; clusterId: string; cell: string; tier: 'STANDARD' | 'DEDICATED_DB'; epoch: number; status: string;
+  currentMove: TenantMove | null;
+}
+export const MOVE_RUNNING: MoveStep[] = ['COPY', 'FREEZE', 'SYNC', 'VERIFY', 'FLIP', 'AWAIT_ACKS', 'RESUME'];
+
+export const fetchClusters = async () => (await api.get<DbCluster[]>(`${BASE}/clusters`)).data;
+export const fetchPlacement = async (tenantKey: string) =>
+  (await api.get<TenantPlacement>(`${BASE}/${tenantKey}/placement`)).data;
+export const fetchMoves = async (tenantKey: string) => (await api.get<TenantMove[]>(`${BASE}/${tenantKey}/moves`)).data;
+export const startMove = async (tenantKey: string, targetClusterId: string) =>
+  (await api.post<TenantMove>(`${BASE}/${tenantKey}/moves`, { targetClusterId })).data;
+export const rollbackMove = async (tenantKey: string, moveId: number) =>
+  (await api.post<TenantMove>(`${BASE}/${tenantKey}/moves/${moveId}/rollback`)).data;
+export const dropMoveSource = async (tenantKey: string, moveId: number) =>
+  (await api.delete<TenantMove>(`${BASE}/${tenantKey}/moves/${moveId}/source`)).data;
+
+// ---------------------------------------------------------------- custom domains (Phase 6)
+
+export type DomainStatus = 'PENDING_VERIFICATION' | 'VERIFIED' | 'CERT_ISSUING' | 'ACTIVE' | 'DEGRADED' | 'FAILED' | 'REMOVED';
+export interface DnsRecord { type: 'TXT' | 'CNAME'; name: string; value: string; purpose: string }
+export interface TenantDomain {
+  id: number; tenantKey: string; host: string; surface: 'WEB' | 'ADMIN'; status: DomainStatus; records: DnsRecord[];
+  certIssuer: string | null; certNotAfter: string | null; attempts: number; lastError: string | null;
+  lastCheckedAt: string | null; activatedAt: string | null; createdAt: string;
+}
+export const fetchDomains = async (tenantKey: string) => (await api.get<TenantDomain[]>(`${BASE}/${tenantKey}/domains`)).data;
+export const addDomain = async (tenantKey: string, host: string, surface: 'WEB' | 'ADMIN' = 'WEB') =>
+  (await api.post<TenantDomain>(`${BASE}/${tenantKey}/domains`, { host, surface })).data;
+export const checkDomain = async (tenantKey: string, id: number) =>
+  (await api.post<TenantDomain>(`${BASE}/${tenantKey}/domains/${id}/check`)).data;
+export const removeDomain = async (tenantKey: string, id: number) =>
+  (await api.delete<TenantDomain>(`${BASE}/${tenantKey}/domains/${id}`)).data;
+
+// ---------------------------------------------------------------- crypto-shredding (Phase 6)
+
+export interface CryptoShredResult { tenantKey: string; keysDestroyed: number; integrationsDisabled: number; destroyedAt: string }
+export const cryptoShred = async (tenantKey: string, confirm: string) =>
+  (await api.post<CryptoShredResult>(`${BASE}/${tenantKey}/crypto-shred`, { confirm })).data;

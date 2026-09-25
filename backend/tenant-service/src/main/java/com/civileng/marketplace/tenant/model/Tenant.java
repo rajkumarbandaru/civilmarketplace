@@ -112,6 +112,25 @@ public class Tenant {
     @Column(nullable = false, length = 30)
     private String plan;
 
+    /** STANDARD (shared cluster) or DEDICATED_DB (a cluster of its own). Follows its placement. */
+    @Column(nullable = false, length = 20)
+    @Builder.Default
+    private String tier = "STANDARD";
+
+    /** The MySQL cluster holding its schemas. Changed only by a move. */
+    @Column(name = "db_cluster_id", nullable = false, length = 40)
+    @Builder.Default
+    private String dbClusterId = "cluster-a";
+
+    /** Increases with every move; services acknowledge each one. */
+    @Column(name = "placement_epoch", nullable = false)
+    @Builder.Default
+    private long placementEpoch = 0;
+
+    /** When its encryption keys were destroyed in the secrets broker (crypto-shredding), if ever. */
+    @Column(name = "keys_destroyed_at")
+    private java.time.LocalDateTime keysDestroyedAt;
+
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.VARCHAR)
     @Column(nullable = false, length = 40)

@@ -23,6 +23,7 @@ jobs:
           - notification-service
           - media-service
           - procurement-service
+          - analytics-service
 
     steps:
       - uses: actions/checkout@v4

@@ -24,6 +24,13 @@ public class SchemaMultiTenantConnectionProvider
     private final TenantSchemas schemas;
     private final String bootstrapCatalog;
 
+    /** Which cluster's pool serves a tenant. Null: every tenant on {@link #dataSource}. */
+    private final java.util.function.Function<String, DataSource> router;
+
+    public SchemaMultiTenantConnectionProvider(DataSource dataSource, TenantSchemas schemas, String bootstrapCatalog) {
+        this(dataSource, schemas, bootstrapCatalog, null);
+    }
+
     @Override
     public Connection getAnyConnection() throws SQLException {
         return dataSource.getConnection();
@@ -36,7 +43,8 @@ public class SchemaMultiTenantConnectionProvider
 
     @Override
     public Connection getConnection(String tenantIdentifier) throws SQLException {
-        Connection connection = dataSource.getConnection();
+        DataSource pool = router == null ? dataSource : router.apply(tenantIdentifier);
+        Connection connection = pool.getConnection();
         connection.setCatalog(schemas.schemaFor(tenantIdentifier));
         return connection;
     }

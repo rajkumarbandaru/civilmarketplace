@@ -41,6 +41,10 @@ public class Organization {
     @Column(name = "approval_threshold", precision = 15, scale = 2)
     private BigDecimal approvalThreshold;
 
+    /** The account this organization was made from by the party migration, if any. */
+    @Column(name = "source_user_id")
+    private Long sourceUserId;
+
     @Column(name = "created_by", nullable = false)
     private Long createdBy;
 

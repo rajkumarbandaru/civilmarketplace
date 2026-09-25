@@ -15,7 +15,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Random;
 
 @Service
@@ -60,7 +62,36 @@ public class PaymentService {
         return newPaymentOrder(bookingId, userId, amount);
     }
 
+    /**
+     * A payment for something other than a booking — a supplier invoice, for procurement-service.
+     * The calling service decides who may pay what; this only takes the money. Asking again while
+     * one for the same reference is pending returns that one, so a double click is one payment.
+     */
+    public Payment createReferenceOrder(String referenceType, Long referenceId, Long userId, BigDecimal amount,
+                                        String description) {
+        if (referenceType == null || referenceType.isBlank() || "BOOKING".equals(referenceType) || referenceId == null) {
+            throw new IllegalArgumentException("referenceType and referenceId are required");
+        }
+        List<Payment> earlier = paymentRepository.findByReferenceTypeAndReferenceIdOrderByCreatedAtDesc(referenceType, referenceId);
+        if (earlier.stream().anyMatch(p -> p.getPaymentStatus() == PaymentStatus.COMPLETED)) {
+            throw new IllegalArgumentException("This has already been paid");
+        }
+        Optional<Payment> open = earlier.stream()
+                .filter(p -> p.getPaymentStatus() == PaymentStatus.PROCESSING && p.getAmount().compareTo(amount) == 0)
+                .findFirst();
+        if (open.isPresent()) {
+            open.get().setRazorpayKeyId(razorpayGateway.current().keyId());
+            return open.get();
+        }
+        return newPaymentOrder(null, referenceType, referenceId, userId, amount, description);
+    }
+
     private Payment newPaymentOrder(Long bookingId, Long userId, BigDecimal amount) {
+        return newPaymentOrder(bookingId, "BOOKING", bookingId, userId, amount, null);
+    }
+
+    private Payment newPaymentOrder(Long bookingId, String referenceType, Long referenceId, Long userId,
+                                    BigDecimal amount, String description) {
         if (amount == null || amount.compareTo(MIN_AMOUNT) < 0) {
             throw new IllegalArgumentException(
                     "Amount must be at least ₹1 (100 paise)");
@@ -73,6 +104,9 @@ public class PaymentService {
         Payment payment = Payment.builder()
                 .paymentCode(generatePaymentCode())
                 .bookingId(bookingId)
+                .referenceType(referenceType)
+                .referenceId(referenceId)
+                .description(description)
                 .userId(userId)
                 .amount(amount)
                 .totalAmount(amount)
@@ -109,6 +143,8 @@ public class PaymentService {
         Map<String, Object> event = new java.util.HashMap<>();
         event.put("paymentId", saved.getId());
         event.put("bookingId", bookingId);
+        event.put("referenceType", referenceType);
+        event.put("referenceId", referenceId);
         event.put("amount", amount);
         event.put("razorpayOrderId", saved.getRazorpayOrderId());
         event.put("status", saved.getPaymentStatus().name());
@@ -129,26 +165,12 @@ public class PaymentService {
         Payment payment = paymentRepository.findByRazorpayOrderId(razorpayOrderId)
                 .orElseThrow(() -> new IllegalArgumentException("Payment not found"));
 
-        payment.setRazorpayPaymentId(razorpayPaymentId);
+        if (payment.getPaymentStatus() == PaymentStatus.COMPLETED) {
+            // Checkout and the webhook both report the same payment; the second changes nothing.
+            return payment;
+        }
         payment.setRazorpaySignature(razorpaySignature);
-        payment.setPaymentStatus(PaymentStatus.COMPLETED);
-        payment.setPaidAt(LocalDateTime.now());
-
-        Payment saved = paymentRepository.save(payment);
-        log.info("Payment completed: {} for booking {}",
-                saved.getId(), saved.getBookingId());
-
-        kafkaTemplate.send("payment.completed", Map.of(
-                "paymentId", saved.getId(),
-                "bookingId", saved.getBookingId(),
-                "paymentCode", saved.getPaymentCode(),
-                "amount", saved.getTotalAmount()
-        ));
-        // Lets an escrow hold funded by this payment move to HELD.
-        eventPublisher.publishEvent(new com.civileng.marketplace.payment.event.PaymentCompletedEvent(
-                saved.getId(), saved.getBookingId()));
-
-        return saved;
+        return complete(payment, razorpayPaymentId);
     }
 
     @Transactional
@@ -194,6 +216,37 @@ public class PaymentService {
      * that tenant, so the order lookup below can only ever see that tenant's payments.
      */
     @Transactional
+    /**
+     * Marks a payment completed and announces it once. The event names what was paid for —
+     * a booking, or {@code referenceType}/{@code referenceId} for anything else — and who paid.
+     */
+    private Payment complete(Payment payment, String razorpayPaymentId) {
+        payment.setRazorpayPaymentId(razorpayPaymentId);
+        payment.setPaymentStatus(PaymentStatus.COMPLETED);
+        payment.setPaidAt(LocalDateTime.now());
+        Payment saved = paymentRepository.save(payment);
+        log.info("Payment completed: {} for {} {}", saved.getId(), saved.getReferenceType(),
+                saved.getReferenceId() != null ? saved.getReferenceId() : saved.getBookingId());
+
+        // A HashMap, not Map.of: bookingId is null for a payment that is not for a booking.
+        Map<String, Object> event = new java.util.HashMap<>();
+        event.put("paymentId", saved.getId());
+        event.put("bookingId", saved.getBookingId());
+        event.put("userId", saved.getUserId());
+        event.put("paymentCode", saved.getPaymentCode());
+        event.put("amount", saved.getTotalAmount());
+        event.put("referenceType", saved.getReferenceType());
+        event.put("referenceId", saved.getReferenceId());
+        event.put("razorpayPaymentId", razorpayPaymentId);
+        kafkaTemplate.send("payment.completed", event);
+        if (saved.getBookingId() != null) {
+            // Lets an escrow hold funded by this payment move to HELD.
+            eventPublisher.publishEvent(new com.civileng.marketplace.payment.event.PaymentCompletedEvent(
+                    saved.getId(), saved.getBookingId()));
+        }
+        return saved;
+    }
+
     public void applyWebhookEvent(String payload) {
         try {
             JSONObject event = new JSONObject(payload);
@@ -208,19 +261,8 @@ public class PaymentService {
                 Payment payment = paymentRepository
                         .findByRazorpayOrderId(orderId)
                         .orElse(null);
-                if (payment != null) {
-                    payment.setRazorpayPaymentId(paymentId);
-                    payment.setPaymentStatus(PaymentStatus.COMPLETED);
-                    payment.setPaidAt(LocalDateTime.now());
-                    paymentRepository.save(payment);
-
-                    kafkaTemplate.send("payment.completed", Map.of(
-                            "paymentId", payment.getId(),
-                            "bookingId", payment.getBookingId()
-                    ));
-                    eventPublisher.publishEvent(
-                            new com.civileng.marketplace.payment.event.PaymentCompletedEvent(
-                                    payment.getId(), payment.getBookingId()));
+                if (payment != null && payment.getPaymentStatus() != PaymentStatus.COMPLETED) {
+                    complete(payment, paymentId);
                 }
             }
 

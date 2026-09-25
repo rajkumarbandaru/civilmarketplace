@@ -45,8 +45,8 @@ public class TenantAutoConfiguration {
 
     @Bean
     public FilterRegistrationBean<TenantHeaderFilter> tenantHeaderFilter(
-            TenantProperties properties) {
-        TenantHeaderFilter filter = new TenantHeaderFilter(properties);
+            TenantProperties properties, ObjectProvider<TenantPlacements> placements) {
+        TenantHeaderFilter filter = new TenantHeaderFilter(properties, placements::getIfAvailable);
         FilterRegistrationBean<TenantHeaderFilter> registration =
                 new FilterRegistrationBean<>(filter);
         registration.setOrder(filter.getOrder());
@@ -75,9 +75,10 @@ public class TenantAutoConfiguration {
     public TenantProvisioningListener tenantProvisioningListener(
             ObjectProvider<TenantSchemaMigrator> migrator,
             ObjectProvider<TenantProvisionedCallback> callbacks,
-            TenantProvisioningAcks acks) {
+            TenantProvisioningAcks acks,
+            ObjectProvider<TenantPlacements> placements) {
         return new TenantProvisioningListener(migrator.getIfAvailable(),
-                callbacks.orderedStream().toList(), acks);
+                callbacks.orderedStream().toList(), acks, placements::getIfAvailable);
     }
 
     @Bean

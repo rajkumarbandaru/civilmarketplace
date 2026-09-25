@@ -36,6 +36,16 @@ spring:
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
       properties:
         "[interceptor.classes]": com.civileng.marketplace.tenant.common.TenantKafkaProducerInterceptor
+    # payment.completed, read as a plain map (no producer class in common).
+    consumer:
+      group-id: procurement-service-group
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+      properties:
+        spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
+        spring.json.trusted.packages: com.civileng.marketplace.*
+        spring.json.use.type.headers: false
+        spring.json.value.default.type: java.util.LinkedHashMap
 
 eureka:
   instance:

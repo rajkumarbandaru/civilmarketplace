@@ -35,16 +35,16 @@ public class JdbcTenantIntegrationStore implements TenantIntegrationStore {
     };
 
     private final TenantProperties.Registry registry;
-    private final IntegrationCipher cipher;
+    private final IntegrationSecrets secrets;
     private final Duration cacheTtl;
     private final Clock clock;
     private final ObjectMapper json = new ObjectMapper();
     private final Map<String, Cached> cache = new ConcurrentHashMap<>();
 
-    public JdbcTenantIntegrationStore(TenantProperties.Registry registry, IntegrationCipher cipher,
+    public JdbcTenantIntegrationStore(TenantProperties.Registry registry, IntegrationSecrets secrets,
                                       Duration cacheTtl, Clock clock) {
         this.registry = registry;
-        this.cipher = cipher;
+        this.secrets = secrets;
         this.cacheTtl = cacheTtl;
         this.clock = clock;
     }
@@ -98,10 +98,7 @@ public class JdbcTenantIntegrationStore implements TenantIntegrationStore {
         String tenantKey = row.getString("tenant_key");
         IntegrationCapability capability = IntegrationCapability.valueOf(row.getString("capability"));
         String ciphertext = row.getString("secrets_ciphertext");
-        Map<String, String> secrets = Map.of();
-        if (ciphertext != null && !ciphertext.isBlank()) {
-            secrets = parse(cipher.decrypt(ciphertext, tenantKey, capability));
-        }
+        Map<String, String> opened = secrets.open(ciphertext, tenantKey, capability);
         return new TenantIntegration(
                 tenantKey,
                 capability,
@@ -109,7 +106,7 @@ public class JdbcTenantIntegrationStore implements TenantIntegrationStore {
                 row.getString("provider"),
                 row.getBoolean("enabled"),
                 parse(row.getString("settings_json")),
-                secrets,
+                opened,
                 row.getString("webhook_token"));
     }
 

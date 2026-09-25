@@ -199,7 +199,15 @@ python3 scripts/factory/phase2_create_publish_check.py        # draft → publis
 python3 scripts/entitlements/phase3_entitlements_check.py     # plans, downgrades, grants, quotas
 python3 scripts/experience/phase4_experience_check.py         # three reference looks from one build
 python3 scripts/procurement/phase5_hybrid_flow_check.py       # B2C booking + B2B RFQ → PO → GRN → invoice
+python3 scripts/ops/phase6_move_drill.py                      # move a tenant between MySQL clusters
+python3 scripts/ops/phase6_pitr_drill.py                      # single-tenant point-in-time restore
+python3 scripts/ops/phase6_domains_check.py                   # custom domain → DNS proof → ACME cert → HTTPS
+python3 scripts/ops/phase6_secrets_check.py                   # secrets broker (Vault) + crypto-shredding
+python3 scripts/ops/phase6_warehouse_check.py                 # change-data capture into the analytics warehouse
+python3 -m unittest scripts/ops/test_ops.py                   # the ops tooling's own tests
 ```
+These checks sign in as a dedicated `drill-operator@civileng.test` SUPER_ADMIN (created on demand) and
+reset only that account's MFA — never the owner's. Runbook: `docs/operations/tenant-placement-and-restore-runbook.md`.
 
 #### Frontend
 ```bash

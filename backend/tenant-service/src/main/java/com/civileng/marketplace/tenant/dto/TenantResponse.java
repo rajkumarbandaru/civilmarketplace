@@ -30,6 +30,9 @@ public class TenantResponse {
     private TenantBranding branding;
     private LocalDateTime createdAt;
 
+    /** When its encryption keys were destroyed (crypto-shredding); null while they exist. */
+    private LocalDateTime keysDestroyedAt;
+
     /**
      * @param menuOverrides read separately — they live in their own table, not on the tenant row,
      *                      so a caller that does not need them (the gateway's host resolution, the
@@ -52,6 +55,7 @@ public class TenantResponse {
                 .landingPath(tenant.getLandingPath())
                 .branding(tenant.branding())
                 .createdAt(tenant.getCreatedAt())
+                .keysDestroyedAt(tenant.getKeysDestroyedAt())
                 .build();
     }
 

@@ -33,7 +33,7 @@ const rfq = (overrides: Partial<api.RfqDetail> = {}): api.RfqDetail => ({
   lines: [{ id: 11, lineNo: 1, description: 'OPC 53 cement', quantity: 500, uom: 'bag' },
     { id: 12, lineNo: 2, description: 'TMT bar', quantity: 2, uom: 'tonne' }],
   invitedSuppliers: [{ id: 2, name: 'CementCo' }, { id: 3, name: 'SteelCo' }, { id: 4, name: 'SandCo' }],
-  quotations: [], roles: ['BUYER'], purchaseOrderId: null,
+  quotations: [], roles: ['BUYER'], purchaseOrderId: null, priceHints: [],
   ...overrides,
 });
 
@@ -106,5 +106,24 @@ describe('RfqDetailPage', () => {
     renderPage();
     expect(await screen.findByText(/A purchase order has been raised/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Cancel RFQ' })).not.toBeInTheDocument();
+  });
+
+  it('starts a supplier from its contract rate, and warns above it', async () => {
+    mocked.fetchMyOrganizations.mockResolvedValue([org(2, 'CementCo', ['SUPPLIER'])]);
+    mocked.fetchRfq.mockResolvedValue(rfq({ roles: ['SUPPLIER'], priceHints: [
+      { rfqLineId: 11, supplierOrgId: 2, unitPrice: 380, taxPercent: 28, source: 'CONTRACT' },
+      { rfqLineId: 12, supplierOrgId: 2, unitPrice: 64000, taxPercent: 18, source: 'CATALOGUE' },
+    ] }));
+    renderPage();
+    const form = await screen.findByTestId('quote-form');
+    const cement = within(form).getByLabelText('Unit price for OPC 53 cement');
+    expect(cement).toHaveValue(380);
+    expect(within(form).getByLabelText('GST for OPC 53 cement')).toHaveValue(28);
+    expect(within(form).getByLabelText('Unit price for TMT bar')).toHaveValue(64000);
+    expect(screen.getByTestId('price-hint-11')).toHaveTextContent('Contract rate: at most ₹380.00');
+    expect(screen.getByTestId('price-hint-12')).toHaveTextContent('Your catalogue: ₹64,000.00');
+    await userEvent.clear(cement);
+    await userEvent.type(cement, '381');
+    expect(screen.getByTestId('price-hint-11')).toHaveTextContent('Above your contract rate: at most ₹380.00');
   });
 });

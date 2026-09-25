@@ -67,6 +67,10 @@ public class TenantResolutionGlobalFilter implements GlobalFilter, Ordered {
 
     private final TenantDirectory tenantDirectory;
 
+    private static final java.util.Set<org.springframework.http.HttpMethod> READS = java.util.Set.of(
+            org.springframework.http.HttpMethod.GET, org.springframework.http.HttpMethod.HEAD,
+            org.springframework.http.HttpMethod.OPTIONS);
+
     /**
      * Local development has no wildcard DNS: {@code localhost} resolves to no tenant, so requests
      * fall back to this one. Must be blank in any deployed environment — with it set, an
@@ -88,7 +92,7 @@ public class TenantResolutionGlobalFilter implements GlobalFilter, Ordered {
         // The by-host lookup is answered for any host, so it needs no tenant of its own. /current
         // is the opposite: "which workspace is this address?", resolved exactly as every other
         // request is — fallback, 404 for an unknown host, 503 for a suspended one.
-        if (path.startsWith("/actuator")
+        if (path.startsWith("/actuator") || path.startsWith("/.well-known/acme-challenge/")
                 || (path.startsWith("/api/v1/tenant-resolution") && !path.equals(CURRENT_TENANT_PATH))) {
             return chain.filter(exchange);
         }
@@ -117,7 +121,13 @@ public class TenantResolutionGlobalFilter implements GlobalFilter, Ordered {
                                 "No workspace is served at " + host);
                     }
                     TenantDescriptor tenant = resolved.get();
-                    if (!tenant.isActive()) {
+                    if (tenant.isMaintenance() && !READS.contains(exchange.getRequest().getMethod())) {
+                        // Reads go on; a write would land on data that is being copied.
+                        exchange.getResponse().getHeaders().add(HttpHeaders.RETRY_AFTER, "5");
+                        return reject(exchange, HttpStatus.SERVICE_UNAVAILABLE,
+                                "This workspace is being maintained. Changes are paused for a moment; please try again.");
+                    }
+                    if (!tenant.isActive() && !tenant.isMaintenance()) {
                         return reject(exchange, HttpStatus.SERVICE_UNAVAILABLE,
                                 "This workspace is " + tenant.getStatus().toLowerCase());
                     }

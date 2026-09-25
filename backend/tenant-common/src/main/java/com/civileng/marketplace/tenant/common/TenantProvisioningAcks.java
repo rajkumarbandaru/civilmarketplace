@@ -32,4 +32,16 @@ public class TenantProvisioningAcks {
             log.warn("Could not send provisioning ack for tenant '{}'", tenantKey, e);
         }
     }
+
+    /** This service now routes the tenant to its new cluster. */
+    public void placement(TenantPlacement placement) {
+        try {
+            String body = JSON.writeValueAsString(new TenantPlacementAck(placement.tenantKey(), service,
+                    placement.clusterId(), placement.epoch(), placement.status(), System.currentTimeMillis()));
+            template.send(TenantTopics.TENANT_PLACEMENT_ACKS, placement.tenantKey(), body);
+        } catch (Exception e) {
+            // The move waits for acks and times out; it never proceeds on a lost one.
+            log.warn("Could not send placement ack for tenant '{}'", placement.tenantKey(), e);
+        }
+    }
 }

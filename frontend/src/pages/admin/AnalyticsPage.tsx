@@ -4,6 +4,7 @@ import {
   Box, Card, CardContent, Typography, Grid, Chip, Avatar, LinearProgress, Skeleton,
 } from '@mui/material';
 import { TrendingUp, TrendingDown, People, Receipt, Star } from '@mui/icons-material';
+import WarehouseKpis from '../../components/WarehouseKpis';
 import { analyticsApi, AnalyticsData, GrowthMetric, MonthlyTrend } from '../../services/adminApi';
 
 const colorPalette = ['#667eea', '#10b981', '#f59e0b', '#8b5cf6'];
@@ -41,6 +42,8 @@ const AnalyticsPage: React.FC = () => {
         <Typography variant="h5" sx={{ fontWeight: 800, mb: 0.5 }}>Analytics Dashboard</Typography>
         <Typography variant="body2" sx={{ color: '#64748b' }}>Platform performance metrics and trends</Typography>
       </Box>
+
+      <WarehouseKpis />
 
       <Grid container spacing={3} sx={{ mb: 4 }}>
         {growthMetrics.map((metric: GrowthMetric, idx: number) => (

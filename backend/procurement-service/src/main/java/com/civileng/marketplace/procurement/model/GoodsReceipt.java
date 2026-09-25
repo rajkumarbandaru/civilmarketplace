@@ -34,6 +34,9 @@ public class GoodsReceipt {
     @Column(name = "purchase_order_id", nullable = false)
     private Long purchaseOrderId;
 
+    @Column(name = "dispatch_id")
+    private Long dispatchId;
+
     @Column(length = 1000)
     private String notes;
 

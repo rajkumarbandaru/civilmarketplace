@@ -33,6 +33,48 @@ class TenantIntegrationServiceTest {
     private final IntegrationCipher cipher =
             new IntegrationCipher(Base64.getEncoder().encodeToString(new byte[32]));
     private TenantIntegrationService service;
+    private final FakeBroker broker = new FakeBroker();
+    private final com.civileng.marketplace.tenant.common.integration.IntegrationSecrets secrets =
+            new com.civileng.marketplace.tenant.common.integration.IntegrationSecrets(broker, cipher);
+    private TenantRepository tenants;
+
+    /** Seals by tagging; counts opens — tenant-service must never open. */
+    static class FakeBroker implements com.civileng.marketplace.tenant.common.integration.SecretsBroker {
+        int opens;
+        final java.util.Set<String> destroyed = new java.util.HashSet<>();
+
+        @Override
+        public String seal(String plaintext, String tenantKey, IntegrationCapability capability) {
+            return "vault:v1:" + Base64.getEncoder().encodeToString((tenantKey + "|" + capability + "|" + plaintext).getBytes());
+        }
+
+        @Override
+        public String open(String sealed, String tenantKey, IntegrationCapability capability) {
+            opens++;
+            String[] p = new String(Base64.getDecoder().decode(sealed.substring(9))).split("\\|", 3);
+            if (destroyed.contains(tenantKey)) throw new com.civileng.marketplace.tenant.common.integration.SecretsDestroyedException(tenantKey, capability);
+            return p[2];
+        }
+
+        @Override
+        public int shred(String tenantKey) {
+            destroyed.add(tenantKey);
+            return 2;
+        }
+
+        @Override
+        public boolean owns(String sealed) {
+            return sealed.startsWith("vault:");
+        }
+    }
+
+    private Map<String, String> opened(String capability) {
+        TenantIntegrationEntity row = table.get(new TenantIntegrationEntity.Key("acme", capability));
+        int before = broker.opens;
+        Map<String, String> m = secrets.open(row.getSecretsCiphertext(), "acme", IntegrationCapability.valueOf(capability));
+        broker.opens = before;   // the test's own read does not count against the service
+        return m;
+    }
 
     @BeforeEach
     @SuppressWarnings("unchecked")
@@ -50,12 +92,15 @@ class TenantIntegrationServiceTest {
             return rows;
         });
 
-        TenantRepository tenants = mock(TenantRepository.class);
+        tenants = mock(TenantRepository.class);
         when(tenants.existsByTenantKey(anyString()))
                 .thenAnswer(inv -> List.of("acme", "bhoomi").contains(inv.getArgument(0)));
 
         ObjectProvider<AuditPublisher> audit = mock(ObjectProvider.class);
-        service = new TenantIntegrationService(repository, tenants, cipher, audit);
+        when(repository.findAll()).thenAnswer(inv -> new ArrayList<>(table.values()));
+        ObjectProvider<com.civileng.marketplace.tenant.common.integration.SecretsBroker> brokers = mock(ObjectProvider.class);
+        when(brokers.getIfAvailable()).thenReturn(broker);
+        service = new TenantIntegrationService(repository, tenants, secrets, brokers, tenants, audit);
     }
 
     private TenantIntegrationEntity store(TenantIntegrationEntity row) {
@@ -79,10 +124,10 @@ class TenantIntegrationServiceTest {
                 razorpay("acme-key-secret-123456", "acme-webhook-secret-99"), "7");
 
         TenantIntegrationEntity row = table.get(new TenantIntegrationEntity.Key("acme", "PAYMENT"));
-        assertThat(row.getSecretsCiphertext()).startsWith("v1.")
+        assertThat(row.getSecretsCiphertext()).startsWith("{\"keySecret\":\"vault:v1:")
                 .doesNotContain("acme-key-secret-123456");
-        assertThat(cipher.decrypt(row.getSecretsCiphertext(), "acme", IntegrationCapability.PAYMENT))
-                .contains("acme-key-secret-123456");
+        assertThat(opened("PAYMENT")).containsEntry("keySecret", "acme-key-secret-123456");
+        assertThat(broker.opens).as("tenant-service is write-only").isZero();
 
         assertThat(view.secretHints()).containsEntry("keySecret", "••••3456")
                 .containsEntry("webhookSecret", "••••t-99");
@@ -104,10 +149,9 @@ class TenantIntegrationServiceTest {
         service.save("acme", "payment", razorpay("original-secret-1111", "original-webhook-22"), "7");
         service.save("acme", "payment", razorpay("rotated-secret-9999", null), "7");
 
-        TenantIntegrationEntity row = table.get(new TenantIntegrationEntity.Key("acme", "PAYMENT"));
-        String secrets = cipher.decrypt(row.getSecretsCiphertext(), "acme", IntegrationCapability.PAYMENT);
-        assertThat(secrets).contains("rotated-secret-9999").contains("original-webhook-22")
-                .doesNotContain("original-secret-1111");
+        assertThat(opened("PAYMENT")).containsEntry("keySecret", "rotated-secret-9999")
+                .containsEntry("webhookSecret", "original-webhook-22");
+        assertThat(broker.opens).as("keeping a secret does not open it").isZero();
     }
 
     @Test
@@ -164,5 +208,52 @@ class TenantIntegrationServiceTest {
     @Test
     void shortSecretsRevealNothingInTheirHint() {
         assertThat(TenantIntegrationService.hints(Map.of("token", "abc123"))).containsEntry("token", "••••");
+    }
+
+    @Test
+    void aSecretSealedUnderTheOldSharedKeyIsResealedPerFieldOnTheNextSave() {
+        service.save("acme", "payment", razorpay("original-secret-1111", "original-webhook-22"), "7");
+        TenantIntegrationEntity row = table.get(new TenantIntegrationEntity.Key("acme", "PAYMENT"));
+        row.setSecretsCiphertext(cipher.encrypt("{\"keySecret\":\"legacy-secret-5555\",\"webhookSecret\":\"legacy-webhook-66\"}",
+                "acme", IntegrationCapability.PAYMENT));
+        service.save("acme", "payment", razorpay(null, "new-webhook-777777"), "7");
+        assertThat(row.getSecretsCiphertext()).startsWith("{").doesNotContain("v1.");
+        assertThat(opened("PAYMENT")).containsEntry("keySecret", "legacy-secret-5555")
+                .containsEntry("webhookSecret", "new-webhook-777777");
+    }
+
+    @Test
+    void anArchivedTenantsKeysCanBeDestroyedLeavingItsSecretsUnreadable() {
+        service.save("acme", "payment", razorpay("acme-key-secret-123456", "acme-webhook-secret-99"), "7");
+        com.civileng.marketplace.tenant.model.Tenant acme = com.civileng.marketplace.tenant.model.Tenant.builder()
+                .tenantKey("acme").status(com.civileng.marketplace.tenant.model.TenantStatus.ACTIVE).build();
+        when(tenants.findByTenantKey("acme")).thenReturn(Optional.of(acme));
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.cryptoShred("acme", "acme", "7"))
+                .hasMessageContaining("archived");
+        acme.setStatus(com.civileng.marketplace.tenant.model.TenantStatus.ARCHIVED);
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.cryptoShred("acme", "acm", "7"))
+                .hasMessageContaining("confirm");
+
+        TenantIntegrationService.CryptoShredResult r = service.cryptoShred("acme", "acme", "7");
+        assertThat(r.keysDestroyed()).isEqualTo(2);
+        assertThat(r.integrationsDisabled()).isEqualTo(1);
+        assertThat(acme.getKeysDestroyedAt()).isNotNull();
+        assertThat(table.get(new TenantIntegrationEntity.Key("acme", "PAYMENT")).isEnabled()).isFalse();
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> opened("PAYMENT"))
+                .isInstanceOf(com.civileng.marketplace.tenant.common.integration.SecretsDestroyedException.class);
+    }
+
+    @Test
+    void secretsUnderTheOldSharedKeyAreMovedIntoTheBrokerAtStartup() {
+        service.save("acme", "payment", razorpay("original-secret-1111", "original-webhook-22"), "7");
+        TenantIntegrationEntity row = table.get(new TenantIntegrationEntity.Key("acme", "PAYMENT"));
+        row.setSecretsCiphertext(cipher.encrypt("{\"keySecret\":\"legacy-secret-5555\",\"webhookSecret\":\"legacy-webhook-66\"}",
+                "acme", IntegrationCapability.PAYMENT));
+        assertThat(service.resealLegacySecrets()).isEqualTo(1);
+        assertThat(row.getSecretsCiphertext()).startsWith("{").contains("vault:v1:");
+        assertThat(opened("PAYMENT")).containsEntry("keySecret", "legacy-secret-5555")
+                .containsEntry("webhookSecret", "legacy-webhook-66");
+        assertThat(broker.opens).isZero();
+        assertThat(service.resealLegacySecrets()).isZero();   // idempotent
     }
 }

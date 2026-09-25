@@ -27,6 +27,12 @@ public class TenantProperties {
 
     private final Registry registry = new Registry();
 
+    /** Connections per service to each cluster other than the one in its datasource URL. */
+    private int clusterPoolSize = 5;
+
+    /** How often the placement map is re-read as a backstop for a missed placement event. */
+    private int placementRefreshSeconds = 15;
+
     /**
      * The platform-level tenant registry, owned by tenant-service. Every service reads it
      * directly at boot to learn which schemas to migrate — an HTTP call would put tenant-service

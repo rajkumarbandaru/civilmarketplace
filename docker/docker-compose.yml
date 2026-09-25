@@ -12,6 +12,7 @@ services:
     image: mysql:8.0
     container_name: civil_mysql
     environment:
+      CDC_DB_PASSWORD: ${CDC_DB_PASSWORD:-cdc_pass}
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_password}
       MYSQL_DATABASE: civil_engineer_platform
     volumes:
@@ -29,6 +30,35 @@ services:
       --collation-server=utf8mb4_unicode_ci
       --max_connections=500
       --innodb_buffer_pool_size=1G
+
+  # A second MySQL cluster (cluster-b in tenant-service's placement map). Tenants are moved here
+  # and back by the move controller; services open a pool to it the first time a tenant they
+  # serve is placed on it. Same init scripts, so the same service accounts and grants; the
+  # service password is set from .env like the first cluster's.
+  mysql-b:
+    image: mysql:8.0
+    container_name: civil_mysql_b
+    environment:
+      CDC_DB_PASSWORD: ${CDC_DB_PASSWORD:-cdc_pass}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_password}
+      MYSQL_USER: civil_user
+      MYSQL_PASSWORD: ${USER_DB_PASSWORD:-civil_pass}
+    volumes:
+      - mysql_b_data:/var/lib/mysql
+      - ./database/init:/docker-entrypoint-initdb.d
+    networks:
+      - civil-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --max_connections=300
+      --innodb_buffer_pool_size=256M
+      --server-id=2
 
   redis:
     image: redis:7-alpine
@@ -327,8 +357,10 @@ services:
       # Signs (gateway) and checks (services) forwarded identity. Empty stops the service at
       # startup with instructions, rather than letting it trust unsigned headers.
       - INTERNAL_SIGNING_KEY=${INTERNAL_SIGNING_KEY:-}
-      # Seals per-tenant provider secrets (tenant-common integrations); same value in all four services.
-      - INTEGRATION_MASTER_KEY=${INTEGRATION_MASTER_KEY}
+      # The secrets broker: this service's token, whose Vault policy says which tenant secrets it
+      # may seal or open (docker/vault/policies/payment-service.hcl).
+      - VAULT_ADDR=http://vault:8200
+      - VAULT_TOKEN=${VAULT_TOKEN_PAYMENT_SERVICE:-}
       # Read at boot to learn which tenant schemas to migrate.
       - TENANT_DB_USERNAME=${TENANT_DB_USERNAME:-civil_user}
       - TENANT_DB_PASSWORD=${TENANT_DB_PASSWORD:-civil_pass}
@@ -359,8 +391,10 @@ services:
       # Signs (gateway) and checks (services) forwarded identity. Empty stops the service at
       # startup with instructions, rather than letting it trust unsigned headers.
       - INTERNAL_SIGNING_KEY=${INTERNAL_SIGNING_KEY:-}
-      # Seals per-tenant provider secrets (tenant-common integrations); same value in all four services.
-      - INTEGRATION_MASTER_KEY=${INTEGRATION_MASTER_KEY}
+      # The secrets broker: this service's token, whose Vault policy says which tenant secrets it
+      # may seal or open (docker/vault/policies/notification-service.hcl).
+      - VAULT_ADDR=http://vault:8200
+      - VAULT_TOKEN=${VAULT_TOKEN_NOTIFICATION_SERVICE:-}
       # Read at boot to learn which tenant schemas to migrate.
       - TENANT_DB_USERNAME=${TENANT_DB_USERNAME:-civil_user}
       - TENANT_DB_PASSWORD=${TENANT_DB_PASSWORD:-civil_pass}
@@ -469,11 +503,23 @@ services:
       # Signs (gateway) and checks (services) forwarded identity. Empty stops the service at
       # startup with instructions, rather than letting it trust unsigned headers.
       - INTERNAL_SIGNING_KEY=${INTERNAL_SIGNING_KEY:-}
-      # Seals per-tenant provider secrets (tenant-common integrations); same value in all four services.
+      # The previous shared key: tenant-service alone keeps it, to read and re-seal secrets
+      # stored before the broker. The services that use secrets open them only through Vault.
       - INTEGRATION_MASTER_KEY=${INTEGRATION_MASTER_KEY}
+      # The secrets broker: this service's token, whose Vault policy says which tenant secrets it
+      # may seal or open (docker/vault/policies/tenant-service.hcl).
+      - VAULT_ADDR=http://vault:8200
+      - VAULT_TOKEN=${VAULT_TOKEN_TENANT_SERVICE:-}
       - TENANT_DB_USERNAME=${TENANT_DB_USERNAME:-civil_user}
       - TENANT_DB_PASSWORD=${TENANT_DB_PASSWORD:-civil_pass}
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      # Domain Manager: the ACME server and DNS for custom domains (Pebble and its test DNS locally;
+      # acme://letsencrypt.org and the system resolver in production), and where certificates go.
+      - PLATFORM_DOMAINS_ACME_DIRECTORY=${ACME_DIRECTORY:-acme://pebble/pebble:14000}
+      - PLATFORM_DOMAINS_DNS_SERVER=${ACME_DNS_SERVER:-challtestsrv:8053}
+      - PLATFORM_DOMAINS_CERT_DIRECTORY=/var/lib/platform/certs
+    volumes:
+      - tenant_certs:/var/lib/platform/certs
     networks:
       - civil-network
     depends_on:
@@ -495,8 +541,10 @@ services:
       # Signs (gateway) and checks (services) forwarded identity. Empty stops the service at
       # startup with instructions, rather than letting it trust unsigned headers.
       - INTERNAL_SIGNING_KEY=${INTERNAL_SIGNING_KEY:-}
-      # Seals per-tenant provider secrets (tenant-common integrations); same value in all four services.
-      - INTEGRATION_MASTER_KEY=${INTEGRATION_MASTER_KEY}
+      # The secrets broker: this service's token, whose Vault policy says which tenant secrets it
+      # may seal or open (docker/vault/policies/support-service.hcl).
+      - VAULT_ADDR=http://vault:8200
+      - VAULT_TOKEN=${VAULT_TOKEN_SUPPORT_SERVICE:-}
       # Read at boot to learn which tenant schemas to migrate.
       - TENANT_DB_USERNAME=${TENANT_DB_USERNAME:-civil_user}
       - TENANT_DB_PASSWORD=${TENANT_DB_PASSWORD:-civil_pass}
@@ -603,6 +651,31 @@ services:
       mysql:
         condition: service_started
       kafka:
+        condition: service_started
+      service-registry:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+
+  # Change-data capture into the analytics warehouse (architecture 02 §8): follows every cluster's
+  # binlog as a replica (the read-only civil_cdc account) and serves KPIs from the warehouse.
+  analytics-service:
+    build:
+      context: ..
+      dockerfile: backend/analytics-service/Dockerfile
+    container_name: civil_analytics_service
+    environment:
+      - INTERNAL_SIGNING_KEY=${INTERNAL_SIGNING_KEY:-}
+      - TENANT_DB_USERNAME=${TENANT_DB_USERNAME:-civil_user}
+      - TENANT_DB_PASSWORD=${TENANT_DB_PASSWORD:-civil_pass}
+      - WAREHOUSE_DB_USERNAME=${USER_DB_USERNAME:-civil_user}
+      - WAREHOUSE_DB_PASSWORD=${USER_DB_PASSWORD:-civil_pass}
+      - CDC_DB_PASSWORD=${CDC_DB_PASSWORD:-cdc_pass}
+      - ANALYTICS_PSEUDONYM_KEY=${ANALYTICS_PSEUDONYM_KEY:-}
+    networks:
+      - civil-network
+    depends_on:
+      mysql:
         condition: service_started
       service-registry:
         condition: service_healthy
@@ -722,6 +795,61 @@ services:
   # Reverse Proxy
   # ============================================================================
 
+  # The secrets broker (architecture 06 §9): HashiCorp Vault's Transit engine holds one key per
+  # (tenant, capability); services seal and open through it under per-service policies, and its
+  # audit log records every open. See docker/vault/ for the bootstrap and the policies.
+  vault:
+    image: hashicorp/vault:1.17
+    container_name: civil_vault
+    entrypoint: ["/bin/sh", "/vault/bootstrap/bootstrap.sh"]
+    environment:
+      - VAULT_TOKEN_TENANT_SERVICE=${VAULT_TOKEN_TENANT_SERVICE:-}
+      - VAULT_TOKEN_PAYMENT_SERVICE=${VAULT_TOKEN_PAYMENT_SERVICE:-}
+      - VAULT_TOKEN_NOTIFICATION_SERVICE=${VAULT_TOKEN_NOTIFICATION_SERVICE:-}
+      - VAULT_TOKEN_SUPPORT_SERVICE=${VAULT_TOKEN_SUPPORT_SERVICE:-}
+    volumes:
+      - vault_data:/vault/file
+      - vault_logs:/vault/logs
+      - ./vault:/vault/bootstrap:ro
+    networks:
+      - civil-network
+    healthcheck:
+      test: ["CMD", "test", "-f", "/vault/file/bootstrap/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  # Local stand-ins for the ACME certificate authority (Let's Encrypt) and for tenants' DNS, used
+  # by the Domain Manager (tenant-service) for custom domains. Pebble validates HTTP-01 over port 80
+  # of the domain as challtestsrv resolves it; the drill publishes records through challtestsrv's
+  # management API as a tenant would at their DNS provider. Production points tenant-service at
+  # acme://letsencrypt.org and the public DNS instead, and runs neither.
+  pebble:
+    image: ghcr.io/letsencrypt/pebble:latest
+    container_name: civil_pebble
+    command: ["-config", "/config/pebble-config.json", "-dnsserver", "challtestsrv:8053"]
+    environment:
+      - PEBBLE_VA_NOSLEEP=1
+      - PEBBLE_WFE_NONCEREJECT=0
+    volumes:
+      - ./pebble/pebble-config.json:/config/pebble-config.json:ro
+    ports:
+      - "127.0.0.1:${HOST_PORT_PEBBLE_MGMT:-15000}:15000"
+    networks:
+      - civil-network
+    depends_on:
+      - challtestsrv
+
+  challtestsrv:
+    image: ghcr.io/letsencrypt/pebble-challtestsrv:latest
+    container_name: civil_challtestsrv
+    # Answers only the records the drill adds; nothing else resolves.
+    command: ["-defaultIPv4", "", "-defaultIPv6", "", "-http01", "", "-https01", "", "-tlsalpn01", "", "-doh", ""]
+    ports:
+      - "127.0.0.1:${HOST_PORT_CHALLTESTSRV:-8055}:8055"
+    networks:
+      - civil-network
+
   nginx:
     image: nginx:alpine
     container_name: civil_nginx
@@ -732,6 +860,8 @@ services:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf
       - ./nginx/sites:/etc/nginx/sites-enabled
       - ./nginx/ssl:/etc/nginx/ssl
+      # Custom-domain certificates written by tenant-service's Domain Manager.
+      - tenant_certs:/etc/nginx/tenant-certs:ro
     networks:
       - civil-network
     depends_on:
@@ -743,6 +873,10 @@ networks:
     driver: bridge
 
 volumes:
+  vault_data:
+  vault_logs:
+  tenant_certs:
+  mysql_b_data:
   mysql_data:
   minio_data:
   redis_data:

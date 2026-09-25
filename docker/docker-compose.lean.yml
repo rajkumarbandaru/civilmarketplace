@@ -58,3 +58,8 @@ services:
   procurement-service:
     environment: *jvm
     mem_limit: 512m
+  mysql-b:
+    mem_limit: 768m
+  analytics-service:
+    environment: *jvm
+    mem_limit: 512m

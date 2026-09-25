@@ -33,8 +33,17 @@ public class ProcurementExceptionHandler {
         return error("That already exists");
     }
 
+    @ExceptionHandler(com.civileng.marketplace.procurement.service.PaymentUnavailableException.class)
+    public ResponseEntity<Map<String, Object>> handlePaymentsDown(RuntimeException ex) {
+        return error(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage());
+    }
+
     private static ResponseEntity<Map<String, Object>> error(String message) {
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("success", false, "message", message,
-                "status", 409, "timestamp", System.currentTimeMillis()));
+        return error(HttpStatus.CONFLICT, message);
+    }
+
+    private static ResponseEntity<Map<String, Object>> error(HttpStatus status, String message) {
+        return ResponseEntity.status(status).body(Map.of("success", false, "message", message,
+                "status", status.value(), "timestamp", System.currentTimeMillis()));
     }
 }

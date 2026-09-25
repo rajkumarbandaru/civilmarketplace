@@ -27,8 +27,10 @@ public class OrganizationService {
     private final OrganizationRepository organizations;
     private final OrgMemberRepository members;
     private final OrgRelationshipRepository relationships;
+    private final com.civileng.marketplace.procurement.repository.PriceListRepository priceLists;
     private final Memberships memberships;
     private final ProcurementProperties props;
+    private final com.civileng.marketplace.procurement.client.AccountLookupClient accounts;
     private final Audit audit;
 
     @Transactional
@@ -100,6 +102,7 @@ public class OrganizationService {
         m.setEmail(email);
         m.setRole(request.role());
         m.setAddedBy(actor.userId());
+        m.setUserId(accountOf(email));
         members.save(m);
         audit.record(actor.userId(), AuditAction.UPDATE, ENTITY, orgId, "member added: " + email + " as " + request.role());
         return detail(find(orgId), MemberRole.OWNER);
@@ -120,12 +123,13 @@ public class OrganizationService {
 
     /**
      * Organizations with a capability, as {@code asOrgId} sees them: never itself, never one that
-     * blocked it or that it blocked, and its preferred ones first.
+     * blocked it or that it blocked; suppliers it has a contract with first, then preferred ones.
      */
     @Transactional
     public List<DirectoryEntry> directory(Actor actor, Capability capability, Long asOrgId) {
         Set<Long> excluded = new HashSet<>();
         Set<Long> preferred = new HashSet<>();
+        Set<Long> contracted = new HashSet<>();
         if (asOrgId != null) {
             memberships.require(actor, asOrgId);
             excluded.add(asOrgId);
@@ -135,14 +139,18 @@ public class OrganizationService {
             relationships.findByFromOrgId(asOrgId).stream()
                     .filter(r -> r.getType() == RelationshipType.PREFERRED_SUPPLIER)
                     .forEach(r -> preferred.add(r.getToOrgId()));
+            java.time.LocalDate today = java.time.LocalDate.now();
+            priceLists.findByBuyerOrgIdAndStatus(asOrgId, PriceListStatus.ACTIVE).stream()
+                    .filter(p -> p.inForce(today)).forEach(p -> contracted.add(p.getSupplierOrgId()));
         } else {
             memberships.of(actor);
         }
         return organizations.findAllByOrderByNameAsc().stream()
                 .filter(o -> capability == null || o.can(capability))
                 .filter(o -> !excluded.contains(o.getId()))
-                .map(o -> new DirectoryEntry(o.getId(), o.getName(), o.getCapabilities(), preferred.contains(o.getId())))
-                .sorted(Comparator.comparing((DirectoryEntry e) -> !e.preferred()))
+                .map(o -> new DirectoryEntry(o.getId(), o.getName(), o.getCapabilities(), preferred.contains(o.getId()),
+                        contracted.contains(o.getId())))
+                .sorted(Comparator.comparing((DirectoryEntry e) -> !e.contracted()).thenComparing(e -> !e.preferred()))
                 .toList();
     }
 
@@ -200,6 +208,18 @@ public class OrganizationService {
 
     public Map<Long, String> names(Collection<Long> ids) {
         return organizations.findAllById(ids).stream().collect(Collectors.toMap(Organization::getId, Organization::getName));
+    }
+
+    /**
+     * The account behind an email, so a colleague added now is notified in-app from the start.
+     * Unknown, or auth-service unreachable: left unlinked, and linked when they first sign in.
+     */
+    private Long accountOf(String email) {
+        try {
+            return accounts.byEmail(email).id();
+        } catch (RuntimeException e) {
+            return null;
+        }
     }
 
     private void requireOwner(Actor actor, Long orgId) {

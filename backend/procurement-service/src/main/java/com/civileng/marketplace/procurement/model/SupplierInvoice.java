@@ -67,6 +67,18 @@ public class SupplierInvoice {
     @Column(name = "decision_note", length = 500)
     private String decisionNote;
 
+    @Column(name = "due_date")
+    private LocalDate dueDate;
+
+    @Column(name = "payment_id")
+    private Long paymentId;
+
+    @Column(name = "payment_reference", length = 100)
+    private String paymentReference;
+
+    @Column(name = "paid_at")
+    private LocalDateTime paidAt;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -85,5 +97,10 @@ public class SupplierInvoice {
     /** Counts against what may still be invoiced: everything but a rejected invoice. */
     public boolean isLive() {
         return status != InvoiceStatus.REJECTED;
+    }
+
+    /** Approved or paid: counts towards what has been billed for good. */
+    public boolean isAccepted() {
+        return status == InvoiceStatus.APPROVED || status == InvoiceStatus.PAID;
     }
 }

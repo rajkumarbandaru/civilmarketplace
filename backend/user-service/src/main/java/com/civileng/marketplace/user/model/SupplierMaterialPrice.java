@@ -48,8 +48,11 @@ public class SupplierMaterialPrice {
     /**
      * The supplier's user ID, not a foreign key to a profile. It is the reference the estimator
      * cites back to the customer, and it is what auth-service and every other service call a user.
+     *
+     * <p>Set by the service from the caller's identity, never taken from the request — so not
+     * {@code @NotNull}: bean validation runs on the request body, where it is always absent, and
+     * rejected every rate a supplier tried to publish. The column still refuses a null.
      */
-    @NotNull
     @Column(name = "supplier_user_id", nullable = false)
     private Long supplierUserId;
 

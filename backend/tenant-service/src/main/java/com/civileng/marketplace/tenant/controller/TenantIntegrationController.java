@@ -80,6 +80,20 @@ public class TenantIntegrationController {
         return ResponseEntity.noContent().build();
     }
 
+    public record CryptoShredRequest(String confirm) { }
+
+    /** Destroy an archived tenant's encryption keys in the secrets broker. Irreversible. */
+    @org.springframework.web.bind.annotation.PostMapping("/{tenantKey}/crypto-shred")
+    public ResponseEntity<com.civileng.marketplace.tenant.service.TenantIntegrationService.CryptoShredResult> cryptoShred(
+            @PathVariable String tenantKey,
+            @org.springframework.web.bind.annotation.RequestBody CryptoShredRequest request,
+            @RequestHeader(value = "X-User-Id", required = false) String userId,
+            @RequestHeader(value = "X-User-Role", required = false) String role,
+            @RequestHeader(value = "X-Tenant-Id", required = false) String tenantId) {
+        requireOperator(role, tenantId);
+        return ResponseEntity.ok(integrationService.cryptoShred(tenantKey, request == null ? null : request.confirm(), userId));
+    }
+
     private void requireOperator(String role, String tenantId) {
         if (!OPERATOR_TENANT.equals(tenantId) || !"SUPER_ADMIN".equals(role)) {
             throw new AccessDeniedException(

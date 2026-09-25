@@ -41,6 +41,7 @@
         <module>support-service</module>
         <module>media-service</module>
         <module>procurement-service</module>
+        <module>analytics-service</module>
     </modules>
 
     <properties>

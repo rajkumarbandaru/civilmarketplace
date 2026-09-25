@@ -4,6 +4,8 @@ import com.civileng.marketplace.procurement.config.ProcurementProperties;
 import com.civileng.marketplace.procurement.dto.Actor;
 import com.civileng.marketplace.procurement.dto.PurchaseOrderDtos.*;
 import com.civileng.marketplace.procurement.model.*;
+import com.civileng.marketplace.procurement.client.PaymentsClient;
+import com.civileng.marketplace.procurement.repository.DispatchRepository;
 import com.civileng.marketplace.procurement.repository.GoodsReceiptRepository;
 import com.civileng.marketplace.procurement.repository.OrgMemberRepository;
 import com.civileng.marketplace.procurement.repository.PurchaseOrderRepository;
@@ -40,6 +42,11 @@ class PurchaseOrderServiceTest {
     private final GoodsReceiptRepository receipts = mock(GoodsReceiptRepository.class);
     private final SupplierInvoiceRepository invoices = mock(SupplierInvoiceRepository.class);
     private final OrganizationService organizations = mock(OrganizationService.class);
+    private final DispatchRepository dispatchRepo = mock(DispatchRepository.class);
+    private final PriceListService priceLists = mock(PriceListService.class);
+    private final PaymentsClient payments = mock(PaymentsClient.class);
+    private final Notifier notifier = mock(Notifier.class);
+    private final List<Dispatch> savedDispatches = new ArrayList<>();
     private final OrgMemberRepository memberRepo = mock(OrgMemberRepository.class);
     private final ProcurementProperties props = new ProcurementProperties(new BigDecimal("100000"), new BigDecimal("2"));
     private PurchaseOrderService service;
@@ -93,8 +100,19 @@ class PurchaseOrderServiceTest {
         when(invoices.findById(anyLong())).thenAnswer(i -> savedInvoices.stream()
                 .filter(x -> x.getId().equals(i.getArgument(0, Long.class))).findFirst());
 
-        service = new PurchaseOrderService(orders, receipts, invoices, organizations, memberships, props,
-                mock(Audit.class), Clock.fixed(Instant.parse("2026-09-24T10:00:00Z"), ZoneOffset.UTC));
+        when(dispatchRepo.save(any())).thenAnswer(i -> {
+            Dispatch d = i.getArgument(0);
+            d.setId(ids.incrementAndGet());
+            savedDispatches.add(d);
+            return d;
+        });
+        when(dispatchRepo.findByPurchaseOrderIdOrderByIdAsc(anyLong())).thenAnswer(i -> List.copyOf(savedDispatches));
+        when(dispatchRepo.findById(anyLong())).thenAnswer(i -> savedDispatches.stream()
+                .filter(x -> x.getId().equals(i.getArgument(0, Long.class))).findFirst());
+        when(priceLists.contractFor(anyLong(), anyLong())).thenReturn(Optional.empty());
+
+        service = new PurchaseOrderService(orders, receipts, invoices, dispatchRepo, organizations, priceLists, memberships,
+                props, payments, notifier, mock(Audit.class), Clock.fixed(Instant.parse("2026-09-24T10:00:00Z"), ZoneOffset.UTC));
     }
 
     /** 500 bags at the given price, 28% GST. */
@@ -165,27 +183,27 @@ class PurchaseOrderServiceTest {
     void receiptsFollowAcknowledgementAndNeverAcceptMoreThanOrdered() {
         PoDetail po = raise("150.00");
         Long l = line(po);
-        ReceiptRequest all = new ReceiptRequest(List.of(new ReceiptLineRequest(l, new BigDecimal("500"), BigDecimal.ZERO)), null);
+        ReceiptRequest all = new ReceiptRequest(List.of(new ReceiptLineRequest(l, new BigDecimal("500"), BigDecimal.ZERO)), null, null);
         assertThatThrownBy(() -> service.receive(RAISER, po.id(), all)).isInstanceOf(IllegalStateException.class);
         assertThatThrownBy(() -> service.acknowledge(RAISER, po.id())).isInstanceOf(AccessDeniedException.class);
         service.acknowledge(SUPPLIER, po.id());
         assertThatThrownBy(() -> service.receive(SUPPLIER, po.id(), all)).isInstanceOf(AccessDeniedException.class);
 
         PoDetail partial = service.receive(RAISER, po.id(), new ReceiptRequest(List.of(
-                new ReceiptLineRequest(l, new BigDecimal("320"), new BigDecimal("20"))), "first truck"));
+                new ReceiptLineRequest(l, new BigDecimal("320"), new BigDecimal("20"))), "first truck", null));
         assertThat(partial.status()).isEqualTo(PurchaseOrderStatus.PARTIALLY_RECEIVED);
         assertThat(partial.lines().get(0).acceptedQty()).isEqualByComparingTo("300");
         assertThat(partial.receipts()).singleElement().extracting(ReceiptView::number).asString().startsWith("GRN-");
 
         assertThatThrownBy(() -> service.receive(RAISER, po.id(), new ReceiptRequest(List.of(
-                new ReceiptLineRequest(l, new BigDecimal("201"), BigDecimal.ZERO)), null)))
+                new ReceiptLineRequest(l, new BigDecimal("201"), BigDecimal.ZERO)), null, null)))
                 .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("would accept 501 of the 500");
         assertThatThrownBy(() -> service.receive(RAISER, po.id(), new ReceiptRequest(List.of(
-                new ReceiptLineRequest(l, new BigDecimal("5"), new BigDecimal("6"))), null)))
+                new ReceiptLineRequest(l, new BigDecimal("5"), new BigDecimal("6"))), null, null)))
                 .isInstanceOf(IllegalArgumentException.class);
 
         PoDetail full = service.receive(RAISER, po.id(), new ReceiptRequest(List.of(
-                new ReceiptLineRequest(l, new BigDecimal("200"), BigDecimal.ZERO)), null));
+                new ReceiptLineRequest(l, new BigDecimal("200"), BigDecimal.ZERO)), null, null));
         assertThat(full.status()).isEqualTo(PurchaseOrderStatus.RECEIVED);
     }
 
@@ -198,7 +216,7 @@ class PurchaseOrderServiceTest {
                 new InvoiceLineRequest(l, new BigDecimal("500"), new BigDecimal("150.00"), new BigDecimal("28"))));
         assertThatThrownBy(() -> service.invoice(SUPPLIER, po.id(), bill)).isInstanceOf(IllegalStateException.class);
 
-        service.receive(RAISER, po.id(), new ReceiptRequest(List.of(new ReceiptLineRequest(l, new BigDecimal("500"), null)), null));
+        service.receive(RAISER, po.id(), new ReceiptRequest(List.of(new ReceiptLineRequest(l, new BigDecimal("500"), null)), null, null));
         assertThatThrownBy(() -> service.invoice(RAISER, po.id(), bill)).isInstanceOf(AccessDeniedException.class);
         PoDetail invoiced = service.invoice(SUPPLIER, po.id(), bill);
         InvoiceView inv = invoiced.invoices().get(0);
@@ -217,7 +235,7 @@ class PurchaseOrderServiceTest {
         PoDetail po = raise("150.00");
         Long l = line(po);
         service.acknowledge(SUPPLIER, po.id());
-        service.receive(RAISER, po.id(), new ReceiptRequest(List.of(new ReceiptLineRequest(l, new BigDecimal("300"), null)), null));
+        service.receive(RAISER, po.id(), new ReceiptRequest(List.of(new ReceiptLineRequest(l, new BigDecimal("300"), null)), null, null));
 
         PoDetail d = service.invoice(SUPPLIER, po.id(), new InvoiceRequest("INV-2", List.of(
                 new InvoiceLineRequest(l, new BigDecimal("400"), new BigDecimal("160.00"), new BigDecimal("28")))));
@@ -243,5 +261,152 @@ class PurchaseOrderServiceTest {
         PoDetail po = raise("150.00");
         assertThatThrownBy(() -> service.get(new Actor(99L, "x@example.com"), po.id()))
                 .isInstanceOf(NoSuchElementException.class);
+    }
+
+    private PriceList contract(int termsDays, String creditLimit) {
+        PriceList c = new PriceList();
+        c.setId(55L);
+        c.setSupplierOrgId(2L);
+        c.setBuyerOrgId(1L);
+        c.setStatus(PriceListStatus.ACTIVE);
+        c.setPaymentTermsDays(termsDays);
+        c.setCreditLimit(creditLimit == null ? null : new BigDecimal(creditLimit));
+        return c;
+    }
+
+    @Test
+    void underAContractTheOrderTakesItsTermsAndInvoicesFallDueAfterThem() {
+        when(priceLists.contractFor(1L, 2L)).thenReturn(Optional.of(contract(30, null)));
+        PoDetail po = raise("150.00");
+        assertThat(po.paymentTermsDays()).isEqualTo(30);
+        assertThat(po.contractId()).isEqualTo(55L);
+        Long l = line(po);
+        service.acknowledge(SUPPLIER, po.id());
+        service.receive(RAISER, po.id(), new ReceiptRequest(List.of(new ReceiptLineRequest(l, new BigDecimal("500"), null)), null, null));
+        Long inv = service.invoice(SUPPLIER, po.id(), new InvoiceRequest("INV-9", List.of(
+                new InvoiceLineRequest(l, new BigDecimal("500"), new BigDecimal("150.00"), new BigDecimal("28"))))).invoices().get(0).id();
+        PoDetail approved = service.decideInvoice(APPROVER, po.id(), inv, true, null);
+        assertThat(approved.invoices().get(0).dueDate()).isEqualTo(java.time.LocalDate.parse("2026-10-24"));
+    }
+
+    @Test
+    void anOrderPastTheContractsCreditLimitIsRefused() {
+        when(priceLists.contractFor(1L, 2L)).thenReturn(Optional.of(contract(30, "150000")));
+        when(priceLists.exposure(1L, 2L)).thenReturn(new BigDecimal("60000"));
+        assertThatThrownBy(() -> raise("150.00")) // 96,000 + 60,000 open > 150,000
+                .isInstanceOf(IllegalStateException.class).hasMessageContaining("credit limit of 150000");
+        when(priceLists.exposure(1L, 2L)).thenReturn(new BigDecimal("54000"));
+        assertThat(raise("150.00").status()).isEqualTo(PurchaseOrderStatus.ISSUED); // exactly at the limit
+    }
+
+    @Test
+    void aDispatchAboveFiftyThousandNeedsAValidEwayBillAndCannotOvershipTheOrder() {
+        PoDetail po = raise("150.00");
+        Long l = line(po);
+        DispatchRequest bigNoBill = new DispatchRequest("ts09ab1234", null, null,
+                List.of(new DispatchLineRequest(l, new BigDecimal("300"))));   // 45,000 + 28% = 57,600
+        assertThatThrownBy(() -> service.dispatch(SUPPLIER, po.id(), bigNoBill)).isInstanceOf(IllegalStateException.class);
+        service.acknowledge(SUPPLIER, po.id());
+        assertThatThrownBy(() -> service.dispatch(RAISER, po.id(), bigNoBill)).isInstanceOf(AccessDeniedException.class);
+        assertThatThrownBy(() -> service.dispatch(SUPPLIER, po.id(), bigNoBill))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("need an e-way bill");
+        assertThatThrownBy(() -> service.dispatch(SUPPLIER, po.id(), new DispatchRequest("TS09AB1234", null, "12345",
+                List.of(new DispatchLineRequest(l, new BigDecimal("300"))))))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("12 digits");
+
+        PoDetail sent = service.dispatch(SUPPLIER, po.id(), new DispatchRequest("ts09ab1234", "VRL", "331000123456",
+                List.of(new DispatchLineRequest(l, new BigDecimal("300")))));
+        DispatchView d = sent.dispatches().get(0);
+        assertThat(d.vehicleNumber()).isEqualTo("TS09AB1234");
+        assertThat(d.consignmentValue()).isEqualByComparingTo("57600.00");
+        assertThat(sent.lines().get(0).dispatchedQty()).isEqualByComparingTo("300");
+        // Small consignments move without one.
+        service.dispatch(SUPPLIER, po.id(), new DispatchRequest("TS09AB1234", null, null,
+                List.of(new DispatchLineRequest(l, new BigDecimal("100")))));
+        assertThatThrownBy(() -> service.dispatch(SUPPLIER, po.id(), new DispatchRequest("TS09AB1234", null, "331000123457",
+                List.of(new DispatchLineRequest(l, new BigDecimal("101"))))))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("send 501 of the 500");
+    }
+
+    @Test
+    void aReceiptAgainstADispatchTakesNoMoreThanItCarriedAndOnlyOnce() {
+        PoDetail po = raise("150.00");
+        Long l = line(po);
+        service.acknowledge(SUPPLIER, po.id());
+        Long dispatchId = service.dispatch(SUPPLIER, po.id(), new DispatchRequest("TS09AB1234", null, "331000123456",
+                List.of(new DispatchLineRequest(l, new BigDecimal("300"))))).dispatches().get(0).id();
+        assertThatThrownBy(() -> service.receive(RAISER, po.id(), new ReceiptRequest(List.of(
+                new ReceiptLineRequest(l, new BigDecimal("301"), null)), null, dispatchId)))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("carried only 300");
+        PoDetail got = service.receive(RAISER, po.id(), new ReceiptRequest(List.of(
+                new ReceiptLineRequest(l, new BigDecimal("300"), new BigDecimal("20"))), null, dispatchId));
+        assertThat(got.dispatches().get(0).receiptId()).isEqualTo(got.receipts().get(0).id());
+        assertThat(got.receipts().get(0).dispatchId()).isEqualTo(dispatchId);
+        assertThatThrownBy(() -> service.receive(RAISER, po.id(), new ReceiptRequest(List.of(
+                new ReceiptLineRequest(l, new BigDecimal("1"), null)), null, dispatchId)))
+                .isInstanceOf(IllegalStateException.class).hasMessageContaining("already been received");
+        // The 20 rejected may be replaced: 300 + 200 + 20 dispatched in all.
+        service.dispatch(SUPPLIER, po.id(), new DispatchRequest("TS09AB1234", null, "331000123457",
+                List.of(new DispatchLineRequest(l, new BigDecimal("220")))));
+    }
+
+    @Test
+    void anApprovedInvoiceIsPaidThroughPaymentServiceAndMarkedPaidOnceConfirmed() {
+        PoDetail po = raise("150.00");
+        Long l = line(po);
+        service.acknowledge(SUPPLIER, po.id());
+        service.receive(RAISER, po.id(), new ReceiptRequest(List.of(new ReceiptLineRequest(l, new BigDecimal("500"), null)), null, null));
+        Long inv = service.invoice(SUPPLIER, po.id(), new InvoiceRequest("INV-5", List.of(
+                new InvoiceLineRequest(l, new BigDecimal("500"), new BigDecimal("150.00"), new BigDecimal("28"))))).invoices().get(0).id();
+        assertThatThrownBy(() -> service.pay(APPROVER, po.id(), inv)).isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("approved");
+        service.decideInvoice(APPROVER, po.id(), inv, true, null);
+        assertThatThrownBy(() -> service.pay(RAISER, po.id(), inv)).isInstanceOf(AccessDeniedException.class);
+
+        when(payments.createOrder(any())).thenReturn(new PaymentsClient.PaymentOrder(900L, "PAY1", "order_X", "rzp_test_k",
+                new BigDecimal("96000.00"), "PROCESSING", null));
+        PaymentCheckout checkout = service.pay(APPROVER, po.id(), inv);
+        assertThat(checkout.razorpayOrderId()).isEqualTo("order_X");
+        assertThat(checkout.amount()).isEqualByComparingTo("96000.00");
+        verify(payments).createOrder(argThat(r -> r.referenceType().equals("SUPPLIER_INVOICE") && r.referenceId().equals(inv)
+                && r.amount().compareTo(new BigDecimal("96000.00")) == 0));
+
+        service.markPaid(inv, 900L, "pay_ABC");
+        service.markPaid(inv, 900L, "pay_ABC");   // Kafka redelivery changes nothing
+        InvoiceView paid = service.get(APPROVER, po.id()).invoices().get(0);
+        assertThat(paid.status()).isEqualTo(InvoiceStatus.PAID);
+        assertThat(paid.paymentReference()).isEqualTo("pay_ABC");
+        verify(notifier, times(1)).toOrg(eq(2L), any(), any(), eq("PROCUREMENT_INVOICE_PAID"), any(), any(), any(), any(), any());
+        assertThatThrownBy(() -> service.pay(APPROVER, po.id(), inv)).hasMessageContaining("already been paid");
+    }
+
+    @Test
+    void paymentProblemsAreExplainedNotLeakedAs500s() {
+        PoDetail po = raise("150.00");
+        Long l = line(po);
+        service.acknowledge(SUPPLIER, po.id());
+        service.receive(RAISER, po.id(), new ReceiptRequest(List.of(new ReceiptLineRequest(l, new BigDecimal("500"), null)), null, null));
+        Long inv = service.invoice(SUPPLIER, po.id(), new InvoiceRequest("INV-6", List.of(
+                new InvoiceLineRequest(l, new BigDecimal("500"), new BigDecimal("150.00"), new BigDecimal("28"))))).invoices().get(0).id();
+        service.decideInvoice(APPROVER, po.id(), inv, true, null);
+        feign.Request req = feign.Request.create(feign.Request.HttpMethod.POST, "/x", Map.of(), null, java.nio.charset.StandardCharsets.UTF_8, null);
+        when(payments.createOrder(any())).thenThrow(new feign.FeignException.Conflict("no merchant", req, null, null));
+        assertThatThrownBy(() -> service.pay(APPROVER, po.id(), inv)).isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("not set up");
+        reset(payments);
+        when(payments.createOrder(any())).thenThrow(new feign.FeignException.ServiceUnavailable("down", req, null, null));
+        assertThatThrownBy(() -> service.pay(APPROVER, po.id(), inv)).isInstanceOf(PaymentUnavailableException.class);
+    }
+
+    @Test
+    void theRightPeopleAreToldAtEachStep() {
+        PoDetail po = raise("400.00");
+        verify(notifier).toOrg(eq(1L), same(Notifier.APPROVERS), eq(10L), eq("PROCUREMENT_PO_APPROVAL_NEEDED"),
+                any(), any(), eq("PURCHASE_ORDER"), eq(po.id()), eq("/procurement/orders/" + po.id()));
+        verify(notifier, never()).toOrg(eq(2L), any(), any(), eq("PROCUREMENT_PO_ISSUED"), any(), any(), any(), any(), any());
+        service.approve(APPROVER, po.id());
+        verify(notifier).toOrg(eq(2L), any(), eq(11L), eq("PROCUREMENT_PO_ISSUED"), any(), any(), any(), any(), any());
+        service.acknowledge(SUPPLIER, po.id());
+        verify(notifier).toOrg(eq(1L), any(), eq(20L), eq("PROCUREMENT_PO_ACKNOWLEDGED"), any(), any(), any(), any(), any());
     }
 }

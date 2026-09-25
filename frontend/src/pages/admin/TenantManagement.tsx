@@ -104,6 +104,9 @@ import {
 } from '../../services/tenantApi';
 import { DraftList, PublishCard } from './TenantFactory';
 import PlanCard from './TenantEntitlements';
+import PlacementCard from './TenantPlacement';
+import DomainsCard from './TenantDomains';
+import CryptoShredCard from './CryptoShredCard';
 
 /**
  * Operator's view over every tenant on the platform. Creating one provisions a schema per service
@@ -2451,6 +2454,8 @@ const TenantDetail: React.FC<{ tenant: Tenant; onBack: () => void }> = ({
 
       <PublishCard tenant={tenant} />
       <PlanCard tenant={tenant} />
+      <PlacementCard tenant={tenant} />
+      <DomainsCard tenant={tenant} />
       {OPERATOR_SETTABLE_STATUSES.includes(tenant.status) && <StatusEditor tenant={tenant} />}
       <IdentityEditor tenant={tenant} />
       <ModuleEditor tenant={tenant} />
@@ -2458,6 +2463,7 @@ const TenantDetail: React.FC<{ tenant: Tenant; onBack: () => void }> = ({
       <NavigationCard tenant={tenant} />
       <BrandingSummary tenant={tenant} />
       <TenantIntegrationsCard tenant={tenant} />
+      <CryptoShredCard tenant={tenant} />
     </Box>
   );
 };

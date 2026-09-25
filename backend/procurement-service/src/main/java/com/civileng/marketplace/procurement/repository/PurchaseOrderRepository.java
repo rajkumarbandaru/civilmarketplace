@@ -15,4 +15,6 @@ public interface PurchaseOrderRepository extends JpaRepository<PurchaseOrder, Lo
     List<PurchaseOrder> visibleTo(@Param("orgs") Collection<Long> orgs);
 
     Optional<PurchaseOrder> findByRfqId(Long rfqId);
+
+    List<PurchaseOrder> findByBuyerOrgIdAndSupplierOrgId(Long buyerOrgId, Long supplierOrgId);
 }

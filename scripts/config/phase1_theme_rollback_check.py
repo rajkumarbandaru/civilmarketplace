@@ -13,8 +13,9 @@ TENANTS = ["acme", "bhoomi"]
 SEEDER = os.path.join(os.path.dirname(__file__),
                       "../../backend/auth-service/src/main/java/com/civileng/marketplace/auth/service/DevUserSeeder.java")
 src = open(SEEDER).read()
-EMAIL = re.search(r'SUPER_ADMIN_EMAIL\s*=\s*"([^"]+)"', src).group(1)
-PASSWORD = re.search(r'SUPER_ADMIN_PASSWORD\s*=\s*"([^"]+)"', src).group(1)
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
+# Never the owner's Super Admin: these checks enrol and reset MFA (see scripts/lib/live.py).
+from live import OP_EMAIL as EMAIL, OP_PASSWORD as PASSWORD, ensure_drill_operator
 ok = True
 
 
@@ -51,10 +52,15 @@ def sql(q):
 
 def reset_mfa():
     for t in TENANTS:
+        ensure_drill_operator(t)
         sql(f"UPDATE civil_engineer_auth_{t}.users SET two_factor_enabled=0, two_factor_secret=NULL, "
             f"two_factor_last_step=NULL, two_factor_recovery_codes=NULL WHERE email='{EMAIL}'")
-    keys = subprocess.run(["docker", "exec", "civil_redis", "redis-cli", "--scan", "--pattern", "mfa:*"], capture_output=True, text=True).stdout.split()
-    if keys: subprocess.run(["docker", "exec", "civil_redis", "redis-cli", "DEL", *keys], capture_output=True)
+    # Only the drill operator's pending enrolment and failure count — never anyone else's.
+    for t in TENANTS:
+        uid = sql(f"SELECT id FROM civil_engineer_auth_{t}.users WHERE email='{EMAIL}'").strip()
+        for kind in ("pending", "failures"):
+            if uid:
+                subprocess.run(["docker", "exec", "civil_redis", "redis-cli", "DEL", f"mfa:{kind}:{t}:{uid}"], capture_output=True)
 
 
 def sign_in(tenant):
@@ -118,7 +124,7 @@ try:
     check("acme's admin cannot read bhoomi's history", s == 403, s)
 finally:
     reset_mfa()
-    print("(both admins' MFA reset; both themes are back to their original content)")
+    print("(the drill operator's MFA reset in both workspaces; both themes are back to their original content)")
 
 print("\nALL PASSED" if ok else "\nSOME FAILED")
 sys.exit(0 if ok else 1)

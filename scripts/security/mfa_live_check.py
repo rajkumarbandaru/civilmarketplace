@@ -4,8 +4,9 @@ import os, base64, hashlib, hmac, json, re, struct, subprocess, sys, time, urlli
 
 GW = "http://localhost:8080/api/v1"
 src = open(os.path.join(os.path.dirname(__file__), "../../backend/auth-service/src/main/java/com/civileng/marketplace/auth/service/DevUserSeeder.java")).read()
-EMAIL = re.search(r'SUPER_ADMIN_EMAIL\s*=\s*"([^"]+)"', src).group(1)
-PASSWORD = re.search(r'SUPER_ADMIN_PASSWORD\s*=\s*"([^"]+)"', src).group(1)
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
+# Never the owner's Super Admin: these checks enrol and reset MFA (see scripts/lib/live.py).
+from live import OP_EMAIL as EMAIL, OP_PASSWORD as PASSWORD, ensure_drill_operator
 ok = True
 
 
@@ -42,11 +43,15 @@ def sql(q):
 
 
 def reset():
-    for schema in sql("SHOW DATABASES LIKE 'civil_engineer_auth%'").split():
-        sql(f"UPDATE {schema}.users SET two_factor_enabled=0, two_factor_secret=NULL, two_factor_last_step=NULL, "
-            f"two_factor_recovery_codes=NULL WHERE email='{EMAIL}'")
-    keys = subprocess.run(["docker", "exec", "civil_redis", "redis-cli", "--scan", "--pattern", "mfa:*"], capture_output=True, text=True).stdout.split()
-    if keys: subprocess.run(["docker", "exec", "civil_redis", "redis-cli", "DEL", *keys], capture_output=True)
+    ensure_drill_operator("platform")
+    sql(f"UPDATE civil_engineer_auth_platform.users SET two_factor_enabled=0, two_factor_secret=NULL, two_factor_last_step=NULL, "
+        f"two_factor_recovery_codes=NULL, login_attempts=0, locked_until=NULL WHERE email='{EMAIL}'")
+    # Only the drill operator's pending enrolment and failure count — never anyone else's.
+    for t in ["platform"]:
+        uid = sql(f"SELECT id FROM civil_engineer_auth_{t}.users WHERE email='{EMAIL}'").strip()
+        for kind in ("pending", "failures"):
+            if uid:
+                subprocess.run(["docker", "exec", "civil_redis", "redis-cli", "DEL", f"mfa:{kind}:{t}:{uid}"], capture_output=True)
 
 
 reset()
@@ -114,7 +119,7 @@ try:
     check("a customer still signs in in one step", s == 200 and c.get("accessToken") and not c.get("mfaRequired"), (s, c))
 finally:
     reset()
-    print("(dev SUPER_ADMIN's MFA reset: the owner enrols their own authenticator at next sign-in)")
+    print("(drill operator's MFA reset; the owner's Super Admin was never touched)")
 
 print("\nALL PASSED" if ok else "\nSOME FAILED")
 sys.exit(0 if ok else 1)

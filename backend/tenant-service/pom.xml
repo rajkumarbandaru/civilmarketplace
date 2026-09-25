@@ -12,6 +12,13 @@
     <name>Tenant Service</name>
     <description>Platform tenant registry and provisioning (white-label operators)</description>
     <dependencies>
+        <!-- ACME (RFC 8555) client: certificates for tenants' custom domains, from Let's Encrypt in
+             production and Pebble (its test server) locally. -->
+        <dependency>
+            <groupId>org.shredzone.acme4j</groupId>
+            <artifactId>acme4j-client</artifactId>
+            <version>5.1.0</version>
+        </dependency>
         <dependency>
             <groupId>com.civileng.marketplace</groupId>
             <artifactId>web-common</artifactId>

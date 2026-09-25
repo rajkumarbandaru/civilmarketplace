@@ -30,12 +30,16 @@ class OrganizationServiceTest {
     private final OrganizationRepository organizations = mock(OrganizationRepository.class);
     private final OrgMemberRepository members = mock(OrgMemberRepository.class);
     private final OrgRelationshipRepository relationships = mock(OrgRelationshipRepository.class);
+    private final com.civileng.marketplace.procurement.repository.PriceListRepository priceLists =
+            mock(com.civileng.marketplace.procurement.repository.PriceListRepository.class);
+    private final com.civileng.marketplace.procurement.client.AccountLookupClient accounts =
+            mock(com.civileng.marketplace.procurement.client.AccountLookupClient.class);
     private OrganizationService service;
 
     @BeforeEach
     void setUp() {
-        service = new OrganizationService(organizations, members, relationships, new Memberships(members),
-                new ProcurementProperties(null, null), mock(Audit.class));
+        service = new OrganizationService(organizations, members, relationships, priceLists, new Memberships(members),
+                new ProcurementProperties(null, null), accounts, mock(Audit.class));
     }
 
     private static OrgRelationship rel(long from, long to, RelationshipType type) {
@@ -115,5 +119,43 @@ class OrganizationServiceTest {
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> service.setRelationship(OWNER, 1L, new RelationshipRequest(1L, RelationshipType.BLOCKED)))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void suppliersUnderContractComeFirstThenPreferred() {
+        when(members.findByUserId(10L)).thenReturn(List.of(member(1, 10, MemberRole.OWNER)));
+        when(organizations.findAllByOrderByNameAsc()).thenReturn(List.of(
+                org(2, "Alpha Cement", Capability.SUPPLIER), org(3, "Beta Steel", Capability.SUPPLIER),
+                org(4, "Gamma Sand", Capability.SUPPLIER)));
+        when(relationships.findByFromOrgId(1L)).thenReturn(List.of(rel(1, 3, RelationshipType.PREFERRED_SUPPLIER)));
+        PriceList contract = new PriceList();
+        contract.setSupplierOrgId(4L);
+        contract.setBuyerOrgId(1L);
+        contract.setStatus(PriceListStatus.ACTIVE);
+        PriceList expired = new PriceList();
+        expired.setSupplierOrgId(2L);
+        expired.setBuyerOrgId(1L);
+        expired.setStatus(PriceListStatus.ACTIVE);
+        expired.setValidUntil(java.time.LocalDate.now().minusDays(1));
+        when(priceLists.findByBuyerOrgIdAndStatus(1L, PriceListStatus.ACTIVE)).thenReturn(List.of(contract, expired));
+
+        assertThat(service.directory(OWNER, Capability.SUPPLIER, 1L))
+                .extracting(DirectoryEntry::name, DirectoryEntry::contracted, DirectoryEntry::preferred)
+                .containsExactly(org.assertj.core.groups.Tuple.tuple("Gamma Sand", true, false),
+                        org.assertj.core.groups.Tuple.tuple("Beta Steel", false, true),
+                        org.assertj.core.groups.Tuple.tuple("Alpha Cement", false, false));
+    }
+
+    @Test
+    void aColleagueWithAnAccountIsLinkedWhenAddedAndOneWithoutIsLinkedLater() {
+        when(members.findByUserId(10L)).thenReturn(List.of(member(1, 10, MemberRole.OWNER)));
+        when(organizations.findById(1L)).thenReturn(Optional.of(org(1, "BuildCo", Capability.BUYER)));
+        when(accounts.byEmail("anita@example.com"))
+                .thenReturn(new com.civileng.marketplace.procurement.client.AccountLookupClient.AccountRef(11L, "anita@example.com", "Anita"));
+        when(accounts.byEmail("new@example.com")).thenThrow(new RuntimeException("404"));
+        service.addMember(OWNER, 1L, new MemberRequest("Anita@Example.com", MemberRole.APPROVER));
+        service.addMember(OWNER, 1L, new MemberRequest("new@example.com", MemberRole.MEMBER));
+        verify(members).save(argThat(m -> "anita@example.com".equals(m.getEmail()) && Long.valueOf(11L).equals(m.getUserId())));
+        verify(members).save(argThat(m -> "new@example.com".equals(m.getEmail()) && m.getUserId() == null));
     }
 }
