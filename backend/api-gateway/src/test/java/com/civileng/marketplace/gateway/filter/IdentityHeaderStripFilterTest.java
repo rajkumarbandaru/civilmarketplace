@@ -27,14 +27,16 @@ class IdentityHeaderStripFilterTest {
     void dropsForgedIdentityHeadersInAnyCase() {
         HttpHeaders out = forward(MockServerHttpRequest.get("/api/v1/catalogue/services")
                 .header("X-User-Id", "1")
-                .header("x-user-role", "SUPER_ADMIN")
+                .header("x-user-role", "PLATFORM_OWNER")
                 .header("X-USER-EMAIL", "a@b.c")
                 .header("X-User-Something-New", "x")
+                .header("X-User-Acting-From", "platform")
                 .header("X-Internal-Caller", "payment-service")
                 .header("Accept", "application/json")
                 .build());
 
         assertThat(out.keySet()).noneMatch(IdentityHeaderStripFilter::isIdentity);
+        assertThat(out.containsKey("X-User-Acting-From")).as("only the gateway vouches for acting").isFalse();
         assertThat(out.getFirst("Accept")).isEqualTo("application/json");
     }
 

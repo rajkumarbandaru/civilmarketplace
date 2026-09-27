@@ -41,7 +41,8 @@ public class SiteRateService {
      * them would put an "ADMIN" line in a BOQ.
      */
     private static final List<String> NON_SUPPLY_ROLES = List.of(
-            "SUPER_ADMIN", "ADMIN", "SUB_ADMIN", "REGIONAL_ADMIN", "CITY_MANAGER", "CUSTOMER");
+            "TENANT_OWNER", "ADMIN", "SUB_ADMIN", "REGIONAL_ADMIN", "CITY_MANAGER", "CUSTOMER",
+            "PLATFORM_OWNER", "PLATFORM_ADMIN", "PLATFORM_SUPPORT");
 
     /** Page size search-service caps at, and how many pages are walked at most. */
     private static final int PAGE_SIZE = 100;

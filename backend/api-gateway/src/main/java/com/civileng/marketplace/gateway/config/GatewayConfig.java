@@ -204,7 +204,7 @@ public class GatewayConfig {
                         .filters(f -> f.stripPrefix(0))
                         .uri("lb://tenant-service"))
                 // Tenant administration. Behind the JWT filter; tenant-service additionally
-                // requires the caller be a SUPER_ADMIN of the operator tenant.
+                // requires the caller be platform staff on the operator tenant.
                 .route("tenant-service", r -> r
                         .path("/api/v1/tenants/**")
                         .filters(f -> f.stripPrefix(0)

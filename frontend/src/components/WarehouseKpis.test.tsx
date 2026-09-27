@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
-const state = { role: 'SUPER_ADMIN', tenantKey: 'platform' };
+const state = { role: 'PLATFORM_OWNER', tenantKey: 'platform' };
 vi.mock('../hooks', () => ({ useAppSelector: (f: (s: unknown) => unknown) => f({ auth: { user: { role: state.role } } }) }));
 vi.mock('../providers/WorkspaceProvider', () => ({ useWorkspace: () => ({ tenantKey: state.tenantKey }) }));
 vi.mock('../services/analyticsApi', () => ({
@@ -21,7 +21,7 @@ describe('WarehouseKpis', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('shows the operator every workspace and the capture status of each cluster', async () => {
-    Object.assign(state, { role: 'SUPER_ADMIN', tenantKey: 'platform' });
+    Object.assign(state, { role: 'PLATFORM_OWNER', tenantKey: 'platform' });
     mocked.fetchPlatformKpis.mockResolvedValue({ totals: kpis('*', 7), tenants: [kpis('acme', 5), kpis('bigco', 2)] });
     mocked.fetchCaptureStatus.mockResolvedValue([{ clusterId: 'cluster-a', host: 'mysql', connected: true,
       binlogFile: 'binlog.000035', binlogPosition: 1, events: 42, lastEventAt: null }]);
@@ -30,6 +30,15 @@ describe('WarehouseKpis', () => {
     expect(screen.getByTestId('kpi-bookings')).toHaveTextContent('7');
     expect(await screen.findByTestId('capture-cluster-a')).toHaveTextContent('capturing · 42 changes');
     expect(mocked.fetchWorkspaceKpis).not.toHaveBeenCalled();
+  });
+
+  it('shows a tenant owner only their own workspace, never the cross-tenant view', async () => {
+    Object.assign(state, { role: 'TENANT_OWNER', tenantKey: 'civengmarket' });
+    mocked.fetchWorkspaceKpis.mockResolvedValue({ totals: kpis('civengmarket', 3), bookingsByStatus: [], bookingsByCity: [] });
+    renderIt();
+    expect(screen.getByText('This workspace')).toBeInTheDocument();
+    expect(await screen.findByTestId('kpi-bookings')).toHaveTextContent('3');
+    expect(mocked.fetchPlatformKpis).not.toHaveBeenCalled();
   });
 
   it('shows a tenant admin only their own workspace, never the cross-tenant view', async () => {

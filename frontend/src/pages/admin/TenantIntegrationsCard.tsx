@@ -13,23 +13,17 @@ import {
   DialogContent,
   DialogContentText,
   DialogTitle,
-  FormControlLabel,
   IconButton,
-  MenuItem,
-  Radio,
-  RadioGroup,
   Stack,
-  Switch,
-  TextField,
   Tooltip,
   Typography,
 } from '@mui/material';
 import { ContentCopy } from '@mui/icons-material';
 import { apiErrorMessage } from '../../services/apiError';
+import IntegrationFormFields from './IntegrationFormFields';
 import {
   CAPABILITY_LABELS,
   CapabilitySpec,
-  DEFAULT_MODELS,
   IntegrationClient,
   IntegrationDraft,
   TenantIntegration,
@@ -39,7 +33,6 @@ import {
   integrationStatus,
   missingFields,
   operatorIntegrations,
-  providerLabel,
   toSaveRequest,
   webhookUrl,
 } from '../../services/tenantIntegrationApi';
@@ -69,12 +62,7 @@ const EditIntegrationDialog: React.FC<{
     },
   });
 
-  const provider = spec.providers[draft.provider];
   const missing = missingFields(spec, draft, current);
-  const keepsStored =
-    current?.configured && current.mode === 'BYO' && current.provider === draft.provider;
-  const set = (group: 'settings' | 'secrets', key: string, value: string) =>
-    setDraft((d) => ({ ...d, [group]: { ...d[group], [key]: value } }));
 
   return (
     <Dialog open onClose={onClose} fullWidth maxWidth="sm">
@@ -90,94 +78,7 @@ const EditIntegrationDialog: React.FC<{
           </Alert>
         )}
 
-        <RadioGroup
-          value={draft.mode}
-          onChange={(e) => setDraft((d) => ({ ...d, mode: e.target.value as IntegrationDraft['mode'] }))}
-          sx={{ mb: 2 }}
-        >
-          <FormControlLabel
-            value="PLATFORM_SHARED"
-            control={<Radio />}
-            label={`Use the platform's account (default). ${CAPABILITY_LABELS[spec.capability]?.platformNote ?? ''}`}
-          />
-          <FormControlLabel value="BYO" control={<Radio />} label="Use our own account" />
-        </RadioGroup>
-
-        {draft.mode === 'BYO' && (
-          <Stack spacing={2}>
-            <TextField
-              select
-              label="Provider"
-              value={draft.provider}
-              onChange={(e) => setDraft((d) => ({ ...d, provider: e.target.value }))}
-              SelectProps={{ inputProps: { 'aria-label': 'Provider' } }}
-            >
-              {Object.keys(spec.providers).map((key) => (
-                <MenuItem key={key} value={key}>{providerLabel(key)}</MenuItem>
-              ))}
-            </TextField>
-
-            {provider?.settings.map((key) => (
-              <TextField
-                key={key}
-                label={fieldLabel(key)}
-                value={draft.settings[key] ?? ''}
-                onChange={(e) => set('settings', key, e.target.value)}
-                error={touched && missing.includes(key)}
-                helperText={touched && missing.includes(key) ? 'Required' : undefined}
-                required
-              />
-            ))}
-
-            {provider?.optionalSettings?.map((key) => (
-              <TextField
-                key={key}
-                label={`${fieldLabel(key)} (optional)`}
-                value={draft.settings[key] ?? ''}
-                onChange={(e) => set('settings', key, e.target.value)}
-                placeholder={key === 'model' ? DEFAULT_MODELS[draft.provider] : undefined}
-                InputLabelProps={{ shrink: true }}
-                helperText={key === 'model' ? 'Leave blank for the provider\'s default model.' : undefined}
-              />
-            ))}
-
-            {provider?.secrets.map((key) => {
-              const hint = keepsStored ? current?.secretHints[key] : undefined;
-              return (
-                <TextField
-                  key={key}
-                  type="password"
-                  autoComplete="new-password"
-                  label={fieldLabel(key)}
-                  value={draft.secrets[key] ?? ''}
-                  onChange={(e) => set('secrets', key, e.target.value)}
-                  placeholder={hint ? `${hint} — leave blank to keep` : undefined}
-                  InputLabelProps={hint ? { shrink: true } : undefined}
-                  error={touched && missing.includes(key)}
-                  helperText={
-                    touched && missing.includes(key)
-                      ? 'Required'
-                      : hint
-                        ? 'Stored encrypted. Type a new value only to replace it.'
-                        : 'Stored encrypted and never shown again.'
-                  }
-                  required={!hint}
-                />
-              );
-            })}
-          </Stack>
-        )}
-
-        <FormControlLabel
-          sx={{ mt: 2 }}
-          control={
-            <Switch
-              checked={draft.enabled}
-              onChange={(e) => setDraft((d) => ({ ...d, enabled: e.target.checked }))}
-            />
-          }
-          label={draft.enabled ? 'On' : 'Off — this feature is switched off for this workspace'}
-        />
+        <IntegrationFormFields spec={spec} draft={draft} onChange={setDraft} current={current} touched={touched} />
       </DialogContent>
       <DialogActions>
         <Button color="inherit" onClick={onClose}>Cancel</Button>

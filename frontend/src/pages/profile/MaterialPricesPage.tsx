@@ -51,7 +51,7 @@ import {
 import { SortableTableCell, useTableSort } from '../../components/admin/SortableTable';
 
 /** Roles the service accepts a published rate from; anything else gets a read-only explanation. */
-const SUPPLIER_ROLES = ['MATERIAL_SUPPLIER', 'EQUIPMENT_RENTAL', 'ADMIN', 'SUPER_ADMIN'];
+const SUPPLIER_ROLES = ['MATERIAL_SUPPLIER', 'EQUIPMENT_RENTAL', 'ADMIN', 'TENANT_OWNER'];
 
 interface FormState {
   id: number | null;

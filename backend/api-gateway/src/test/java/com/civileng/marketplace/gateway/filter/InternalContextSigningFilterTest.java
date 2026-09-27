@@ -18,7 +18,7 @@ class InternalContextSigningFilterTest {
 
     private static final byte[] KEY = InternalContextSignature.decodeKey("AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA=");
     /** The same vector tenant-common's InternalContextSignatureTest asserts; see its javadoc. */
-    private static final String VECTOR = "v1:1790000000:LQhELGFA-VPI8BUSiFqJ53O_MPeTcxVc4ohp46ODSBA";
+    private static final String VECTOR = "v1:1790000000:mP7Xl2Y2U4XFlATM2mzsQ64NHx8qVpSOI_lF001RC7c";
 
     private final InternalContextSigningFilter filter = new InternalContextSigningFilter(KEY,
             Clock.fixed(Instant.ofEpochSecond(1_790_000_000L), ZoneOffset.UTC));

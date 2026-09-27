@@ -79,7 +79,7 @@ export interface AppearanceSettings {
   dateFormatOptions: string[];
   /** Which fields this screen should render controls for. */
   memberEditable: string[];
-  /** Which fields it should render as read-only values — Super Admin owns these. */
+  /** Which fields it should render as read-only values — the workspace owner owns these. */
   adminControlled: string[];
 }
 
@@ -146,7 +146,7 @@ export interface ThemePreset {
   label: string;
   description: string;
   values: ThemeUpdateCommand;
-  /** False for a preset a Super Admin saved — only those can be deleted. */
+  /** False for a preset a workspace owner saved — only those can be deleted. */
   builtIn: boolean;
 }
 
@@ -177,7 +177,7 @@ export const resetMyAppearance = async (): Promise<AppearanceSettings> => {
   return data;
 };
 
-// ------------------------------------------------------------------------ Super Admin console
+// ------------------------------------------------------------------------ Workspace owner console
 
 export const fetchPlatformTheme = async (): Promise<ResolvedTheme> => {
   const { data } = await api.get<ResolvedTheme>('/admin/theme');

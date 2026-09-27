@@ -42,14 +42,14 @@ class InternalContextFilterTest {
     void refusesUnsignedOrForgedIdentity() throws Exception {
         MockFilterChain chain = new MockFilterChain();
         MockHttpServletResponse unsigned = run(withIdentity(), chain);
-        assertThat(unsigned.getStatus()).isEqualTo(401);
+        assertThat(unsigned.getStatus()).isEqualTo(503);
         assertThat(chain.getRequest()).isNull();
 
         MockHttpServletRequest forged = new MockHttpServletRequest("GET", "/api/v1/users/admin/kyc/pending");
         forged.addHeader("X-Tenant-Id", "acme");
-        forged.addHeader("X-User-Role", "SUPER_ADMIN");
+        forged.addHeader("X-User-Role", "PLATFORM_OWNER");
         forged.addHeader(InternalContextSignature.HEADER, InternalContextSignatureTest.VECTOR);
-        assertThat(run(forged, new MockFilterChain()).getStatus()).isEqualTo(401);
+        assertThat(run(forged, new MockFilterChain()).getStatus()).isEqualTo(503);
     }
 
     @Test

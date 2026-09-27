@@ -43,7 +43,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * Resolves the dynamic UI configuration and applies Super Admin's edits to it.
+ * Resolves the dynamic UI configuration and applies the workspace owner's edits to it.
  *
  * <p>The menu is a three-layer overlay — catalogue defaults, then the workspace (role) overlay,
  * then the member's own visibility overrides — and the theme is a three-layer merge of the
@@ -123,7 +123,7 @@ public class UiConfigService {
     /**
      * The workspace theme with the member's own preference applied last. Only light/dark and
      * density can come from the member; the position of the navigation and the rest of the look
-     * stay as Super Admin set them.
+     * stay as the workspace owner set them.
      */
     private ResolvedTheme effectiveTheme(Long userId, String role) {
         ResolvedTheme workspace = theme(role);
@@ -187,7 +187,10 @@ public class UiConfigService {
         Map<String, Object> body;
         try {
             body = authServiceClient.createRole(
-                    "SUPER_ADMIN",
+                    // Only the owner reaches this (AdminUiConfigController), and which owner role
+                    // that is depends on the tenant: the platform owner on the platform console.
+                    com.civileng.marketplace.web.common.StaffRoles.ownerRoleFor(
+                            com.civileng.marketplace.tenant.common.TenantContext.get()),
                     // Nulls would be rejected by the request body's own validation; the caller's
                     // blank description is simply "no description".
                     Map.of("name", command.name().trim(),
@@ -312,7 +315,8 @@ public class UiConfigService {
     private MenuItemDefinition applyOverride(MenuItemDefinition item,
                                              TenantMenuOverrideRow override) {
         if (override == null
-                || (override.getLabelOverride() == null && override.getSortOrder() == null)) {
+                || (override.getLabelOverride() == null && override.getSortOrder() == null
+                    && override.getRoles() == null)) {
             return item;
         }
         MenuItemDefinition copy = new MenuItemDefinition();
@@ -325,6 +329,12 @@ public class UiConfigService {
         }
         if (override.getSortOrder() != null) {
             copy.setSortOrder(override.getSortOrder());
+        }
+        if (override.getRoles() != null) {
+            // Both what the roles see by default and the most they can ever see: a workspace overlay
+            // may hide the item from one of them, but not show it to anyone else.
+            copy.setDefaultRoles(override.getRoles());
+            copy.setRoleCeiling(override.getRoles());
         }
         return copy;
     }
@@ -340,6 +350,7 @@ public class UiConfigService {
                 .collect(Collectors.toMap(WorkspaceMenuEntry::getItemKey, Function.identity(), (a, b) -> a));
 
         return catalogue.stream()
+                .filter(item -> item.allowedFor(role))
                 .map(item -> {
                     WorkspaceMenuEntry entry = overlay.get(item.getItemKey());
                     boolean defaultVisible = item.isDefaultVisibleFor(role);
@@ -471,7 +482,7 @@ public class UiConfigService {
     }
 
     /**
-     * The starting points a Super Admin can load into the theme form: the ones shipped with the
+     * The starting points a workspace owner can load into the theme form: the ones shipped with the
      * service first, then the ones this platform saved for itself. Shipped first because that
      * order never changes as presets are added and removed, so the picker does not reshuffle
      * under an admin who has learned where "Midnight" sits.

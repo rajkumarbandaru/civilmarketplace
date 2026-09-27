@@ -25,7 +25,7 @@ import com.civileng.marketplace.web.common.AccessDeniedException;
  * the operator should be told which one they are about to do.
  *
  * <p>Reading another tenant's schema is exactly what the platform otherwise forbids, so the guard
- * here is the same one tenant-service uses: SUPER_ADMIN of the {@code platform} tenant, no one
+ * here is the same one tenant-service uses: platform staff on the {@code platform} tenant, no one
  * else. Only the version and a boolean are returned — never the tenant's actual colours, which the
  * operator has no business reading.
  */
@@ -34,8 +34,6 @@ import com.civileng.marketplace.web.common.AccessDeniedException;
 @RequiredArgsConstructor
 @ConditionalOnProperty(prefix = "platform.tenant", name = "enabled", havingValue = "true")
 public class TenantThemeStatusController {
-
-    private static final String OPERATOR_TENANT = "platform";
 
     private final ConfigService configService;
 
@@ -50,11 +48,11 @@ public class TenantThemeStatusController {
             @RequestHeader(value = "X-User-Role", required = false) String role,
             @RequestHeader(value = "X-Tenant-Id", required = false) String tenantId) {
 
-        if (!OPERATOR_TENANT.equals(tenantId) || !"SUPER_ADMIN".equals(role)) {
+        if (!com.civileng.marketplace.web.common.PlatformRoles.canView(tenantId, role)) {
             // The service's own exception, not ResponseStatusException — GlobalExceptionHandler
             // maps this one to 403 and everything it does not recognise to 500.
             throw new AccessDeniedException(
-                    "Only a Super Admin of the platform tenant may read another tenant's theme state");
+                    "Only platform staff may read another tenant's theme state");
         }
 
         // Customised means the workspace's own admin has published (or rolled back) its theme —

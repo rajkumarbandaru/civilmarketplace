@@ -10,10 +10,12 @@ import {
   Announcement, cancelAnnouncement, fetchAnnouncements, publishAnnouncement,
 } from '../../services/notificationApi';
 import { apiErrorMessage } from '../../services/apiError';
+import { useAppSelector } from '../../hooks';
+import { isPlatformRole, PLATFORM_ROLES } from '../../utils/roles';
 import { SortableTableCell, useTableSort } from '../../components/admin/SortableTable';
 
 /**
- * Super Admin's broadcast screen: send an alert to a role, several roles, or everyone.
+ * The staff broadcast screen: send an alert to a role, several roles, or everyone.
  *
  * The backend for this already existed (`/api/v1/admin/announcements`) with nothing calling it —
  * an admin could not send a platform alert at all without a curl command. This is that endpoint's
@@ -28,12 +30,12 @@ import { SortableTableCell, useTableSort } from '../../components/admin/Sortable
  * cancelled from the history table.
  */
 
-/** Everyone the platform can address, as the roles table defines them. */
-const ROLES = [
+/** Everyone a tenant can address, as the roles table defines them. */
+const TENANT_ROLES = [
   'CUSTOMER', 'WORKER', 'LABOUR', 'LABOUR_CONTRACTOR', 'CIVIL_ENGINEER', 'STRUCTURAL_ENGINEER',
   'SITE_ENGINEER', 'ARCHITECT', 'INTERIOR_DESIGNER', 'EXTERIOR_DESIGNER', 'SURVEYOR',
   'MATERIAL_SUPPLIER', 'EQUIPMENT_RENTAL', 'PLUMBER', 'ELECTRICIAN', 'CARPENTER', 'PAINTER',
-  'WELDER', 'FABRICATOR', 'CITY_MANAGER', 'REGIONAL_ADMIN', 'SUB_ADMIN', 'ADMIN', 'SUPER_ADMIN',
+  'WELDER', 'FABRICATOR', 'CITY_MANAGER', 'REGIONAL_ADMIN', 'SUB_ADMIN', 'ADMIN', 'TENANT_OWNER',
 ];
 
 /**
@@ -55,6 +57,9 @@ const STATUS_CHIP: Record<string, { label: string; color: 'default' | 'primary' 
 
 const AlertsPage: React.FC = () => {
   const { formatDateTime } = useDateTime();
+  // Alerts go to this workspace's own members, and the RK console's members are platform staff.
+  const actorRole = useAppSelector((state) => state.auth.user?.role);
+  const ROLES: string[] = isPlatformRole(actorRole) ? [...PLATFORM_ROLES] : TENANT_ROLES;
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [roles, setRoles] = useState<string[]>([]);

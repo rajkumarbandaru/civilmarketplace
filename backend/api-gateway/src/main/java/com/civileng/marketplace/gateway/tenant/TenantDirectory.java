@@ -47,35 +47,47 @@ public class TenantDirectory {
     java.time.Clock clock = java.time.Clock.systemUTC();
 
     public Mono<TenantDescriptor> resolve(String host) {
-        CacheEntry cached = cache.get(host);
+        return lookup(host, "host", host);
+    }
+
+    /**
+     * The tenant whose key is {@code tenantKey} — for platform staff acting on a tenant from the
+     * platform console, where the Host names the platform, not the tenant. Cached apart from hosts.
+     */
+    public Mono<TenantDescriptor> resolveKey(String tenantKey) {
+        return lookup("key:" + tenantKey, "key", tenantKey);
+    }
+
+    private Mono<TenantDescriptor> lookup(String cacheKey, String param, String value) {
+        CacheEntry cached = cache.get(cacheKey);
         if (cached != null && cached.isFresh(clock.instant())) {
             return Mono.just(cached.descriptor());
         }
 
         return webClient.get()
                 .uri(builder -> builder.path("/api/v1/tenant-resolution")
-                        .queryParam("host", host).build())
+                        .queryParam(param, value).build())
                 .retrieve()
                 .bodyToMono(TenantDescriptor.class)
                 .doOnNext(descriptor ->
-                        cache.put(host, new CacheEntry(descriptor, clock.instant().plus(ttlFor(descriptor)))))
+                        cache.put(cacheKey, new CacheEntry(descriptor, clock.instant().plus(ttlFor(descriptor)))))
                 .onErrorResume(e -> {
                     // An answer, not an outage: tenant-service says no tenant serves this host
                     // (any more — a removed custom domain, an archived tenant). Forget it; serving
                     // the stale entry here would route a released host forever.
                     if (e instanceof org.springframework.web.reactive.function.client.WebClientResponseException r
                             && r.getStatusCode().is4xxClientError()) {
-                        cache.remove(host);
+                        cache.remove(cacheKey);
                         return Mono.empty();
                     }
                     // A stale entry beats a platform-wide outage: if tenant-service is down,
                     // hosts we already know keep serving rather than every request failing.
                     if (cached != null) {
                         log.warn("Tenant lookup for '{}' failed ({}), serving stale entry",
-                                host, e.getMessage());
+                                cacheKey, e.getMessage());
                         return Mono.just(cached.descriptor());
                     }
-                    log.warn("Tenant lookup for '{}' failed: {}", host, e.getMessage());
+                    log.warn("Tenant lookup for '{}' failed: {}", cacheKey, e.getMessage());
                     return Mono.empty();
                 });
     }

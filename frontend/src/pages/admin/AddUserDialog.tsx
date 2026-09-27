@@ -7,17 +7,17 @@ import { userApi, InvitedUser } from '../../services/adminApi';
 import { apiErrorMessage } from '../../services/apiError';
 import { useWorkspace } from '../../providers/WorkspaceProvider';
 import { useAppSelector } from '../../hooks';
+import { isOwnerRole, roleLabel } from '../../utils/roles';
+
+export { roleLabel };
 
 const EMAIL = /^\S+@\S+\.\S+$/;
 
-/** "SITE_ENGINEER" → "Site engineer". */
-export const roleLabel = (role: string) =>
-  role.charAt(0) + role.slice(1).toLowerCase().replace(/_/g, ' ');
-
 /**
  * Adds someone to this workspace with a role. No password is set here: they are emailed a link to
- * set their own, the same way a new workspace's owner is. Only a Super Admin is offered the Super
- * Admin role (the server enforces it too).
+ * set their own, the same way a new workspace's owner is. Only an owner is offered an owner role,
+ * and the server lists only the roles that exist in this tier — platform roles on the RK console,
+ * a business's own roles everywhere else (the server enforces both too).
  */
 const AddUserDialog: React.FC<{ open: boolean; onClose: () => void; onAdded: (user: InvitedUser) => void }> = ({
   open, onClose, onAdded,
@@ -35,7 +35,7 @@ const AddUserDialog: React.FC<{ open: boolean; onClose: () => void; onAdded: (us
     enabled: open,
     retry: false,
   });
-  const options = (roles.data ?? []).filter((r) => r.name !== 'SUPER_ADMIN' || actorRole === 'SUPER_ADMIN');
+  const options = (roles.data ?? []).filter((r) => !isOwnerRole(r.name) || isOwnerRole(actorRole));
 
   const invite = useMutation({
     mutationFn: async () => (await userApi.inviteUser({

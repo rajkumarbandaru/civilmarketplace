@@ -67,7 +67,7 @@ const HomePage: React.FC = () => {
   const layout = siteLayout(experienceOf(useTheme()).siteLayout);
   const { services: catalogue } = useCatalogue();
 
-  // Every heading, paragraph, badge and button below is a row a Super Admin edits in the console.
+  // Every heading, paragraph, badge and button below is a row a workspace owner edits in the console.
   // A section switched off there returns null here and its block is skipped entirely.
   const hero = useSection('home.hero');
   const statsSection = useSection('home.stats');

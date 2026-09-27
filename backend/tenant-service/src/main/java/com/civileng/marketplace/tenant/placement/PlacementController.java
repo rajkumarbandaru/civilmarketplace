@@ -1,6 +1,5 @@
 package com.civileng.marketplace.tenant.placement;
 
-import com.civileng.marketplace.web.common.AccessDeniedException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
@@ -8,7 +7,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 /**
- * Where tenants' data lives and moving it: the operator tenant's SUPER_ADMINs only, like all of
+ * Where tenants' data lives and moving it: platform staff only, like all of
  * tenant administration.
  */
 @RestController
@@ -87,8 +86,6 @@ public class PlacementController {
     }
 
     private static void requireOperator(String role, String tenantId) {
-        if (!"platform".equals(tenantId) || !"SUPER_ADMIN".equals(role)) {
-            throw new AccessDeniedException("Tenant placement is restricted to the operator tenant's SUPER_ADMINs");
-        }
+        com.civileng.marketplace.web.common.PlatformRoles.requireOperator(tenantId, role, "Tenant placement");
     }
 }

@@ -88,8 +88,28 @@ class WorkspaceSettingsControllerTest {
     void onlyTheWorkspacesAdminsGetIn() {
         assertThatThrownBy(() -> controller.modules("CUSTOMER", "acme")).isInstanceOf(AccessDeniedException.class);
         assertThatThrownBy(() -> controller.integrations("ADMIN", null)).isInstanceOf(AccessDeniedException.class);
-        assertThatThrownBy(() -> controller.integrations("SUPER_ADMIN", "platform"))
+        assertThatThrownBy(() -> controller.integrations("TENANT_OWNER", "platform"))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void platformManagersActingOnTheWorkspaceGetIn() {
+        org.springframework.mock.web.MockHttpServletRequest request = new org.springframework.mock.web.MockHttpServletRequest();
+        request.addHeader(com.civileng.marketplace.web.common.ActingTenant.HEADER, "platform");
+        org.springframework.web.context.request.RequestContextHolder.setRequestAttributes(
+                new org.springframework.web.context.request.ServletRequestAttributes(request));
+        try {
+            controller.integrations("PLATFORM_OWNER", "acme");
+            controller.integrations("PLATFORM_ADMIN", "acme");
+            verify(integrations, org.mockito.Mockito.times(2)).list("acme");
+            assertThatThrownBy(() -> controller.integrations("PLATFORM_SUPPORT", "acme"))
+                    .isInstanceOf(AccessDeniedException.class);
+        } finally {
+            org.springframework.web.context.request.RequestContextHolder.resetRequestAttributes();
+        }
+        assertThatThrownBy(() -> controller.integrations("PLATFORM_OWNER", "acme"))
+                .as("not acting: a platform role is no workspace admin")
+                .isInstanceOf(AccessDeniedException.class);
     }
 
     @Test

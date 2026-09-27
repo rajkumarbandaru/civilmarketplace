@@ -138,4 +138,6 @@ platform:
     # localhost:8080 resolves to no tenant and would 404 without this. MUST be empty in any
     # deployed environment: with it set, an unrecognised Host silently becomes real tenant traffic
     # instead of being refused.
-    fallback: ${TENANT_FALLBACK_HOST:platform.localhost}
+    # Plain localhost is the CivEngMarket marketplace; the RK Technologies platform console is at
+    # platform.localhost (browsers resolve *.localhost to 127.0.0.1 without any hosts entry).
+    fallback: ${TENANT_FALLBACK_HOST:civengmarket.localhost}

@@ -407,6 +407,7 @@ public class TenantService {
                     .visible(!override.isHidden())
                     .labelOverride(label)
                     .sortOrder(override.getSortOrder())
+                    .roles(normaliseRoles(itemKey, override.roleList()))
                     .build());
         }
 
@@ -417,11 +418,36 @@ public class TenantService {
                     entity.setVisible(!override.isHidden());
                     entity.setLabelOverride(override.getLabelOverride());
                     entity.setSortOrder(override.getSortOrder());
+                    entity.setRoles(override.getRoles());
                     return entity;
                 })
                 .toList();
         menuOverrideRepository.saveAll(rows);
         return List.copyOf(byKey.values());
+    }
+
+    /**
+     * A role ceiling as stored: role names only, upper case, each once, comma-separated; null for
+     * none. Platform roles are refused — they never exist in a customer tenant's workspace.
+     */
+    static String normaliseRoles(String itemKey, java.util.List<String> roles) {
+        if (roles == null || roles.isEmpty()) return null;
+        java.util.LinkedHashSet<String> clean = new java.util.LinkedHashSet<>();
+        for (String role : roles) {
+            String r = role.trim().toUpperCase(java.util.Locale.ROOT);
+            if (!r.matches("[A-Z][A-Z0-9_]{1,63}")) {
+                throw new IllegalArgumentException("'" + role + "' is not a role name (menu item '" + itemKey + "')");
+            }
+            if (r.startsWith("PLATFORM_")) {
+                throw new IllegalArgumentException("Platform roles do not exist in a tenant (menu item '" + itemKey + "')");
+            }
+            clean.add(r);
+        }
+        String joined = String.join(",", clean);
+        if (joined.length() > 1000) {
+            throw new IllegalArgumentException("Too many roles for menu item '" + itemKey + "'");
+        }
+        return joined;
     }
 
     private static String blankToNull(String value) {

@@ -46,7 +46,7 @@ import AskAiButton from './AskAiButton';
 import GlobalSearch from './GlobalSearch';
 
 /** Roles that can publish material rates; mirrors the check in user-service. */
-const SUPPLIER_ROLES = ['MATERIAL_SUPPLIER', 'EQUIPMENT_RENTAL', 'ADMIN', 'SUPER_ADMIN'];
+const SUPPLIER_ROLES = ['MATERIAL_SUPPLIER', 'EQUIPMENT_RENTAL', 'ADMIN', 'TENANT_OWNER'];
 
 // A visitor who is not signed in holds no role, so there is no workspace to resolve a menu from.
 // This is that public site's own navigation — not a fallback for a signed-in member, whose menu
@@ -72,7 +72,7 @@ const Navbar: React.FC<{ navInDrawer?: boolean }> = ({ navInDrawer = false }) =>
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const workMenuItems = useMenuSection('Work');
 
-  // The wordmark is Super Admin's to set, and the gradient behind it follows the configured
+  // The wordmark is the workspace owner's to set, and the gradient behind it follows the configured
   // palette — a re-themed platform that still says CivEngMarket in violet is not re-themed.
   const { theme: uiTheme } = useUiConfig();
   const muiTheme = useTheme();
@@ -114,7 +114,7 @@ const Navbar: React.FC<{ navInDrawer?: boolean }> = ({ navInDrawer = false }) =>
       <AppBar
         position="fixed"
         // Resolved from the theme, not painted white: a hardcoded bar ignored every colour a
-        // Super Admin set, and stayed white in dark mode. The alpha keeps the blur effect that
+        // the workspace owner set, and stayed white in dark mode. The alpha keeps the blur effect that
         // the flat colour would otherwise lose.
         sx={{
           background: alpha(muiTheme.palette.background.paper, 0.9),

@@ -23,6 +23,20 @@ public interface ChatModel {
     String ask(String apiKey, String model, String instruction, List<AiChatRequest.Turn> history, String message);
 
     /**
+     * The same, with the workspace's provider settings — an open-model server's base URL. Providers
+     * with a fixed endpoint ignore them.
+     */
+    default String ask(String apiKey, String model, java.util.Map<String, String> settings, String instruction,
+                       List<AiChatRequest.Turn> history, String message) {
+        return ask(apiKey, model, instruction, history, message);
+    }
+
+    /** False for a provider that can be called without a key (an open model on a local server). */
+    default boolean requiresKey() {
+        return true;
+    }
+
+    /**
      * A client with timeouts. Not optional: the call happens while someone watches a "Thinking…"
      * indicator, and the default factory would wait forever on a hung connection.
      */

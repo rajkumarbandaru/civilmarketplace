@@ -14,7 +14,7 @@ import { userApi } from '../../services/adminApi';
 import AddUserDialog, { roleLabel } from './AddUserDialog';
 
 const mocked = vi.mocked(userApi);
-const roles = ['ADMIN', 'CUSTOMER', 'SITE_ENGINEER', 'SUPER_ADMIN']
+const roles = ['ADMIN', 'CUSTOMER', 'SITE_ENGINEER', 'TENANT_OWNER']
   .map((name) => ({ name, description: '', systemRole: true, userCount: 1 }));
 
 const renderIt = (onAdded = vi.fn()) => {
@@ -60,11 +60,18 @@ describe('AddUserDialog', () => {
     expect(mocked.inviteUser).not.toHaveBeenCalled();
   });
 
-  it('offers the Super Admin role only to a Super Admin', async () => {
+  it('offers the owner role only to an owner', async () => {
     renderIt();
     fireEvent.mouseDown(within(screen.getByTestId('role-select')).getByRole('combobox'));
     expect(await screen.findByRole('option', { name: 'Site engineer' })).toBeInTheDocument();
-    expect(screen.queryByRole('option', { name: 'Super admin' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: 'Tenant owner' })).not.toBeInTheDocument();
+  });
+
+  it('lets a tenant owner add another owner', async () => {
+    state.role = 'TENANT_OWNER';
+    renderIt();
+    fireEvent.mouseDown(within(screen.getByTestId('role-select')).getByRole('combobox'));
+    expect(await screen.findByRole('option', { name: 'Tenant owner' })).toBeInTheDocument();
   });
 
   it('shows why the server refused', async () => {

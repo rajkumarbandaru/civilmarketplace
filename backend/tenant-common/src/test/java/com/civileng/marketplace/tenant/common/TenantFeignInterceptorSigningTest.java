@@ -65,9 +65,9 @@ class TenantFeignInterceptorSigningTest {
     @Test
     void anExplicitHeaderIsKeptAndSigned() {
         TenantContext.set("acme");
-        RequestTemplate t = new RequestTemplate().header("X-User-Role", "SUPER_ADMIN");
+        RequestTemplate t = new RequestTemplate().header("X-User-Role", "PLATFORM_OWNER");
         interceptor.apply(t);
-        assertThat(first(t, "X-User-Role")).isEqualTo("SUPER_ADMIN");
+        assertThat(first(t, "X-User-Role")).isEqualTo("PLATFORM_OWNER");
         assertThat(verifies(t)).isTrue();
     }
 

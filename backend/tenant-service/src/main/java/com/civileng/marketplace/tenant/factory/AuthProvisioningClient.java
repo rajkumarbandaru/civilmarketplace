@@ -49,7 +49,9 @@ public class AuthProvisioningClient {
     Map<String, String> identity(String tenantKey, String actorId) {
         Map<String, String> h = new HashMap<>();
         h.put("X-Tenant-Id", tenantKey);
-        h.put("X-User-Role", "SUPER_ADMIN");
+        // Acting inside the new tenant, as its owner would: platform roles are refused outside the
+        // operator tenant, and creating the tenant's first TENANT_OWNER is an owner-level action there.
+        h.put("X-User-Role", com.civileng.marketplace.web.common.StaffRoles.TENANT_OWNER);
         if (actorId != null) h.put("X-User-Id", actorId);
         if (key.bytes() != null) {
             h.put(InternalContextSignature.HEADER, InternalContextSignature.sign(key.bytes(), h::get,

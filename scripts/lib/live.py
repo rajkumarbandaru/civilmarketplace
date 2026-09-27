@@ -3,10 +3,14 @@ the dev operator account. Run the checks from the repository root on the Docker 
 import base64, hashlib, hmac, json, os, re, struct, subprocess, time, urllib.request, urllib.error
 
 GW = os.environ.get("GATEWAY_URL", "http://localhost:8080") + "/api/v1"
+# Plain localhost is the CivEngMarket tenant now; the operator console (and the drill operator) is on
+# the platform host, so calls that name no host go there — what "no host" meant before the split.
+DEFAULT_HOST = os.environ.get("LIVE_DEFAULT_HOST", "platform.localhost")
 _ROOT = os.path.join(os.path.dirname(__file__), "..", "..")
 _SEEDER = open(os.path.join(_ROOT, "backend/auth-service/src/main/java/com/civileng/marketplace/auth/service/DevUserSeeder.java")).read()
-# The live checks sign in as their own SUPER_ADMIN, never as the owner's account: they enrol and
-# reset this account's MFA freely, which on the real Super Admin would wipe the owner's authenticator.
+# The live checks sign in as their own owner-level account (PLATFORM_OWNER on the platform host,
+# TENANT_OWNER elsewhere), never as the real owner's: they enrol and reset this account's MFA freely,
+# which on the real owner's account would wipe their authenticator.
 OP_EMAIL = "drill-operator@civileng.test"
 OP_PASSWORD = "Password123!"
 
@@ -23,7 +27,7 @@ class Checks:
 def call(method, path, body=None, token=None, host=None):
     h = {"Content-Type": "application/json"}
     if token: h["Authorization"] = "Bearer " + token
-    if host: h["Host"] = host
+    h["Host"] = host or DEFAULT_HOST
     req = urllib.request.Request(GW + path, method=method, data=None if body is None else json.dumps(body).encode(), headers=h)
     try:
         with urllib.request.urlopen(req, timeout=30) as r:
@@ -46,16 +50,18 @@ def sql(q):
 
 
 def ensure_drill_operator(tenant="platform"):
-    """Creates the drill operator in a workspace once: a SUPER_ADMIN with the dev seed password (copied
-    from that workspace's seeded ADMIN). Idempotent."""
+    """Creates the drill operator in a workspace once: the workspace's owner role with the dev seed
+    password (copied from that workspace's seeded admin). Idempotent."""
     db = f"civil_engineer_auth_{tenant}"
+    role, seeded = (("PLATFORM_OWNER", "officialrktech.admin@gmail.com") if tenant == "platform"
+                    else ("TENANT_OWNER", "admin@civileng.test"))
     sql(f"INSERT IGNORE INTO {db}.users (email, name, password_hash, email_verified, status, role_id) "
         f"SELECT '{OP_EMAIL}', 'Drill Operator', a.password_hash, 1, 'ACTIVE', r.id "
-        f"FROM {db}.users a JOIN {db}.roles r ON r.name = 'SUPER_ADMIN' WHERE a.email = 'admin@civileng.test'")
+        f"FROM {db}.users a JOIN {db}.roles r ON r.name = '{role}' WHERE a.email = '{seeded}'")
 
 
 def sign_in_enrolling(email, password, host=None):
-    """Password, then first-time authenticator enrolment (what a Super Admin does). Returns the session."""
+    """Password, then first-time authenticator enrolment (what an owner does). Returns the session."""
     s, r = call("POST", "/auth/login", {"email": email, "password": password}, host=host)
     assert s == 200 and r.get("mfaRequired") and r.get("mfaSetupRequired"), (s, r)
     s, setup = call("POST", "/auth/mfa/setup", {"mfaToken": r["mfaToken"]}, host=host)

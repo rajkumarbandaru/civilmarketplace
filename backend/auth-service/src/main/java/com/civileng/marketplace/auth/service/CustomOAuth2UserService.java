@@ -71,6 +71,12 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
     private User registerNewOAuth2User(String email, String name,
                                         String provider, String providerId) {
+        // Social sign-in only ever creates a member (CUSTOMER), and the platform console has no
+        // members: an unknown Google account there is refused rather than given a console login.
+        if (!RoleAssignmentPolicy.assignableIn(
+                com.civileng.marketplace.tenant.common.TenantContext.get(), "CUSTOMER")) {
+            throw new OAuth2AuthenticationException("Sign-up is not available on the platform console");
+        }
         Role defaultRole = roleRepository.findByName("CUSTOMER")
                 .orElseThrow(() -> new EntityNotFoundException(
                         "Default role CUSTOMER not found. Ensure seed data has been run."));

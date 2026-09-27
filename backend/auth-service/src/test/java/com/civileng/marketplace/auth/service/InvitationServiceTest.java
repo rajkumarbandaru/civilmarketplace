@@ -7,6 +7,8 @@ import com.civileng.marketplace.auth.entity.UserStatus;
 import com.civileng.marketplace.auth.repository.RoleRepository;
 import com.civileng.marketplace.auth.repository.UserInvitationRepository;
 import com.civileng.marketplace.auth.repository.UserRepository;
+import com.civileng.marketplace.tenant.common.TenantContext;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -42,13 +44,14 @@ class InvitationServiceTest {
         when(clock.getZone()).thenReturn(ZoneOffset.UTC);
         service = new InvitationService(users, roles, invitations, encoder, kafka, identifiers, clock);
         when(identifiers.normaliseEmail(anyString())).thenAnswer(inv -> inv.<String>getArgument(0).trim().toLowerCase());
-        Role superAdmin = new Role();
-        superAdmin.setName("SUPER_ADMIN");
-        when(roles.findByName("SUPER_ADMIN")).thenReturn(Optional.of(superAdmin));
+        TenantContext.set("acme");
+        Role tenantOwner = new Role();
+        tenantOwner.setName("TENANT_OWNER");
+        when(roles.findByName("TENANT_OWNER")).thenReturn(Optional.of(tenantOwner));
         owner.setId(42L);
         owner.setEmail("asha@acme.in");
         owner.setName("Asha");
-        owner.setRole(superAdmin);
+        owner.setRole(tenantOwner);
         owner.setStatus(UserStatus.PENDING_VERIFICATION);
         when(users.save(any())).thenAnswer(inv -> {
             User u = inv.getArgument(0);
@@ -64,6 +67,11 @@ class InvitationServiceTest {
         when(invitations.findByTokenHash(anyString())).thenAnswer(inv -> rows.stream()
                 .filter(i -> i.getTokenHash().equals(inv.getArgument(0))).findFirst());
         when(invitations.findByUserIdAndUsedAtIsNull(42L)).thenAnswer(inv -> rows.stream().filter(i -> i.getUsedAt() == null).toList());
+    }
+
+    @AfterEach
+    void clearTenant() {
+        TenantContext.clear();
     }
 
     @SuppressWarnings("unchecked")
@@ -84,7 +92,7 @@ class InvitationServiceTest {
         ArgumentCaptor<User> saved = ArgumentCaptor.forClass(User.class);
         verify(users).save(saved.capture());
         assertThat(saved.getValue().getPasswordHash()).isNull();
-        assertThat(saved.getValue().getRole().getName()).isEqualTo("SUPER_ADMIN");
+        assertThat(saved.getValue().getRole().getName()).isEqualTo("TENANT_OWNER");
 
         when(users.findByEmailAndIsDeletedFalse("asha@acme.in")).thenReturn(Optional.of(owner));
         assertThat(service.ensureOwner("Asha", "asha@acme.in").created()).isFalse();
@@ -159,9 +167,36 @@ class InvitationServiceTest {
     }
 
     @Test
-    void onlyASuperAdminCanAddASuperAdmin() {
-        assertThatThrownBy(() -> service.inviteMember("X", "x@acme.in", "SUPER_ADMIN", "ADMIN",
+    void onlyAnOwnerCanAddAnOwner() {
+        assertThatThrownBy(() -> service.inviteMember("X", "x@acme.in", "TENANT_OWNER", "ADMIN",
                 "http://acme.localhost:3000", "Acme"))
+                .isInstanceOf(SecurityException.class);
+    }
+
+    @Test
+    void platformRolesCannotBeGivenInACustomerTenant() {
+        assertThatThrownBy(() -> service.inviteMember("X", "x@acme.in", "PLATFORM_ADMIN", "TENANT_OWNER",
+                "http://acme.localhost:3000", "Acme"))
+                .isInstanceOf(SecurityException.class)
+                .hasMessageContaining("platform console");
+    }
+
+    @Test
+    void theOperatorTenantsOwnerIsThePlatformOwner() {
+        TenantContext.set("platform");
+        Role platformOwner = new Role();
+        platformOwner.setName("PLATFORM_OWNER");
+        when(roles.findByName("PLATFORM_OWNER")).thenReturn(Optional.of(platformOwner));
+        when(users.findByEmailAndIsDeletedFalse("ops@rk.in")).thenReturn(Optional.empty());
+
+        service.ensureOwner("Ops", "ops@rk.in");
+
+        ArgumentCaptor<User> saved = ArgumentCaptor.forClass(User.class);
+        verify(users).save(saved.capture());
+        assertThat(saved.getValue().getRole().getName()).isEqualTo("PLATFORM_OWNER");
+        // ...and a business's staff roles are not given out there.
+        assertThatThrownBy(() -> service.inviteMember("X", "x@rk.in", "ADMIN", "PLATFORM_OWNER",
+                "http://platform.localhost:3000", "Platform"))
                 .isInstanceOf(SecurityException.class);
     }
 
@@ -172,10 +207,10 @@ class InvitationServiceTest {
                 "http://acme.localhost:3000", "Acme")).hasMessageContaining("No role");
 
         when(users.findByEmailAndIsDeletedFalse("asha@acme.in")).thenReturn(Optional.of(owner));
-        assertThatThrownBy(() -> service.inviteMember("Asha", "asha@acme.in", "SUPER_ADMIN", "SUPER_ADMIN",
+        assertThatThrownBy(() -> service.inviteMember("Asha", "asha@acme.in", "TENANT_OWNER", "TENANT_OWNER",
                 "http://acme.localhost:3000", "Acme")).hasMessageContaining("already has an account");
 
-        assertThatThrownBy(() -> service.inviteMember("X", "x@acme.in", "SUPER_ADMIN", "SUPER_ADMIN",
+        assertThatThrownBy(() -> service.inviteMember("X", "x@acme.in", "TENANT_OWNER", "TENANT_OWNER",
                 "javascript:alert(1)", "Acme")).hasMessageContaining("linkBase");
     }
 }

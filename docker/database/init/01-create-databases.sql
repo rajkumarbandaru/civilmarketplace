@@ -47,8 +47,9 @@ CREATE DATABASE IF NOT EXISTS civil_engineer_support
     CHARACTER SET utf8mb4
     COLLATE utf8mb4_unicode_ci;
 
--- Create application user with required privileges
-CREATE USER IF NOT EXISTS 'civil_user'@'%' IDENTIFIED BY 'civil_pass';
+-- Privileges for the application user. The user itself is created by the MySQL image's entrypoint
+-- from MYSQL_USER / MYSQL_PASSWORD (docker-compose.yml, password from .env) before this runs — no
+-- password is written here, so a fresh volume always matches what the services sign in with.
 GRANT ALL PRIVILEGES ON civil_engineer_auth.* TO 'civil_user'@'%';
 GRANT ALL PRIVILEGES ON civil_engineer_users.* TO 'civil_user'@'%';
 GRANT ALL PRIVILEGES ON civil_engineer_bookings.* TO 'civil_user'@'%';

@@ -9,7 +9,7 @@ import java.util.Map;
  *   <li>{@link Source#TENANT} — the tenant's own account: use {@link #settings} and {@link #secrets}.
  *   <li>{@link Source#PLATFORM_SHARED} — the platform's account on the tenant's behalf: use the
  *       service's own configured credentials, but the tenant's {@link #settings} (sender name).
- *   <li>{@link Source#PLATFORM} — the operator tenant's own business (billing tenants, Super Admin
+ *   <li>{@link Source#PLATFORM} — the operator tenant's own business (billing tenants, platform staff
  *       OTPs): the service's configured credentials, nothing of any tenant's.
  * </ul>
  */

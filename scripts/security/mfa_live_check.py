@@ -1,11 +1,11 @@
-"""Live two-step sign-in check with the dev SUPER_ADMIN (run like phase0_live_check.py), computing codes like an authenticator app. Resets the
+"""Live two-step sign-in check with the dev PLATFORM_OWNER (run like phase0_live_check.py), computing codes like an authenticator app. Resets the
 account's MFA afterwards so the owner enrols their own phone on next sign-in."""
 import os, base64, hashlib, hmac, json, re, struct, subprocess, sys, time, urllib.request, urllib.error
 
 GW = "http://localhost:8080/api/v1"
 src = open(os.path.join(os.path.dirname(__file__), "../../backend/auth-service/src/main/java/com/civileng/marketplace/auth/service/DevUserSeeder.java")).read()
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
-# Never the owner's Super Admin: these checks enrol and reset MFA (see scripts/lib/live.py).
+# Never the owner's own platform-owner account: these checks enrol and reset MFA (see scripts/lib/live.py).
 from live import OP_EMAIL as EMAIL, OP_PASSWORD as PASSWORD, ensure_drill_operator
 ok = True
 
@@ -56,7 +56,7 @@ def reset():
 
 reset()
 try:
-    # 1. Password alone no longer yields a session for a Super Admin
+    # 1. Password alone no longer yields a session for platform staff
     s, r = call("POST", "/auth/login", {"email": EMAIL, "password": PASSWORD})
     check("password step returns an enrolment challenge, no tokens",
           s == 200 and r.get("mfaRequired") and r.get("mfaSetupRequired") and not r.get("accessToken"), (s, r))
@@ -76,7 +76,7 @@ try:
     stored = sql(f"SELECT two_factor_secret FROM civil_engineer_auth_platform.users WHERE email='{EMAIL}'")
     check("secret is stored encrypted", stored.startswith("v1:") and secret not in stored, stored[:20])
     s, _ = call("GET", "/tenants/integration-catalog", token=sess["accessToken"])
-    check("the resulting session works (Super Admin API)", s == 200, s)
+    check("the resulting session works (platform staff API)", s == 200, s)
     s, _ = call("GET", "/tenants/integration-catalog", token=sess["refreshToken"])
     check("a refresh token is not an access token at the gateway", s == 401, s)
     s, _ = call("POST", "/auth/mfa/enable", {"mfaToken": ticket, "code": totp(secret)})
@@ -119,7 +119,7 @@ try:
     check("a customer still signs in in one step", s == 200 and c.get("accessToken") and not c.get("mfaRequired"), (s, c))
 finally:
     reset()
-    print("(drill operator's MFA reset; the owner's Super Admin was never touched)")
+    print("(drill operator's MFA reset; the owner's own platform-owner account was never touched)")
 
 print("\nALL PASSED" if ok else "\nSOME FAILED")
 sys.exit(0 if ok else 1)

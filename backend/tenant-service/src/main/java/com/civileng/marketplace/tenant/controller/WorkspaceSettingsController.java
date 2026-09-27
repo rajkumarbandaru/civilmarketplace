@@ -36,8 +36,8 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class WorkspaceSettingsController {
 
-    static final String OPERATOR_TENANT = "platform";
-    static final Set<String> ADMIN_ROLES = Set.of("SUPER_ADMIN", "ADMIN");
+    static final String OPERATOR_TENANT = com.civileng.marketplace.web.common.PlatformRoles.OPERATOR_TENANT;
+    static final Set<String> ADMIN_ROLES = Set.of(com.civileng.marketplace.web.common.StaffRoles.TENANT_OWNER, "ADMIN");
 
     /** Modules a workspace cannot switch off: without them nobody could sign in or manage it. */
     static final Set<String> LOCKED = Set.of("auth", "users", "admin", "audit");
@@ -135,7 +135,10 @@ public class WorkspaceSettingsController {
 
     /** The caller's own customer workspace; its admins only. */
     static String requireWorkspaceAdmin(String role, String tenantId) {
-        if (tenantId == null || tenantId.isBlank() || !ADMIN_ROLES.contains(role)) {
+        // Platform owners and admins acting on this workspace from the platform console count as its admins.
+        boolean actingPlatformManager = com.civileng.marketplace.web.common.ActingTenant.isActing()
+                && role != null && com.civileng.marketplace.web.common.PlatformRoles.MANAGERS.contains(role);
+        if (tenantId == null || tenantId.isBlank() || !(ADMIN_ROLES.contains(role) || actingPlatformManager)) {
             throw new AccessDeniedException("Workspace settings are for this workspace's admins");
         }
         if (OPERATOR_TENANT.equals(tenantId)) {

@@ -454,7 +454,7 @@ public class ProjectService {
         }
     }
 
-    /** Owner, or a staff role — Super Admin gets read access for dispute investigation. */
+    /** Owner, or a staff role — staff get read access for dispute investigation. */
     private void requireViewer(Project project, Long actorId, String actorRole) {
         if (actorId != null && actorId.equals(project.getOwnerId())) return;
         if (StaffRoles.isStaff(actorRole)) return;

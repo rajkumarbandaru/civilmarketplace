@@ -1,6 +1,6 @@
 """Phase 1 exit criterion, live: theme change -> publish -> rollback on two tenants, no code change.
 
-Signs in as each tenant's dev SUPER_ADMIN (enrolling the required authenticator the way an app
+Signs in as each tenant's dev owner (PLATFORM_OWNER / TENANT_OWNER) (enrolling the required authenticator the way an app
 would), changes the workspace theme, checks it is live and versioned, rolls it back, and checks
 the other tenant never moved. Resets the admins' MFA and restores both themes afterwards.
 
@@ -14,7 +14,7 @@ SEEDER = os.path.join(os.path.dirname(__file__),
                       "../../backend/auth-service/src/main/java/com/civileng/marketplace/auth/service/DevUserSeeder.java")
 src = open(SEEDER).read()
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
-# Never the owner's Super Admin: these checks enrol and reset MFA (see scripts/lib/live.py).
+# Never the owner's own platform-owner account: these checks enrol and reset MFA (see scripts/lib/live.py).
 from live import OP_EMAIL as EMAIL, OP_PASSWORD as PASSWORD, ensure_drill_operator
 ok = True
 

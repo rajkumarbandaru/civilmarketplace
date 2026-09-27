@@ -8,7 +8,7 @@ import { ContentSection, resolveMediaUrl } from '../services/siteContentApi';
 /**
  * The footer, rendered from the content service rather than from literals.
  *
- * Every heading, link, link target, social icon and the brand blurb are rows a Super Admin edits
+ * Every heading, link, link target, social icon and the brand blurb are rows a workspace owner edits
  * in the console — the footer used to be a hardcoded list, which is why fixing a typo or pointing
  * a link somewhere else meant a redeploy.
  *

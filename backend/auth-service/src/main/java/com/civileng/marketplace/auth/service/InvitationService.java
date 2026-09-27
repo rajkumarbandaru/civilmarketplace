@@ -7,6 +7,7 @@ import com.civileng.marketplace.auth.entity.UserStatus;
 import com.civileng.marketplace.auth.repository.RoleRepository;
 import com.civileng.marketplace.auth.repository.UserInvitationRepository;
 import com.civileng.marketplace.auth.repository.UserRepository;
+import com.civileng.marketplace.tenant.common.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -38,7 +39,6 @@ import java.util.NoSuchElementException;
 @RequiredArgsConstructor
 public class InvitationService {
 
-    static final String OWNER_ROLE = "SUPER_ADMIN";
     static final Duration VALIDITY = Duration.ofHours(72);
     static final int MIN_PASSWORD_LENGTH = 12;
     private static final SecureRandom RANDOM = new SecureRandom();
@@ -60,8 +60,8 @@ public class InvitationService {
 
     /**
      * A workspace admin adding someone: the account is created in this workspace with the chosen
-     * role and no password, and they get the same single-use link an owner does. Only a SUPER_ADMIN
-     * may make another SUPER_ADMIN.
+     * role and no password, and they get the same single-use link an owner does. Only an owner may
+     * make another owner, and platform roles exist only on the operator tenant ({@link RoleAssignmentPolicy}).
      */
     @Transactional
     public Member inviteMember(String name, String email, String roleName, String actorRole,
@@ -74,9 +74,7 @@ public class InvitationService {
             throw new IllegalArgumentException("A valid email address is required");
         }
         String wanted = roleName == null ? "" : roleName.trim().toUpperCase();
-        if (OWNER_ROLE.equals(wanted) && !OWNER_ROLE.equals(actorRole)) {
-            throw new SecurityException("Only a SUPER_ADMIN can add another SUPER_ADMIN");
-        }
+        RoleAssignmentPolicy.check(wanted, actorRole);
         Role role = roles.findByName(wanted)
                 .orElseThrow(() -> new IllegalArgumentException("No role named '" + roleName + "' in this workspace"));
         if (users.findByEmailAndIsDeletedFalse(normalised).isPresent()) {
@@ -99,17 +97,18 @@ public class InvitationService {
      */
     @Transactional
     public Owner ensureOwner(String name, String email) {
+        String ownerRole = RoleAssignmentPolicy.ownerRoleFor(TenantContext.get());
         String normalised = identifiers.normaliseEmail(email);
         var existing = users.findByEmailAndIsDeletedFalse(normalised);
         if (existing.isPresent()) {
             User user = existing.get();
-            if (!OWNER_ROLE.equals(user.getRole().getName())) {
+            if (!ownerRole.equals(user.getRole().getName())) {
                 throw new IllegalArgumentException("An account with that email already exists here with another role");
             }
             return new Owner(user.getId(), user.getEmail(), false);
         }
-        Role role = roles.findByName(OWNER_ROLE)
-                .orElseThrow(() -> new IllegalStateException("Role " + OWNER_ROLE + " is missing in this workspace"));
+        Role role = roles.findByName(ownerRole)
+                .orElseThrow(() -> new IllegalStateException("Role " + ownerRole + " is missing in this workspace"));
         User user = new User();
         user.setName(name == null || name.isBlank() ? normalised : name.trim());
         user.setEmail(normalised);

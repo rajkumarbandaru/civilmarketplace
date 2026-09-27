@@ -42,6 +42,7 @@ import { SOCIAL_PROVIDERS, startSocialLogin } from '../../services/socialAuth';
 import { stashRememberIntent, takeRememberIntent } from '../../services/authStorage';
 import MfaStep from '../../components/auth/MfaStep';
 import { useWorkspace } from '../../providers/WorkspaceProvider';
+import { usePlatformHost, usePlatformName } from '../../hooks/usePlatformHost';
 
 const emailField = yup.string().email('Invalid email').required('Email is required');
 
@@ -113,6 +114,10 @@ const LoginPage: React.FC = () => {
   const { loading, error, mfa, recoveryCodes } = useAppSelector((state) => state.auth);
   const workspace = useWorkspace();
   const workspaceName = workspace?.branding?.brandName || workspace?.name;
+  // The RK console's sign-in is for RK staff: no sign-up (the server refuses it there anyway) and
+  // no marketplace to browse — the way out is back to the RK site.
+  const { isPlatform } = usePlatformHost();
+  const platformName = usePlatformName();
   const [loginMode, setLoginMode] = useState<'password' | 'otp'>('password');
   const [showPassword, setShowPassword] = useState(false);
   // Applies to every route in: password, OTP and social all end in the same place.
@@ -321,14 +326,16 @@ const LoginPage: React.FC = () => {
           textAlign: 'center',
         }}>
           <Typography variant="h4" sx={{ color: '#fff', fontWeight: 800, fontFamily: "'Poppins', sans-serif" }}>
-            Welcome Back
+            {isPlatform ? 'Platform console' : 'Welcome Back'}
           </Typography>
           {workspace?.branding?.logoUrl && (
             <Box component="img" src={workspace.branding.logoUrl} alt={`${workspaceName} logo`}
               sx={{ height: 40, mt: 1.5, objectFit: 'contain' }} />
           )}
           <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', mt: 1 }}>
-            {workspaceName ? `Sign in to ${workspaceName}` : 'Sign in to your account'}
+            {isPlatform
+              ? `${platformName} staff sign-in`
+              : workspaceName ? `Sign in to ${workspaceName}` : 'Sign in to your account'}
           </Typography>
         </Box>
 
@@ -559,12 +566,19 @@ const LoginPage: React.FC = () => {
             ))}
           </Box>
 
-          <Typography variant="body2" sx={{ textAlign: 'center', mt: 3, color: '#64748b' }}>
-            Don't have an account?{' '}
-            <Link to="/register" style={{ color: theme.palette.primary.main, fontWeight: 600, textDecoration: 'none' }}>
-              Register
-            </Link>
-          </Typography>
+          {isPlatform ? (
+            <Typography variant="body2" data-testid="platform-signin-note"
+              sx={{ textAlign: 'center', mt: 3, color: '#64748b' }}>
+              Accounts here are for {platformName} staff and are created by invitation.
+            </Typography>
+          ) : (
+            <Typography variant="body2" sx={{ textAlign: 'center', mt: 3, color: '#64748b' }}>
+              Don't have an account?{' '}
+              <Link to="/register" style={{ color: theme.palette.primary.main, fontWeight: 600, textDecoration: 'none' }}>
+                Register
+              </Link>
+            </Typography>
+          )}
 
           {/*
             An escape hatch for visitors who landed here but only want to look around: most of the
@@ -578,7 +592,7 @@ const LoginPage: React.FC = () => {
             startIcon={<StorefrontOutlined />}
             sx={{ mt: 1.5, textTransform: 'none', color: 'text.secondary' }}
           >
-            Continue browsing without signing in
+            {isPlatform ? `Back to ${platformName}` : 'Continue browsing without signing in'}
           </Button>
           </>
           )}

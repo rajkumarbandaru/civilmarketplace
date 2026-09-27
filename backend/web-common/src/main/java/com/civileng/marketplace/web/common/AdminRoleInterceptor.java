@@ -20,8 +20,13 @@ import org.springframework.web.servlet.HandlerInterceptor;
  * bypassed by reaching the port directly, and this one trusts a header only the gateway makes
  * trustworthy.
  *
- * <p>It is a floor, not a ceiling. Handlers needing SUPER_ADMIN specifically — admin-service's
- * theme and tenant screens — keep their own stricter check on top.
+ * <p>The two staff tiers get extra rules here, so no single handler has to remember them: platform
+ * roles are only honoured on the operator tenant, a tenant's own staff roles are not honoured
+ * there — except while platform staff act on a customer tenant ({@link ActingTenant}) — and
+ * {@link PlatformRoles#SUPPORT} is read-only everywhere.
+ *
+ * <p>It is a floor, not a ceiling. Handlers needing the workspace owner specifically — admin-service's
+ * theme and content screens — keep their own stricter check on top.
  */
 @Slf4j
 public class AdminRoleInterceptor implements HandlerInterceptor {
@@ -36,6 +41,30 @@ public class AdminRoleInterceptor implements HandlerInterceptor {
                     request.getMethod(), request.getRequestURI(), role);
             throw new AccessDeniedException("Admin role required");
         }
+        boolean operatorTenant = PlatformRoles.isOperatorTenant(request.getHeader("X-Tenant-Id"));
+        // Platform staff acting on a customer tenant: the gateway vouched for it (see ActingTenant).
+        boolean acting = !operatorTenant && ActingTenant.isActing(request.getHeader(ActingTenant.HEADER));
+        if (acting && !PlatformRoles.isPlatformRole(role)) {
+            log.warn("Refused acting header with non-platform role '{}' on {} {}",
+                    role, request.getMethod(), request.getRequestURI());
+            throw new AccessDeniedException("Only platform staff can act on a tenant");
+        }
+        if (!acting && PlatformRoles.isPlatformRole(role) != operatorTenant) {
+            log.warn("Refused role '{}' on the wrong kind of tenant for {} {}",
+                    role, request.getMethod(), request.getRequestURI());
+            throw new AccessDeniedException(operatorTenant
+                    ? "The platform console is for platform staff only"
+                    : "Platform roles are only valid on the platform console");
+        }
+        if (PlatformRoles.isReadOnly(role) && !isRead(request.getMethod())) {
+            log.warn("Refused read-only role '{}' on {} {}", role, request.getMethod(), request.getRequestURI());
+            throw new AccessDeniedException("Platform support staff have read-only access");
+        }
         return true;
+    }
+
+    private static boolean isRead(String method) {
+        return "GET".equalsIgnoreCase(method) || "HEAD".equalsIgnoreCase(method)
+                || "OPTIONS".equalsIgnoreCase(method);
     }
 }

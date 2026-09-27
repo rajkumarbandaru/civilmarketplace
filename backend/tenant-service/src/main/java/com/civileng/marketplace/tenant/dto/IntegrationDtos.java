@@ -46,6 +46,8 @@ public final class IntegrationDtos {
             Map<String, ProviderView> providers) {
     }
 
-    public record ProviderView(List<String> settings, List<String> secrets, List<String> optionalSettings) {
+    /** {@code optionalSecrets}: may be left blank, e.g. an open-model server's key (a local one has none). */
+    public record ProviderView(List<String> settings, List<String> secrets, List<String> optionalSettings,
+                               List<String> optionalSecrets) {
     }
 }

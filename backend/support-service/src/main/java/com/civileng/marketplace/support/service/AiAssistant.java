@@ -18,7 +18,8 @@ import java.util.stream.Collectors;
  * The Civil AI Assistant: which model answers for the current workspace, with what key.
  *
  * <p>Every workspace starts on the platform's own assistant (Gemini, with the platform's key). A
- * workspace can bring its own account with any provider it prefers — Gemini, OpenAI or Anthropic —
+ * workspace can bring its own account with any provider it prefers — Gemini, OpenAI, Anthropic or an
+ * open model on any OpenAI-compatible server —
  * and optionally pick the model; or switch the assistant off.
  *
  * <p>This lives server-side for one reason: the API key. A key placed in any {@code VITE_} variable
@@ -93,7 +94,11 @@ public class AiAssistant {
     }
 
     /** Who answers for the current workspace: provider, model (null = its default) and key. */
-    public record Route(ChatModel model, String modelName, String apiKey) { }
+    public record Route(ChatModel model, String modelName, String apiKey, Map<String, String> settings) {
+        public Route(ChatModel model, String modelName, String apiKey) {
+            this(model, modelName, apiKey, Map.of());
+        }
+    }
 
     public Optional<Route> route() {
         if (!enabled) {
@@ -110,10 +115,11 @@ public class AiAssistant {
             return Optional.empty();
         }
         String key = ai.usesPlatformCredentials() ? model.platformKey() : ai.secret("apiKey");
-        if (key == null || key.isBlank()) {
+        if ((key == null || key.isBlank()) && model.requiresKey()) {
             return Optional.empty();
         }
-        return Optional.of(new Route(model, ai.usesPlatformCredentials() ? null : ai.setting("model"), key));
+        return Optional.of(new Route(model, ai.usesPlatformCredentials() ? null : ai.setting("model"), key,
+                ai.usesPlatformCredentials() ? Map.of() : ai.settings()));
     }
 
     /** Whether the current workspace has an assistant to use. */
@@ -141,8 +147,8 @@ public class AiAssistant {
         String instruction = siteRateCard == null || siteRateCard.isBlank()
                 ? SYSTEM_PROMPT + NO_SITE_RATES
                 : SYSTEM_PROMPT + "\n\nLIVE SITE DATA\n" + siteRateCard;
-        return route.get().model().ask(route.get().apiKey(), route.get().modelName(), instruction,
-                recent(history), message);
+        return route.get().model().ask(route.get().apiKey(), route.get().modelName(), route.get().settings(),
+                instruction, recent(history), message);
     }
 
     /** The last {@link #MAX_HISTORY_TURNS} non-empty turns: the recent exchange is what a follow-up depends on. */

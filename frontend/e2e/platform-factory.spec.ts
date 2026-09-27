@@ -2,7 +2,7 @@ import { test, expect, mockApi, json, signInAs } from './fixtures';
 
 /** Platform Factory: wizard drafts, publish with live provisioning, and the owner's invitation. */
 
-const operator = { id: 1, name: 'Operator', email: 'ops@platform.example', role: 'SUPER_ADMIN' };
+const operator = { id: 1, name: 'Operator', email: 'ops@platform.example', role: 'PLATFORM_OWNER' };
 const services = ['auth-service', 'user-service', 'admin-service'];
 
 const tenantRow = (status: string) => ({

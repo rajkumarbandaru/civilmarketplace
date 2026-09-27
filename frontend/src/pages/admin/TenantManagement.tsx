@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useDateTime } from '../../providers/UiConfigProvider';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -20,6 +21,7 @@ import {
   IconButton,
   InputAdornment,
   MenuItem,
+  Select,
   Stack,
   Tab,
   Table,
@@ -45,11 +47,21 @@ import {
   Palette,
   RestartAlt,
   Search,
+  Storefront,
   Visibility,
   VisibilityOff,
 } from '@mui/icons-material';
+import { setActingTenant } from '../../services/actingTenant';
 import DynamicIcon from '../../components/DynamicIcon';
 import TenantIntegrationsCard from './TenantIntegrationsCard';
+import TenantWidgetsCard from './TenantWidgetsCard';
+import TenantIntegrationsStep, {
+  IntegrationDrafts, changedIntegrations, defaultIntegrationDrafts, incompleteIntegrations, integrationSummary,
+  withoutSecrets,
+} from './TenantIntegrationsStep';
+import {
+  capabilityLabel, fetchIntegrationCatalog, saveTenantIntegration, toSaveRequest,
+} from '../../services/tenantIntegrationApi';
 import FileUploadButton from '../../components/FileUploadButton';
 import { alpha } from '@mui/material/styles';
 import { apiErrorMessage } from '../../services/apiError';
@@ -63,10 +75,16 @@ import {
   createTenant,
   CreateTenantCommand,
   fetchTenants,
+  TENANT_STATUS_COLOR,
   HEX_COLOR,
-  HORIZONTAL_MODULES,
+  LOCKED_MODULES,
+  MODULE_DESCRIPTIONS,
+  MODULE_GROUPS,
+  SWITCHABLE_CORE_MODULES,
+  defaultModulesFor,
   LAYOUT_STYLES,
   moduleLabel,
+  moduleSummary,
   fetchMenuCatalogue,
   fetchTenant,
   fetchTenantThemeStatus,
@@ -101,7 +119,10 @@ import {
   fetchPlanCatalog,
   fetchTenantEntitlements,
   entitledModules,
+  overrideRoles,
+  tenantRoleOptions,
 } from '../../services/tenantApi';
+import { OPERATOR_TENANT, roleLabel } from '../../utils/roles';
 import { DraftList, PublishCard } from './TenantFactory';
 import PlanCard from './TenantEntitlements';
 import PlacementCard from './TenantPlacement';
@@ -113,7 +134,8 @@ import CryptoShredCard from './CryptoShredCard';
  * — tenant-service publishes to `tenant.events` and each service runs Flyway against the new
  * schema — so this screen is the whole onboarding flow, not a record of one done elsewhere.
  *
- * Only a SUPER_ADMIN of the `platform` tenant may use any of it. That is enforced by
+ * Only RK platform staff (PLATFORM_OWNER / PLATFORM_ADMIN, and PLATFORM_SUPPORT read-only) signed
+ * in on the `platform` tenant may use any of it. That is enforced by
  * tenant-service, not here; this screen just explains the 403 rather than showing an empty table.
  */
 
@@ -129,14 +151,7 @@ const rowAccent = (tenant: Tenant): string | null => {
   return candidate && HEX_COLOR.test(candidate) ? candidate.slice(0, 7) : null;
 };
 
-const STATUS_COLOR: Record<TenantStatus, 'success' | 'warning' | 'error' | 'default' | 'info'> = {
-  DRAFT: 'info',
-  PROVISIONING: 'warning',
-  PROVISIONING_FAILED: 'error',
-  ACTIVE: 'success',
-  SUSPENDED: 'error',
-  ARCHIVED: 'default',
-};
+const STATUS_COLOR = TENANT_STATUS_COLOR;
 
 /** "Acme Builders" -> "acmebuilders", matching TenantKey.normalise so the operator sees the key
  *  the platform will actually store before creating it. */
@@ -410,21 +425,14 @@ const ModulesStep: React.FC<{
   vertical: Vertical;
   modules: Set<string>;
   onModules: (modules: Set<string>) => void;
-  /** Modules already on that this vertical does not list; kept visible so they can be turned off. */
-  extraModules?: string[];
   /** What the plan allows. A module outside it cannot be switched on; one already on is kept, dormant. */
   entitled?: Set<string>;
-}> = ({ vertical, modules, onModules, extraModules = [], entitled }) => {
+}> = ({ vertical, modules, onModules, entitled }) => {
   const { data: catalogue } = useQuery({
     queryKey: ['menu-catalogue'],
     queryFn: fetchMenuCatalogue,
     staleTime: 5 * 60 * 1000,
   });
-
-  const choosable = useMemo(() => {
-    const own = VERTICAL_MODULES[vertical] || [];
-    return [...own, ...extraModules.filter((key) => !own.includes(key))];
-  }, [vertical, extraModules]);
 
   const toggleModule = (key: string) => {
     const next = new Set(modules);
@@ -451,72 +459,70 @@ const ModulesStep: React.FC<{
     return map;
   }, [catalogue]);
 
+  // The tenant's own product first, so the modules that matter most are at the top; every other
+  // product's modules follow, because a business is allowed to mix them.
+  const groups = useMemo(() => {
+    const own = MODULE_GROUPS.filter((g) => g.vertical === vertical);
+    const rest = MODULE_GROUPS.filter((g) => g.vertical && g.vertical !== vertical);
+    return [...MODULE_GROUPS.filter((g) => !g.vertical), ...own, ...rest];
+  }, [vertical]);
+
   return (
-    <Box>
-      <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
-        {VERTICALS.find((v) => v.value === vertical)?.label || vertical} modules
-      </Typography>
+    <Box data-testid="features-step">
+      <Typography variant="subtitle2" sx={{ mb: 0.5 }}>Features</Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        What the tenant has bought. A module they do not have is refused at the gateway with a 404,
-        and its screens disappear from their navigation with it.
+        Everything the platform can run for this tenant. A module they do not have is refused at the
+        gateway with a 404, and its screens disappear from their navigation with it. Provider accounts
+        (payments, email, SMS, WhatsApp, AI) and chat widgets are on the next tab.
       </Typography>
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 1 }}>
-        {choosable.map((key) => {
-          const items = itemsByModule.get(key) || [];
-          const inPlan = !entitled || entitled.has(key);
-          return (
-            <Box
-              key={key}
-              sx={{
-                border: '1px solid', borderColor: modules.has(key) ? 'primary.light' : 'divider',
-                borderRadius: 1, p: 1.25,
-                bgcolor: (theme) =>
-                  modules.has(key) ? alpha(theme.palette.primary.main, 0.04) : 'transparent',
-              }}
-            >
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={modules.has(key)}
-                    disabled={!inPlan && !modules.has(key)}
-                    onChange={() => toggleModule(key)}
-                    inputProps={{ 'aria-label': moduleLabel(key) }}
-                  />
-                }
-                label={moduleLabel(key)}
-              />
-              {!inPlan && (
-                <Chip size="small" color={modules.has(key) ? 'warning' : 'default'} variant="outlined"
-                  data-testid={`not-in-plan-${key}`}
-                  label={modules.has(key) ? 'Not in plan — chosen, not running' : 'Not in plan'} />
-              )}
-              {items.length > 0 && (
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  sx={{ display: 'block', pl: 4, mt: -0.5 }}
+      {groups.map((group) => (
+        <Box key={group.key} sx={{ mb: 2 }} data-testid={`feature-group-${group.key}`}>
+          <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+            <Typography variant="overline" sx={{ fontWeight: 700 }}>{group.label}</Typography>
+            {group.vertical === vertical && <Chip size="small" color="primary" label="This product" />}
+          </Stack>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 1 }}>
+            {group.modules.map((key) => {
+              const on = group.locked || modules.has(key);
+              const items = itemsByModule.get(key) || [];
+              const inPlan = group.locked || !entitled || entitled.has(key);
+              return (
+                <Box
+                  key={key}
+                  sx={{
+                    border: '1px solid', borderColor: on ? 'primary.light' : 'divider',
+                    borderRadius: 1, p: 1.25,
+                    bgcolor: (theme) => (on ? alpha(theme.palette.primary.main, 0.04) : 'transparent'),
+                  }}
                 >
-                  {items.join(', ')}
-                </Typography>
-              )}
-            </Box>
-          );
-        })}
-      </Box>
-
-      <Divider sx={{ my: 2 }} />
-
-      <Typography variant="subtitle2" sx={{ mb: 1 }}>Always on</Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-        Every tenant has these whatever they bought — sign-in, users, payments and the rest. Not a
-        choice, so not a checkbox.
-      </Typography>
-      <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
-        {HORIZONTAL_MODULES.map((key) => (
-          <Chip key={key} size="small" variant="outlined" label={moduleLabel(key)} />
-        ))}
-      </Stack>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={on}
+                        disabled={group.locked || (!inPlan && !modules.has(key))}
+                        onChange={() => toggleModule(key)}
+                        inputProps={{ 'aria-label': moduleLabel(key) }}
+                      />
+                    }
+                    label={moduleLabel(key)}
+                  />
+                  {group.locked && <Chip size="small" variant="outlined" label="Always on" />}
+                  {!inPlan && (
+                    <Chip size="small" color={modules.has(key) ? 'warning' : 'default'} variant="outlined"
+                      data-testid={`not-in-plan-${key}`}
+                      label={modules.has(key) ? 'Not in plan — chosen, not running' : 'Not in plan'} />
+                  )}
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', pl: 4, mt: -0.5 }}>
+                    {MODULE_DESCRIPTIONS[key]}
+                    {items.length > 0 && ` — ${items.join(', ')}`}
+                  </Typography>
+                </Box>
+              );
+            })}
+          </Box>
+        </Box>
+      ))}
     </Box>
   );
 };
@@ -548,6 +554,7 @@ const NavigationEditor: React.FC<{
   });
 
   const overrideList = useMemo(() => [...overrides.values()], [overrides]);
+  const roleOptions = useMemo(() => (catalogue ? tenantRoleOptions(catalogue) : []), [catalogue]);
 
   const effective = useMemo(
     () => (catalogue ? previewMenu(catalogue, [...modules], overrideList) : []),
@@ -580,6 +587,7 @@ const NavigationEditor: React.FC<{
       visible: true,
       labelOverride: null,
       sortOrder: null,
+      roles: null,
       ...(next.get(itemKey) || {}),
       ...change,
     };
@@ -661,6 +669,11 @@ const NavigationEditor: React.FC<{
                 <span>Landing</span>
               </Tooltip>
             </TableCell>
+            <TableCell sx={{ width: 200 }}>
+              <Tooltip title="Only these roles see the item in this tenant. The tenant's own admins can narrow it, never widen it.">
+                <span>Visible to</span>
+              </Tooltip>
+            </TableCell>
             <TableCell align="right" sx={{ width: 120 }}>Order</TableCell>
             <TableCell align="center" sx={{ width: 64 }}>Show</TableCell>
           </TableRow>
@@ -711,6 +724,33 @@ const NavigationEditor: React.FC<{
                       <Home fontSize="small" />
                     </IconButton>
                   </Tooltip>
+                </TableCell>
+                <TableCell>
+                  <Select
+                    multiple
+                    displayEmpty
+                    size="small"
+                    variant="standard"
+                    fullWidth
+                    value={overrideRoles(override)}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      const picked = typeof value === 'string' ? value.split(',') : value;
+                      patch(item.itemKey, { roles: picked.length ? picked.join(',') : null });
+                    }}
+                    renderValue={(picked) =>
+                      picked.length === 0
+                        ? <Typography variant="body2" color="text.secondary">Default roles</Typography>
+                        : picked.length <= 2 ? picked.map(roleLabel).join(', ') : `${picked.length} roles`}
+                    inputProps={{ 'data-testid': `nav-roles-${item.itemKey}`, 'aria-label': `Roles for ${item.label}` }}
+                  >
+                    {roleOptions.map((role) => (
+                      <MenuItem key={role} value={role} dense>
+                        <Checkbox size="small" checked={overrideRoles(override).includes(role)} sx={{ p: 0.5, mr: 1 }} />
+                        {roleLabel(role)}
+                      </MenuItem>
+                    ))}
+                  </Select>
                 </TableCell>
                 <TableCell align="right">
                   <IconButton
@@ -1191,9 +1231,7 @@ const NewTenantDialog: React.FC<{
   const [customDomain, setCustomDomain] = useState('');
   const [vertical, setVertical] = useState<Vertical>('CIVIL_MARKETPLACE');
   const [branding, setBranding] = useState<BrandingForm>(EMPTY_BRANDING);
-  const [modules, setModules] = useState<Set<string>>(
-    new Set(VERTICAL_MODULES.CIVIL_MARKETPLACE)
-  );
+  const [modules, setModules] = useState<Set<string>>(defaultModulesFor('CIVIL_MARKETPLACE'));
   const [overrides, setOverrides] = useState<Map<string, TenantMenuOverride>>(new Map());
   const [landingPath, setLandingPath] = useState<string | null>(null);
   const [plan, setPlan] = useState('professional');
@@ -1202,6 +1240,19 @@ const NewTenantDialog: React.FC<{
   const [ownerName, setOwnerName] = useState('');
   const [ownerEmail, setOwnerEmail] = useState('');
   const [tab, setTab] = useState(0);
+  // Provider accounts and the AI assistant, chosen before the tenant exists and saved right after.
+  const integrationCatalog = useQuery({
+    queryKey: ['integration-catalog'], queryFn: fetchIntegrationCatalog, staleTime: 5 * 60_000, retry: false,
+  });
+  const [integrations, setIntegrations] = useState<IntegrationDrafts>({});
+  // Created, but some provider accounts could not be saved: said so before the dialog goes away.
+  const [partial, setPartial] = useState<{ tenant: Tenant; failures: string[] } | null>(null);
+  useEffect(() => {
+    if (integrationCatalog.data) {
+      // Defaults underneath whatever a resumed draft already restored.
+      setIntegrations((prev) => ({ ...defaultIntegrationDrafts(integrationCatalog.data), ...prev }));
+    }
+  }, [integrationCatalog.data]);
   // The server-side draft this dialog autosaves into (Platform Factory). Null until there is
   // something worth saving.
   const [draftId, setDraftId] = useState<number | null>(null);
@@ -1216,7 +1267,7 @@ const NewTenantDialog: React.FC<{
     setCustomDomain('');
     setVertical('CIVIL_MARKETPLACE');
     setBranding(EMPTY_BRANDING);
-    setModules(new Set(VERTICAL_MODULES.CIVIL_MARKETPLACE));
+    setModules(defaultModulesFor('CIVIL_MARKETPLACE'));
     setOverrides(new Map());
     setLandingPath(null);
     setOwnerName('');
@@ -1227,6 +1278,8 @@ const NewTenantDialog: React.FC<{
     setDraftVersion(0);
     setIssues([]);
     setSaveState('idle');
+    setIntegrations(integrationCatalog.data ? defaultIntegrationDrafts(integrationCatalog.data) : {});
+    setPartial(null);
   };
 
   // Resuming: the form is restored exactly as it was left, from the snapshot the draft carries.
@@ -1239,12 +1292,17 @@ const NewTenantDialog: React.FC<{
     setCustomDomain(f.customDomain ?? '');
     setVertical(f.vertical ?? 'CIVIL_MARKETPLACE');
     setBranding({ ...EMPTY_BRANDING, ...(f.branding ?? {}) });
-    setModules(new Set(f.modules ?? VERTICAL_MODULES.CIVIL_MARKETPLACE));
+    // Drafts saved before the shared services were a choice carry only the product's modules;
+    // those tenants had the shared services, so they come back switched on.
+    const saved: string[] = f.modules ?? [...defaultModulesFor('CIVIL_MARKETPLACE')];
+    setModules(new Set(saved.some((m) => (SWITCHABLE_CORE_MODULES as readonly string[]).includes(m))
+      ? saved : [...SWITCHABLE_CORE_MODULES, ...saved]));
     setOverrides(new Map((f.overrides ?? []).map((o: TenantMenuOverride) => [o.itemKey, o])));
     setLandingPath(f.landingPath ?? null);
     setOwnerName(f.ownerName ?? '');
     setOwnerEmail(f.ownerEmail ?? '');
     setPlan(f.plan ?? 'professional');
+    setIntegrations((prev) => ({ ...prev, ...(f.integrations ?? {}) }));
     setDraftId(draft.id);
     setDraftVersion(draft.version);
     setIssues(draft.issues);
@@ -1257,7 +1315,7 @@ const NewTenantDialog: React.FC<{
    */
   const applyTemplate = (source: Tenant) => {
     setVertical(source.vertical);
-    setModules(new Set(source.modules.filter((m) => !(HORIZONTAL_MODULES as readonly string[]).includes(m)
+    setModules(new Set(source.modules.filter((m) => !(LOCKED_MODULES as readonly string[]).includes(m)
       && m !== 'tenantadmin')));
     setOverrides(new Map((source.menuOverrides ?? []).map((o) => [o.itemKey, o])));
     setLandingPath(source.landingPath ?? null);
@@ -1286,9 +1344,9 @@ const NewTenantDialog: React.FC<{
       ? { tab: 0, message: 'A custom domain is a hostname, with no scheme or path.' }
     : ownerEmail.trim() === '' ? { tab: 1, message: "Enter the owner's email." }
     : !ownerEmailValid ? { tab: 1, message: "That owner email is not valid." }
-    : !modules.has('auth') && VERTICAL_MODULES[vertical].includes('auth')
-      ? { tab: 2, message: 'A tenant needs the auth module.' }
-    : !brandingValid(branding) ? { tab: 4, message: 'Check the branding values.' }
+    : incompleteIntegrations(integrationCatalog.data ?? [], integrations).length > 0
+      ? { tab: 3, message: `${capabilityLabel(incompleteIntegrations(integrationCatalog.data ?? [], integrations)[0].capability)} needs its account details.` }
+    : !brandingValid(branding) ? { tab: 5, message: 'Check the branding values.' }
     : null;
   const valid = blocker === null;
 
@@ -1299,7 +1357,7 @@ const NewTenantDialog: React.FC<{
     contactEmail: contactEmail.trim(),
     customDomain: customDomain.trim() || undefined,
     vertical,
-    modules: [...HORIZONTAL_MODULES, ...modules],
+    modules: [...LOCKED_MODULES, ...modules],
     menuOverrides: [...overrides.values()].filter((o) => !isNoopOverride(o)),
     landingPath,
     branding: toBrandingPayload(branding),
@@ -1310,7 +1368,8 @@ const NewTenantDialog: React.FC<{
     ownerName: ownerName.trim(),
     ownerEmail: ownerEmail.trim(),
     form: { name, keyOverride, contactEmail, customDomain, vertical, branding, modules: [...modules],
-      overrides: [...overrides.values()], landingPath, ownerName, ownerEmail, plan },
+      overrides: [...overrides.values()], landingPath, ownerName, ownerEmail, plan,
+      integrations: withoutSecrets(integrations) },
   };
   const draftJson = JSON.stringify(draftData);
 
@@ -1345,10 +1404,26 @@ const NewTenantDialog: React.FC<{
       const id = await saveNow();
       if (id === null) throw new Error('The draft could not be saved, so nothing was created.');
       const tenant = await createTenantFromDraft(id);
+      // Provider accounts are the tenant's own rows, so they can only be written once it exists.
+      // One that fails does not undo the tenant: it is reported, and can be set from its page.
+      const failures: string[] = [];
+      for (const [capability, draft] of changedIntegrations(integrations)) {
+        const spec = integrationCatalog.data?.find((c) => c.capability === capability);
+        if (!spec) continue;
+        try {
+          await saveTenantIntegration(tenant.tenantKey, capability, toSaveRequest(spec, draft));
+        } catch (e) {
+          failures.push(`${capabilityLabel(capability)}: ${apiErrorMessage(e, 'could not be saved')}`);
+        }
+      }
       if (andPublish) await publishTenant(tenant.tenantKey);
-      return tenant;
+      return { tenant, failures };
     },
-    onSuccess: (tenant) => {
+    onSuccess: ({ tenant, failures }) => {
+      if (failures.length > 0) {
+        setPartial({ tenant, failures });
+        return;
+      }
       reset();
       onCreated(tenant);
     },
@@ -1386,6 +1461,16 @@ const NewTenantDialog: React.FC<{
           </Alert>
         )}
 
+        {partial && (
+          <Alert severity="warning" sx={{ mb: 2 }} data-testid="integration-failures"
+            action={<Button color="inherit" size="small" onClick={() => { const t = partial.tenant; reset(); onCreated(t); }}>
+              Open tenant
+            </Button>}>
+            {partial.tenant.name} was created, but these provider accounts were not saved — set them from its page:
+            {partial.failures.map((f) => <div key={f}>{f}</div>)}
+          </Alert>
+        )}
+
         <Tabs
           value={tab}
           onChange={(_, next) => setTab(next)}
@@ -1404,14 +1489,19 @@ const NewTenantDialog: React.FC<{
             iconPosition="end"
           />
           <Tab
-            label="Modules"
+            label="Features"
             icon={blocker?.tab === 2 ? <ErrorOutline fontSize="small" color="error" /> : undefined}
+            iconPosition="end"
+          />
+          <Tab
+            label="Integrations & widgets"
+            icon={blocker?.tab === 3 ? <ErrorOutline fontSize="small" color="error" /> : undefined}
             iconPosition="end"
           />
           <Tab label="Navigation" />
           <Tab
             label="Look"
-            icon={blocker?.tab === 4 ? <ErrorOutline fontSize="small" color="error" /> : undefined}
+            icon={blocker?.tab === 5 ? <ErrorOutline fontSize="small" color="error" /> : undefined}
             iconPosition="end"
           />
           <Tab label="Review" />
@@ -1477,7 +1567,9 @@ const NewTenantDialog: React.FC<{
               // rather than merging — a leftover `bookings` on a fee-collection tenant is exactly
               // the mismatch this screen exists to prevent. The navigation overrides go with it:
               // they name items from a menu this tenant no longer has.
-              setModules(new Set(VERTICAL_MODULES[next]));
+              // The shared services the operator chose are kept; only the product's modules change.
+              setModules(new Set([...[...modules].filter((m) => (SWITCHABLE_CORE_MODULES as readonly string[]).includes(m)),
+                ...VERTICAL_MODULES[next]]));
               setOverrides(new Map());
               setLandingPath(null);
             }}
@@ -1517,6 +1609,20 @@ const NewTenantDialog: React.FC<{
         </Box>
 
         <Box hidden={tab !== 3}>
+          <TenantIntegrationsStep
+            catalog={integrationCatalog.data ?? []}
+            catalogError={integrationCatalog.isError
+              ? apiErrorMessage(integrationCatalog.error, 'The provider list could not be loaded; every capability will use the platform account.')
+              : null}
+            drafts={integrations}
+            onDraft={(capability, next) => setIntegrations((prev) => ({ ...prev, [capability]: next }))}
+            modules={modules}
+            onModules={setModules}
+            touched={blocker?.tab === 3 && tab === 3}
+          />
+        </Box>
+
+        <Box hidden={tab !== 4}>
           <NavigationEditor
             modules={modules}
             overrides={overrides}
@@ -1526,7 +1632,7 @@ const NewTenantDialog: React.FC<{
           />
         </Box>
 
-        <Box hidden={tab !== 4}>
+        <Box hidden={tab !== 5}>
           <BrandingFields
             form={branding}
             onChange={setBranding}
@@ -1535,7 +1641,7 @@ const NewTenantDialog: React.FC<{
           />
         </Box>
 
-        <Box hidden={tab !== 5} data-testid="wizard-review">
+        <Box hidden={tab !== 6} data-testid="wizard-review">
           <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>Review</Typography>
           {[
             ['Name', name.trim() || '—'],
@@ -1547,6 +1653,13 @@ const NewTenantDialog: React.FC<{
             ['Plan', planCatalog.data?.plans.find((p) => p.key === plan)?.name ?? plan],
             ['Modules', `${modules.size} selected${planEntitled && [...modules].some((m) => !planEntitled.has(m))
               ? ` (${[...modules].filter((m) => !planEntitled.has(m)).length} not in plan — will not run)` : ''}`],
+            ['Integrations', (integrationCatalog.data ?? [])
+              .map((c) => `${capabilityLabel(c.capability)}: ${integrationSummary(integrations[c.capability])}`).join(' · ') || '—'],
+            ['Widgets', [
+              `Support chat ${modules.has('support') ? 'on' : 'off'}`,
+              `AI assistant ${integrations.ai?.enabled === false ? 'off' : 'on'}`,
+              `Messaging ${modules.has('messaging') ? 'on' : 'off'}`,
+            ].join(' · ')],
             ['Look', branding.presetKey || branding.primaryColor ? 'Customised' : 'Platform default (inherited)'],
           ].map(([label, value]) => (
             <Stack key={label} direction="row" spacing={2} sx={{ py: 0.5 }}>
@@ -1581,10 +1694,10 @@ const NewTenantDialog: React.FC<{
           </Typography>
         )}
         <Button color="inherit" onClick={close} disabled={create.isPending}>Cancel</Button>
-        {tab < 5 && (
+        {tab < 6 && (
           <Button onClick={() => setTab(tab + 1)}>Next</Button>
         )}
-        {tab === 5 && (
+        {tab === 6 && (
           <>
             <Button variant="outlined" disabled={!valid || issues.length > 0 || create.isPending}
               onClick={() => create.mutate(false)}>
@@ -1649,6 +1762,36 @@ const BrandSwatches: React.FC<{ tenant: Tenant }> = ({ tenant }) => {
   );
 };
 
+/**
+ * The Modules column: how many, which, and how many are borrowed from another product. Hovering
+ * lists them, so "why 22?" is answered on the row rather than by opening the tenant.
+ */
+const ModuleCount: React.FC<{ tenant: Tenant }> = ({ tenant }) => {
+  const { count, shown, fromOtherProducts } = moduleSummary(tenant.vertical, tenant.modules);
+  const other = new Set(fromOtherProducts);
+  return (
+    <Tooltip
+      title={
+        <Box>
+          {shown.filter((m) => !other.has(m)).map(moduleLabel).join(', ')}
+          {fromOtherProducts.length > 0 && (
+            <Box sx={{ mt: 0.5 }}>From other products: {fromOtherProducts.map(moduleLabel).join(', ')}</Box>
+          )}
+        </Box>
+      }
+    >
+      <Box data-testid={`module-count-${tenant.tenantKey}`}>
+        <Typography variant="body2">{count}</Typography>
+        {fromOtherProducts.length > 0 && (
+          <Typography variant="caption" color="warning.main" sx={{ whiteSpace: 'nowrap' }}>
+            {fromOtherProducts.length} from other products
+          </Typography>
+        )}
+      </Box>
+    </Tooltip>
+  );
+};
+
 const TenantList: React.FC<{ tenants: Tenant[]; onOpen: (tenantKey: string) => void }> = ({
   tenants,
   onOpen,
@@ -1674,7 +1817,7 @@ const TenantList: React.FC<{ tenants: Tenant[]; onOpen: (tenantKey: string) => v
     tenantKey: (t) => t.tenantKey,
     status: (t) => t.status,
     vertical: (t) => t.vertical,
-    moduleCount: (t) => t.modules.length,
+    moduleCount: (t) => moduleSummary(t.vertical, t.modules).count,
     createdAt: (t) => t.createdAt,
   }, { key: 'name' });
 
@@ -1794,10 +1937,15 @@ const TenantList: React.FC<{ tenants: Tenant[]; onOpen: (tenantKey: string) => v
               </TableCell>
               <TableCell>
                 <Typography variant="body2">
-                  {VERTICALS.find((v) => v.value === tenant.vertical)?.label || tenant.vertical}
+                  {/* The operator runs the console, not a product; its stored vertical is a V1 leftover. */}
+                  {tenant.tenantKey === OPERATOR_TENANT
+                    ? 'Platform console'
+                    : VERTICALS.find((v) => v.value === tenant.vertical)?.label || tenant.vertical}
                 </Typography>
               </TableCell>
-              <TableCell align="right">{tenant.modules.length}</TableCell>
+              <TableCell align="right">
+                <ModuleCount tenant={tenant} />
+              </TableCell>
               <TableCell>
                 <Typography variant="caption" color="text.secondary">
                   {tenant.contactEmail || '—'}
@@ -2088,12 +2236,16 @@ const IdentityEditor: React.FC<{ tenant: Tenant }> = ({ tenant }) => {
  */
 const ModuleEditor: React.FC<{ tenant: Tenant }> = ({ tenant }) => {
   const queryClient = useQueryClient();
-  const [modules, setModules] = useState<Set<string>>(new Set(tenant.modules));
+  // Locked modules are always sent and never shown as a choice, so they are not part of the state.
+  const choosable = (list: string[]) =>
+    new Set(list.filter((m) => !(LOCKED_MODULES as readonly string[]).includes(m) && m !== 'tenantadmin'));
+  const [modules, setModules] = useState<Set<string>>(choosable(tenant.modules));
   const [confirming, setConfirming] = useState(false);
 
   // Re-seeded whenever the server's copy changes, so a save made elsewhere is not silently
   // overwritten by a stale local set the next time this operator hits Save.
-  useEffect(() => setModules(new Set(tenant.modules)), [tenant.modules]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => setModules(choosable(tenant.modules)), [tenant.modules]);
 
   const entitlement = useQuery({
     queryKey: ['entitlements', tenant.tenantKey],
@@ -2104,7 +2256,8 @@ const ModuleEditor: React.FC<{ tenant: Tenant }> = ({ tenant }) => {
   const entitled = entitlement.data ? new Set(entitlement.data.entitlements.features) : undefined;
 
   const save = useMutation({
-    mutationFn: () => setTenantModules(tenant.tenantKey, [...HORIZONTAL_MODULES, ...modules]),
+    mutationFn: () => setTenantModules(tenant.tenantKey, [
+      ...LOCKED_MODULES, ...modules, ...(tenant.modules.includes('tenantadmin') ? ['tenantadmin'] : [])]),
     onSuccess: () => {
       setConfirming(false);
       queryClient.invalidateQueries({ queryKey: ['tenants'] });
@@ -2112,29 +2265,14 @@ const ModuleEditor: React.FC<{ tenant: Tenant }> = ({ tenant }) => {
     },
   });
 
-  /** Modules already on that this vertical does not list, so they can still be switched off. */
-  const extraModules = useMemo(
-    () =>
-      tenant.modules.filter(
-        (key) =>
-          !(VERTICAL_MODULES[tenant.vertical] || []).includes(key) &&
-          !HORIZONTAL_MODULES.includes(key as typeof HORIZONTAL_MODULES[number])
-      ),
-    [tenant.modules, tenant.vertical]
-  );
-
-  const removed = tenant.modules.filter(
-    (key) =>
-      !modules.has(key) &&
-      !HORIZONTAL_MODULES.includes(key as typeof HORIZONTAL_MODULES[number])
-  );
+  const removed = [...choosable(tenant.modules)].filter((key) => !modules.has(key));
   const added = [...modules].filter((key) => !tenant.modules.includes(key));
   const dirty = removed.length > 0 || added.length > 0;
 
   return (
     <Card sx={{ mb: 3 }}>
       <CardContent>
-        <Typography variant="h6" gutterBottom>Modules</Typography>
+        <Typography variant="h6" gutterBottom>Features</Typography>
 
         {save.isError && (
           <Alert severity="error" sx={{ mb: 2 }}>
@@ -2146,7 +2284,6 @@ const ModuleEditor: React.FC<{ tenant: Tenant }> = ({ tenant }) => {
           vertical={tenant.vertical}
           modules={modules}
           onModules={setModules}
-          extraModules={extraModules}
           entitled={entitled}
         />
 
@@ -2470,6 +2607,7 @@ const TenantDetail: React.FC<{ tenant: Tenant; onBack: () => void }> = ({
   onBack,
 }) => {
   const { formatDateTime } = useDateTime();
+  const navigate = useNavigate();
   const { data, isError, error } = useQuery({
     queryKey: ['tenants', fromList.tenantKey],
     queryFn: () => fetchTenant(fromList.tenantKey),
@@ -2490,7 +2628,20 @@ const TenantDetail: React.FC<{ tenant: Tenant; onBack: () => void }> = ({
             sx={{ width: 14, height: 14, borderRadius: '50%', flexShrink: 0, bgcolor: accent }}
           />
         )}
-        <Typography variant="h5">{tenant.name}</Typography>
+        <Typography variant="h5" sx={{ flex: 1 }}>{tenant.name}</Typography>
+        {tenant.status === 'ACTIVE' && tenant.tenantKey !== 'platform' && (
+          <Button
+            variant="contained"
+            startIcon={<Storefront />}
+            data-testid="open-tenant-workspace"
+            onClick={() => {
+              setActingTenant({ tenantKey: tenant.tenantKey, name: tenant.name });
+              navigate('/admin/tenant');
+            }}
+          >
+            Open workspace
+          </Button>
+        )}
       </Stack>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
         {tenant.tenantKey}
@@ -2517,16 +2668,22 @@ const TenantDetail: React.FC<{ tenant: Tenant; onBack: () => void }> = ({
       {/* After modules: the navigation can only reshape what the module set left behind. */}
       <NavigationCard tenant={tenant} />
       <BrandingSummary tenant={tenant} />
+      <TenantWidgetsCard tenant={tenant} />
       <TenantIntegrationsCard tenant={tenant} />
       <CryptoShredCard tenant={tenant} />
     </Box>
   );
 };
 
-const TenantManagement: React.FC = () => {
+/**
+ * @param startCreating open the new-tenant wizard straight away — the sidebar's "New tenant" entry
+ *        (/admin/tenants/new). Closing it then returns to the plain tenant list.
+ */
+const TenantManagement: React.FC<{ startCreating?: boolean }> = ({ startCreating = false }) => {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [openKey, setOpenKey] = useState<string | null>(null);
-  const [creating, setCreating] = useState(false);
+  const [creating, setCreating] = useState(startCreating);
   const [resuming, setResuming] = useState<TenantDraft | null>(null);
 
   const { data, isLoading, isError, error } = useQuery<Tenant[]>({
@@ -2547,9 +2704,9 @@ const TenantManagement: React.FC = () => {
   // like the platform has no tenants.
   if (isError && status === 403) {
     return (
-      <Alert severity="info">
-        Only a Super Admin of the <strong>platform</strong> tenant can manage tenants. A tenant's
-        own Super Admin cannot create or suspend another tenant.
+      <Alert severity="info" data-testid="tenants-forbidden">
+        Tenants are managed by the <strong>platform's own staff</strong> on the platform console.
+        A tenant's own owner cannot create or suspend another tenant.
       </Alert>
     );
   }
@@ -2586,6 +2743,7 @@ const TenantManagement: React.FC = () => {
           setCreating(false);
           setResuming(null);
           queryClient.invalidateQueries({ queryKey: ['tenant-drafts'] });
+          if (startCreating) navigate('/admin/tenants');
         }}
         onCreated={(tenant) => {
           setCreating(false);

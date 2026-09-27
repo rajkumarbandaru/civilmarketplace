@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { formatCompactCurrency, formatCount } from '../../utils/currency';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { tenantScreenPath } from '../../services/actingTenant';
 import {
   Box,
   Grid,
@@ -94,6 +95,7 @@ const AdminDashboard: React.FC = () => {
   // Read from the theme rather than hardcoded, so a re-themed platform re-colours these too.
   const theme = useTheme();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -194,7 +196,7 @@ const AdminDashboard: React.FC = () => {
               borderRadius: 2, cursor: 'pointer', transition: 'all 0.2s',
               '&:hover': { transform: 'translateY(-2px)', boxShadow: '0 8px 25px rgba(0,0,0,0.1)' },
             }}
-            onClick={() => navigate(action.path)}
+            onClick={() => navigate(tenantScreenPath(action.path, pathname))}
           >
             <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 1.5, py: 2, px: 3 }}>
               <Avatar sx={{ bgcolor: (t) => t.palette.primary.main + '15', color: 'primary.main', width: 36, height: 36 }}>

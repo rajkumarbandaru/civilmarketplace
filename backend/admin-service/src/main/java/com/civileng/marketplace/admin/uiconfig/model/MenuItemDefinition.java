@@ -82,6 +82,19 @@ public class MenuItemDefinition {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    /**
+     * The platform's role ceiling for this item in this tenant (ui_tenant_menu_override.roles), set
+     * only on the copies the menu resolver makes — never stored in the shipped catalogue.
+     */
+    @Transient
+    private String roleCeiling;
+
+    /** False if the platform restricted this item to roles that do not include {@code role}. */
+    public boolean allowedFor(String role) {
+        if (roleCeiling == null || roleCeiling.isBlank()) return true;
+        return Arrays.stream(roleCeiling.split(",")).map(String::trim).anyMatch(r -> r.equals(role));
+    }
+
     public List<String> defaultRoleList() {
         if (defaultRoles == null || defaultRoles.isBlank()) return List.of();
         return Arrays.stream(defaultRoles.split(","))

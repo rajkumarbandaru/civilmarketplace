@@ -1,6 +1,7 @@
 import React from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link as RouterLink } from 'react-router-dom';
+import { Link as RouterLink, useLocation } from 'react-router-dom';
+import { tenantScreenPath } from '../../services/actingTenant';
 import {
   Alert, Box, Button, Card, CardContent, Chip, CircularProgress, Stack, Switch, Typography,
 } from '@mui/material';
@@ -46,6 +47,7 @@ const ModuleRow: React.FC<{
  * to its team. Everything starts on the platform's defaults.
  */
 const WorkspaceSettingsPage: React.FC = () => {
+  const { pathname } = useLocation();
   const queryClient = useQueryClient();
   const modules = useQuery({ queryKey: ['workspace-modules'], queryFn: fetchWorkspaceModules, retry: false });
   const save = useMutation({
@@ -119,7 +121,7 @@ const WorkspaceSettingsPage: React.FC = () => {
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             Add people to this workspace with a role. They get an email to set their own password.
           </Typography>
-          <Button variant="outlined" component={RouterLink} to="/admin/users">Manage users</Button>
+          <Button variant="outlined" component={RouterLink} to={tenantScreenPath('/admin/users', pathname)}>Manage users</Button>
         </CardContent>
       </Card>
     </Box>

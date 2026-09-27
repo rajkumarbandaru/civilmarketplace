@@ -50,6 +50,40 @@ class AiAssistantRoutingTest {
         }
     }
 
+    /** An open model: no key needed, and it is told the workspace's base URL. */
+    static final class FakeOpenModel implements ChatModel {
+        final List<String> calls = new ArrayList<>();
+
+        @Override
+        public String provider() {
+            return "openai_compatible";
+        }
+
+        @Override
+        public String platformKey() {
+            return null;
+        }
+
+        @Override
+        public boolean requiresKey() {
+            return false;
+        }
+
+        @Override
+        public String ask(String apiKey, String model, String instruction, List<AiChatRequest.Turn> history,
+                          String message) {
+            throw new AssertionError("the settings-aware ask must be used");
+        }
+
+        @Override
+        public String ask(String apiKey, String model, Map<String, String> settings, String instruction,
+                          List<AiChatRequest.Turn> history, String message) {
+            calls.add(apiKey + "|" + model + "|" + settings.get("baseUrl") + "|" + message);
+            return "open model says hi";
+        }
+    }
+
+    private final FakeOpenModel openModel = new FakeOpenModel();
     private final FakeModel gemini = new FakeModel("gemini", "platform-gemini-key");
     private final FakeModel openai = new FakeModel("openai", "");
     private final FakeModel anthropic = new FakeModel("anthropic", "");
@@ -64,6 +98,9 @@ class AiAssistantRoutingTest {
                         Map.of("model", "claude-sonnet-5"), Map.of("apiKey", "sk-ant-key"), null),
                 new TenantIntegration("gpt-co", IntegrationCapability.AI, IntegrationMode.BYO, "openai", true,
                         Map.of(), Map.of("apiKey", "sk-openai-key"), null),
+                new TenantIntegration("llama-co", IntegrationCapability.AI, IntegrationMode.BYO, "openai_compatible",
+                        true, Map.of("baseUrl", "https://api.groq.com/openai/v1", "model", "llama-4-scout"),
+                        Map.of(), null),
                 new TenantIntegration("shared", IntegrationCapability.AI, IntegrationMode.PLATFORM_SHARED, null,
                         true, Map.of(), Map.of(), null),
                 new TenantIntegration("off", IntegrationCapability.AI, IntegrationMode.PLATFORM_SHARED, null,
@@ -83,7 +120,7 @@ class AiAssistantRoutingTest {
             public void evict(String tenantKey) {
             }
         };
-        assistant = new AiAssistant(new TenantIntegrationResolver(store, "platform"), List.of(gemini, openai, anthropic));
+        assistant = new AiAssistant(new TenantIntegrationResolver(store, "platform"), List.of(gemini, openai, anthropic, openModel));
     }
 
     @AfterEach
@@ -119,6 +156,16 @@ class AiAssistantRoutingTest {
             assistant.ask("q", List.of(), "rates");
         }
         assertThat(gemini.calls).hasSize(3).allMatch(c -> c.startsWith("platform-gemini-key|null|"));
+    }
+
+    @Test
+    void anOpenModelWorkspaceIsAnsweredByItsOwnServerWithoutAKey() {
+        TenantContext.set("llama-co");
+
+        assertThat(assistant.provider()).isEqualTo("openai_compatible");
+        assertThat(assistant.ask("hello", List.of(), null)).isEqualTo("open model says hi");
+        assertThat(openModel.calls).containsExactly("null|llama-4-scout|https://api.groq.com/openai/v1|hello");
+        assertThat(gemini.calls).isEmpty();
     }
 
     @Test

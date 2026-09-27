@@ -190,6 +190,34 @@ class TenantIntegrationServiceTest {
     }
 
     @Test
+    void anOpenModelNeedsItsServerAndModelButNoKey() {
+        IntegrationView view = service.save("acme", "ai", new SaveIntegrationRequest("BYO", "openai_compatible", true,
+                Map.of("baseUrl", "https://api.groq.com/openai/v1", "model", "llama-4-scout"), Map.of()), "7");
+
+        assertThat(view.provider()).isEqualTo("openai_compatible");
+        assertThat(view.settings()).containsEntry("baseUrl", "https://api.groq.com/openai/v1")
+                .containsEntry("model", "llama-4-scout");
+        assertThat(view.secretHints()).isEmpty();
+
+        IntegrationView keyed = service.save("acme", "ai", new SaveIntegrationRequest("BYO", "openai_compatible", true,
+                Map.of("baseUrl", "https://openrouter.ai/api/v1", "model", "qwen-3"), Map.of("apiKey", "sk-or-0123456789")), "7");
+        assertThat(keyed.secretHints()).containsEntry("apiKey", "••••6789");
+
+        assertThatThrownBy(() -> service.save("acme", "ai", new SaveIntegrationRequest("BYO", "openai_compatible", true,
+                Map.of("baseUrl", "https://api.groq.com/openai/v1"), Map.of()), "7"))
+                .hasMessageContaining("model");
+    }
+
+    @Test
+    void theCatalogListsEveryAiProviderIncludingOpenModels() {
+        var ai = service.catalog().stream().filter(c -> c.capability().equals("ai")).findFirst().orElseThrow();
+        assertThat(ai.providers()).containsKeys("gemini", "openai", "anthropic", "openai_compatible");
+        assertThat(ai.providers().get("openai_compatible").optionalSecrets()).containsExactly("apiKey");
+        assertThat(service.catalog()).extracting(c -> c.capability())
+                .containsExactlyInAnyOrder("payment", "email", "sms", "whatsapp", "ai");
+    }
+
+    @Test
     void emailMayRunOnTheSharedPlatformAccountWithTheTenantsSenderName() {
         IntegrationView view = service.save("acme", "email", new SaveIntegrationRequest(
                 "PLATFORM_SHARED", null, true, Map.of("fromName", "Acme Builders"), Map.of()), "7");

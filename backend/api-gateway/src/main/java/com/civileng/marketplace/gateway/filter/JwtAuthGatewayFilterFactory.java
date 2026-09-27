@@ -1,5 +1,6 @@
 package com.civileng.marketplace.gateway.filter;
 
+import com.civileng.marketplace.gateway.tenant.TenantDescriptor;
 import com.civileng.marketplace.gateway.tenant.TenantResolutionGlobalFilter;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
@@ -11,6 +12,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Component;
@@ -36,8 +38,37 @@ public class JwtAuthGatewayFilterFactory
     private static final String ADMIN_PREFIX = "/api/v1/admin";
 
     /** The staff roles seeded by auth-service. Anything else is a member. */
-    private static final Set<String> ADMIN_ROLES =
-            Set.of("SUPER_ADMIN", "ADMIN", "SUB_ADMIN", "REGIONAL_ADMIN");
+    private static final Set<String> ADMIN_ROLES = Set.of(
+            "TENANT_OWNER", "ADMIN", "SUB_ADMIN", "REGIONAL_ADMIN",
+            "PLATFORM_OWNER", "PLATFORM_ADMIN", "PLATFORM_SUPPORT");
+
+    /** The platform company's own staff: only ever valid on the operator tenant. */
+    private static final Set<String> PLATFORM_ROLES =
+            Set.of("PLATFORM_OWNER", "PLATFORM_ADMIN", "PLATFORM_SUPPORT");
+
+    private static final String OPERATOR_TENANT = TenantResolutionGlobalFilter.OPERATOR_TENANT;
+
+    /** Signed downstream with the rest of the identity; names the tenant an acting caller lives in. */
+    public static final String ACTING_FROM_HEADER = "X-User-Acting-From";
+
+    /** Set once this filter has let an acting request through; ActingTenantGuardFilter checks it. */
+    public static final String ACTING_APPLIED_ATTRIBUTE = "platform.actingApplied";
+
+    /**
+     * Where platform staff may go while acting on a tenant: the staff screens' APIs. Never the
+     * member-facing ones — the caller's user id belongs to the operator tenant and names nobody (or
+     * somebody else) in the tenant being acted on, so a "my profile" call there would be wrong.
+     */
+    private static final List<String> ACTING_PREFIXES = List.of(
+            "/api/v1/admin", "/api/v1/users/admin", "/api/v1/workspace-settings");
+
+    /** Read-only extras the staff screens load: the workspace's KPIs, a booking's live track, media. */
+    private static final List<java.util.regex.Pattern> ACTING_READS = List.of(
+            java.util.regex.Pattern.compile("^/api/v1/analytics/workspace$"),
+            java.util.regex.Pattern.compile("^/api/v1/bookings/[^/]+/tracking$"),
+            java.util.regex.Pattern.compile("^/api/v1/media/.+$"));
+
+    private static final Set<HttpMethod> READS = Set.of(HttpMethod.GET, HttpMethod.HEAD, HttpMethod.OPTIONS);
 
     private final SecretKey secretKey;
 
@@ -76,7 +107,7 @@ public class JwtAuthGatewayFilterFactory
                 }
 
                 // A token is only valid on the tenant it was issued for. Without this check a
-                // SUPER_ADMIN of one workspace could point their token at another workspace's
+                // workspace owner of one workspace could point their token at another workspace's
                 // subdomain and be served as an admin there, since downstream services trust the
                 // resolved X-Tenant-Id header unconditionally.
                 String tokenTenant = claims.get("tenant", String.class);
@@ -96,9 +127,39 @@ public class JwtAuthGatewayFilterFactory
                 String role = claims.get("role", String.class);
                 String path = exchange.getRequest().getPath().value();
 
+                // A platform role in a token for any tenant but the operator is not a real
+                // account — auth-service never assigns one there — so it is refused outright
+                // rather than passed on for every service to second-guess.
+                if (PLATFORM_ROLES.contains(role) && !OPERATOR_TENANT.equals(tokenTenant)) {
+                    log.warn("Platform role '{}' in a token for tenant '{}'", role, tokenTenant);
+                    return onError(exchange, "Token is not valid for this workspace",
+                            HttpStatus.FORBIDDEN);
+                }
+
                 if (isAdminPath(path) && !ADMIN_ROLES.contains(role)) {
                     log.warn("Non-admin role '{}' refused on admin path {}", role, path);
                     return onError(exchange, "Admin role required", HttpStatus.FORBIDDEN);
+                }
+
+                TenantDescriptor acting = exchange.getAttribute(TenantResolutionGlobalFilter.ACTING_ATTRIBUTE);
+                if (acting != null) {
+                    HttpMethod method = exchange.getRequest().getMethod();
+                    String refusal = actingRefusal(tokenTenant, role, path, method);
+                    if (refusal != null) {
+                        log.warn("Refused acting on '{}' for role '{}': {} {} ({})",
+                                acting.getTenantKey(), role, method, path, refusal);
+                        return onError(exchange, refusal, HttpStatus.FORBIDDEN);
+                    }
+                    log.info("Platform user {} ({}) acting on tenant '{}': {} {}",
+                            claims.getSubject(), role, acting.getTenantKey(), method, path);
+                    exchange.getAttributes().put(ACTING_APPLIED_ATTRIBUTE, Boolean.TRUE);
+                    String actingFrom = tokenTenant;
+                    exchange = exchange.mutate()
+                            .request(r -> r.headers(h -> {
+                                h.set(TenantResolutionGlobalFilter.TENANT_HEADER, acting.getTenantKey());
+                                h.set(ACTING_FROM_HEADER, actingFrom);
+                            }))
+                            .build();
                 }
 
                 exchange = exchange.mutate()
@@ -122,6 +183,31 @@ public class JwtAuthGatewayFilterFactory
                 return onError(exchange, "Invalid token", HttpStatus.UNAUTHORIZED);
             }
         };
+    }
+
+    /**
+     * Why a request to act on a tenant is refused, or null if it may go ahead: the caller must be
+     * platform staff signed in on the operator tenant, on a staff-screen path, and platform support
+     * may only read.
+     */
+    static String actingRefusal(String tokenTenant, String role, String path, HttpMethod method) {
+        if (!OPERATOR_TENANT.equals(tokenTenant) || !PLATFORM_ROLES.contains(role)) {
+            return "Only platform staff can act on a tenant";
+        }
+        boolean read = method != null && READS.contains(method);
+        boolean staffPath = ACTING_PREFIXES.stream().anyMatch(prefix -> onSegment(path, prefix));
+        boolean readPath = ACTING_READS.stream().anyMatch(pattern -> pattern.matcher(path).matches());
+        if (!staffPath && !(read && readPath)) {
+            return "This is not available while acting on a tenant";
+        }
+        if ("PLATFORM_SUPPORT".equals(role) && !read) {
+            return "Platform support staff have read-only access";
+        }
+        return null;
+    }
+
+    private static boolean onSegment(String path, String prefix) {
+        return path.equals(prefix) || path.startsWith(prefix + "/");
     }
 
     /**

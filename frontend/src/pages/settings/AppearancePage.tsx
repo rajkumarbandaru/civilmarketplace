@@ -28,7 +28,7 @@ import {
 
 const QUERY_KEY = ['ui-config', 'my-appearance'];
 
-/** Human copy for the fields Super Admin owns, keyed by the names the API returns. */
+/** Human copy for the fields the workspace owner owns, keyed by the names the API returns. */
 const ADMIN_FIELD_LABELS: Record<string, string> = {
   layoutStyle: 'Navigation position',
   uiStyle: 'UI style',
@@ -46,7 +46,7 @@ const ADMIN_FIELD_LABELS: Record<string, string> = {
 /**
  * A member's own appearance settings: light/dark and density, and nothing else.
  *
- * The split between what a member may change and what Super Admin owns comes from the API's
+ * The split between what a member may change and what the workspace owner owns comes from the API's
  * `memberEditable` / `adminControlled` lists rather than being hardcoded here — if that line ever
  * moves, this screen follows it without an edit.
  */

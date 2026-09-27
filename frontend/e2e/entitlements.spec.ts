@@ -2,7 +2,7 @@ import { test, expect, mockApi, json, signInAs } from './fixtures';
 
 /** Plans, add-ons, grants: what a tenant may run, previewed before it changes. */
 
-const operator = { id: 1, name: 'Operator', email: 'ops@platform.example', role: 'SUPER_ADMIN' };
+const operator = { id: 1, name: 'Operator', email: 'ops@platform.example', role: 'PLATFORM_OWNER' };
 const catalog = {
   plans: [
     { key: 'starter', version: 1, name: 'Starter', features: ['bookings', 'reviews', 'search'], limits: { 'bookings.monthly': 500, 'staff.seats': 5 } },
@@ -131,11 +131,11 @@ test('the wizard offers plans and flags modules the chosen plan does not include
   await page.getByRole('button', { name: 'New tenant' }).click();
   const dialog = page.getByRole('dialog');
   await dialog.getByLabel('Name', { exact: true }).fill('Acme Builders');
-  await dialog.getByRole('tab', { name: 'Modules' }).click();
-  await dialog.getByLabel('Plan').click();
+  await dialog.getByRole('tab', { name: 'Features' }).click();
+  await dialog.getByLabel('Plan', { exact: true }).click();
   await page.getByRole('option', { name: 'Starter' }).click();
   await expect(dialog.getByTestId('not-in-plan-projects')).toContainText('chosen, not running');
   await expect.poll(() => saved?.plan).toBe('starter');
   await dialog.getByRole('tab', { name: 'Review' }).click();
-  await expect(dialog.getByTestId('wizard-review')).toContainText('1 not in plan — will not run');
+  await expect(dialog.getByTestId('wizard-review')).toContainText('2 not in plan — will not run');
 });

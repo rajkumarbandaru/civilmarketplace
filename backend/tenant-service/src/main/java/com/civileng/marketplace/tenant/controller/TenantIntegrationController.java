@@ -4,7 +4,6 @@ import com.civileng.marketplace.tenant.dto.IntegrationDtos.CapabilityView;
 import com.civileng.marketplace.tenant.dto.IntegrationDtos.IntegrationView;
 import com.civileng.marketplace.tenant.dto.IntegrationDtos.SaveIntegrationRequest;
 import com.civileng.marketplace.tenant.service.TenantIntegrationService;
-import com.civileng.marketplace.web.common.AccessDeniedException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -29,8 +28,6 @@ import java.util.List;
 @RequestMapping("/api/v1/tenants")
 @RequiredArgsConstructor
 public class TenantIntegrationController {
-
-    private static final String OPERATOR_TENANT = "platform";
 
     private final TenantIntegrationService integrationService;
 
@@ -90,14 +87,11 @@ public class TenantIntegrationController {
             @RequestHeader(value = "X-User-Id", required = false) String userId,
             @RequestHeader(value = "X-User-Role", required = false) String role,
             @RequestHeader(value = "X-Tenant-Id", required = false) String tenantId) {
-        requireOperator(role, tenantId);
+        com.civileng.marketplace.web.common.PlatformRoles.requireOwner(tenantId, role, "Destroying a tenant's keys");
         return ResponseEntity.ok(integrationService.cryptoShred(tenantKey, request == null ? null : request.confirm(), userId));
     }
 
     private void requireOperator(String role, String tenantId) {
-        if (!OPERATOR_TENANT.equals(tenantId) || !"SUPER_ADMIN".equals(role)) {
-            throw new AccessDeniedException(
-                    "Tenant integrations are restricted to the operator tenant's SUPER_ADMINs");
-        }
+        com.civileng.marketplace.web.common.PlatformRoles.requireOperator(tenantId, role, "Tenant integrations");
     }
 }

@@ -78,7 +78,7 @@ public class AdminUserService {
         }
     }
 
-    static final Set<String> INVITING_ROLES = Set.of("SUPER_ADMIN", "ADMIN");
+    static final Set<String> INVITING_ROLES = com.civileng.marketplace.web.common.StaffRoles.MANAGERS;
 
     public Map<String, Object> inviteUser(String actorRole, Map<String, String> request) {
         requireInviter(actorRole);

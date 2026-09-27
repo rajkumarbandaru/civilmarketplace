@@ -2,7 +2,7 @@ import { test, expect, mockApi, json, signInAs } from './fixtures';
 
 /** Theme version history on Admin → Theme: every save is a release; any release can be made live again. */
 
-const superAdmin = { id: 1, name: 'Owner', email: 'owner@example.com', role: 'SUPER_ADMIN' };
+const superAdmin = { id: 1, name: 'Owner', email: 'owner@example.com', role: 'TENANT_OWNER' };
 
 const theme = (primaryColor: string, version: number) => ({
   scopeKey: 'PLATFORM', mode: 'light', primaryColor, accentColor: null, surfaceColor: null, sidebarColor: null,

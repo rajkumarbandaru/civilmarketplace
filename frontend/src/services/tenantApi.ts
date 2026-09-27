@@ -4,8 +4,8 @@ import manifest from '../experience/registry-manifest.json';
 /**
  * Client for tenant-service's operator API (`backend/tenant-service`).
  *
- * Every endpoint here is operator-only: tenant-service requires the caller be a SUPER_ADMIN whose
- * `X-Tenant-Id` is the `platform` tenant, so a tenant's own Super Admin gets a 403 rather than the
+ * Every endpoint here is operator-only: tenant-service requires the caller be RK platform staff
+ * whose `X-Tenant-Id` is the `platform` tenant, so a tenant's own owner gets a 403 rather than the
  * ability to create or suspend a sibling. Both headers come from the gateway's JWT filter, so
  * nothing here sends an identity — the 403 is the authoritative answer, not a client-side check.
  */
@@ -58,7 +58,7 @@ export const HORIZONTAL_MODULES = [
 ] as const;
 
 export const VERTICAL_MODULES: Record<Vertical, string[]> = {
-  CIVIL_MARKETPLACE: ['bookings', 'projects', 'reviews', 'search'],
+  CIVIL_MARKETPLACE: ['bookings', 'projects', 'reviews', 'search', 'procurement'],
   FEE_COLLECTION: ['residents', 'feeplans', 'invoices', 'collections'],
   PROPERTY: ['search', 'reviews', 'properties', 'listings', 'leases', 'valuations', 'landrecords'],
 };
@@ -74,6 +74,67 @@ const MODULE_LABELS: Record<string, string> = {
   feeplans: 'Fee plans',
   landrecords: 'Land records',
   procurement: 'Procurement (B2B)',
+  support: 'Support & chat widget',
+  messaging: 'In-app messaging',
+};
+
+/** Modules no tenant can be without: nobody could sign in to or manage it. Mirrors WorkspaceSettingsController.LOCKED. */
+export const LOCKED_MODULES = ['auth', 'users', 'admin', 'audit'] as const;
+
+/** Shared modules a tenant may switch off — every product has them, but not every business wants them. */
+export const SWITCHABLE_CORE_MODULES = ['payments', 'notifications', 'support', 'messaging'] as const;
+
+/** What each module gives the tenant, in one line for the features list. */
+export const MODULE_DESCRIPTIONS: Record<string, string> = {
+  auth: 'Sign-in, OTP and two-step verification',
+  users: 'Profiles and the user directory',
+  admin: 'The tenant\'s admin console',
+  audit: 'Tamper-evident audit trail',
+  payments: 'Online payments, invoices and payouts',
+  notifications: 'Email, SMS and WhatsApp notifications, alerts',
+  support: 'Support tickets and the support chat widget (with the AI assistant)',
+  messaging: 'Chat between customers, professionals and staff',
+  bookings: 'Service catalogue, bookings and live tracking',
+  projects: 'Construction projects and milestones',
+  reviews: 'Ratings and reviews',
+  search: 'Search across services, materials and professionals',
+  procurement: 'RFQs, quotations, purchase orders (B2B)',
+  residents: 'Residents and members',
+  feeplans: 'Fee plans and schedules',
+  invoices: 'Fee invoices',
+  collections: 'Payment chasing and collections',
+  properties: 'Property records',
+  listings: 'Property listings',
+  leases: 'Leases and rent',
+  valuations: 'Property valuations',
+  landrecords: 'Land records',
+};
+
+/**
+ * Every module, grouped the way the features screen shows them: the locked core, the shared
+ * services, then each product's own. A module appears once, in the first group that lists it.
+ */
+export const MODULE_GROUPS: { key: string; label: string; modules: string[]; locked?: boolean; vertical?: Vertical }[] = [
+  { key: 'core', label: 'Core — always on', modules: [...LOCKED_MODULES], locked: true },
+  { key: 'shared', label: 'Payments, notifications & chat', modules: [...SWITCHABLE_CORE_MODULES] },
+  { key: 'marketplace', label: 'Marketplace', modules: ['bookings', 'projects', 'reviews', 'search', 'procurement'], vertical: 'CIVIL_MARKETPLACE' },
+  { key: 'fees', label: 'Fee collection', modules: ['residents', 'feeplans', 'invoices', 'collections'], vertical: 'FEE_COLLECTION' },
+  { key: 'property', label: 'Property', modules: ['properties', 'listings', 'leases', 'valuations', 'landrecords'], vertical: 'PROPERTY' },
+];
+
+/** A new tenant of this vertical starts with: the shared services plus the product's own modules. */
+export const defaultModulesFor = (vertical: Vertical): Set<string> =>
+  new Set([...SWITCHABLE_CORE_MODULES, ...VERTICAL_MODULES[vertical]]);
+
+/**
+ * A tenant's modules as a person reads them: the internal `tenantadmin` console module left out
+ * (the features screen never offers it either), and the ones borrowed from another product named,
+ * because a bare "22" beside a "Civil marketplace" tenant reads as a counting bug, not a choice.
+ */
+export const moduleSummary = (vertical: Vertical, modules: string[]) => {
+  const shown = modules.filter((m) => m !== 'tenantadmin');
+  const ownProduct = new Set<string>([...HORIZONTAL_MODULES, ...(VERTICAL_MODULES[vertical] ?? [])]);
+  return { count: shown.length, shown, fromOtherProducts: shown.filter((m) => !ownProduct.has(m)) };
 };
 
 export const moduleLabel = (key: string) =>
@@ -195,7 +256,16 @@ export interface TenantMenuOverride {
   labelOverride?: string | null;
   /** Replaces the catalogue position. */
   sortOrder?: number | null;
+  /**
+   * The only roles that see the item in this tenant, comma-separated; null keeps the catalogue's.
+   * A ceiling: the tenant's own admins can narrow it in their workspace menus, never widen it.
+   */
+  roles?: string | null;
 }
+
+/** An override's role ceiling as a list; empty when the catalogue's default roles apply. */
+export const overrideRoles = (override?: TenantMenuOverride | null): string[] =>
+  override?.roles ? override.roles.split(',').map((r) => r.trim()).filter(Boolean) : [];
 
 /** `#RRGGBB` or `#RRGGBBAA`, matching what tenant-common accepts. */
 export const HEX_COLOR = /^#([0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
@@ -254,6 +324,16 @@ export interface UpdateTenantCommand {
 }
 
 const BASE = '/tenants';
+
+/** Chip colour per lifecycle status, shared by the tenant list and the platform dashboard. */
+export const TENANT_STATUS_COLOR: Record<TenantStatus, 'success' | 'warning' | 'error' | 'default' | 'info'> = {
+  DRAFT: 'info',
+  PROVISIONING: 'warning',
+  PROVISIONING_FAILED: 'error',
+  ACTIVE: 'success',
+  SUSPENDED: 'error',
+  ARCHIVED: 'default',
+};
 
 export const fetchTenants = async (): Promise<Tenant[]> => {
   const { data } = await api.get<Tenant[]>(BASE);
@@ -330,6 +410,7 @@ export const previewMenu = (
         ...item,
         label: override.labelOverride || item.label,
         sortOrder: override.sortOrder ?? item.sortOrder,
+        defaultRoles: override.roles || item.defaultRoles,
       };
     })
     .sort((a, b) => a.sortOrder - b.sortOrder);
@@ -339,7 +420,21 @@ export const previewMenu = (
 export const isNoopOverride = (override: TenantMenuOverride) =>
   override.visible !== false &&
   !override.labelOverride &&
-  (override.sortOrder === null || override.sortOrder === undefined);
+  (override.sortOrder === null || override.sortOrder === undefined) &&
+  !override.roles?.trim();
+
+/**
+ * The roles a tenant's menu items can be limited to: every role the catalogue names, plus the
+ * tenant's staff roles. Never a platform role — those do not exist inside a tenant.
+ */
+export const tenantRoleOptions = (catalogue: MenuCatalogueEntry[]): string[] => {
+  const roles = new Set<string>(['TENANT_OWNER', 'ADMIN', 'SUB_ADMIN', 'REGIONAL_ADMIN']);
+  catalogue.forEach((item) =>
+    item.defaultRoles.split(',').map((r) => r.trim())
+      .filter((r) => r && r !== '*' && !r.startsWith('PLATFORM_'))
+      .forEach((r) => roles.add(r)));
+  return [...roles].sort();
+};
 
 /**
  * Replaces the tenant's navigation: hidden items, renamed labels, order, and landing page.

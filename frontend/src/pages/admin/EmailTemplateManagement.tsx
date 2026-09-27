@@ -14,7 +14,7 @@ import {
 } from '../../services/emailApi';
 
 /**
- * Super Admin's editor for the transactional email the platform sends.
+ * The workspace owner's editor for the transactional email the platform sends.
  *
  * Master/detail rather than a table: an email is a document, and the only way to judge an edit is
  * to see it rendered, so the preview sits beside the body instead of behind a separate screen.

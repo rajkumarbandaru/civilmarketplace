@@ -14,7 +14,7 @@ import java.util.Base64;
 
 /**
  * Encrypts TOTP secrets at rest (AES-256-GCM). A database dump alone must not be enough to mint
- * a Super Admin's codes.
+ * an owner's or platform staff member's codes.
  *
  * <p>The key is derived from the JWT signing secret with a fixed label (HMAC-SHA256 as a KDF), so
  * it is a separate key for a separate purpose without another secret to provision. The user id and

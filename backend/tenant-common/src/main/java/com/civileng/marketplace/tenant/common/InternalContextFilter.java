@@ -49,9 +49,13 @@ public class InternalContextFilter extends OncePerRequestFilter implements Order
         }
         log.warn("Rejected unsigned or badly signed identity headers on {} from {}",
                 request.getRequestURI(), request.getRemoteAddr());
-        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        // 503, not 401: the gateway strips client-sent identity headers, so a browser only lands
+        // here when the gateway and this service disagree on the key or format — a deploy fault,
+        // not the user's. A 401 made the frontend refresh the session, fail again, and sign the
+        // user out; the internal wording also reached the login form verbatim.
+        response.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
         response.setContentType("application/json");
-        response.getWriter().write(
-                "{\"success\":false,\"message\":\"Untrusted caller identity\",\"status\":401}");
+        response.getWriter().write("{\"success\":false,\"message\":"
+                + "\"The service is temporarily unavailable. Please try again shortly.\",\"status\":503}");
     }
 }

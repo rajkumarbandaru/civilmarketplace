@@ -36,7 +36,7 @@ public class MaterialPriceController {
      * may claim to sell at one.
      */
     private static final List<String> SUPPLIER_ROLES =
-            List.of("MATERIAL_SUPPLIER", "EQUIPMENT_RENTAL", "ADMIN", "SUPER_ADMIN");
+            List.of("MATERIAL_SUPPLIER", "EQUIPMENT_RENTAL", "ADMIN", "TENANT_OWNER");
 
     private final MaterialPriceService materialPrices;
 

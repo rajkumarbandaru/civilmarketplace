@@ -9,7 +9,7 @@ import { stylePack } from './experience/stylePacks';
  *
  * A null field in a {@link ResolvedTheme} means "inherit the built-in default" — never "no
  * value" — so every default lives here rather than being restated as a server-side guess. That
- * is what lets Super Admin change one accent colour without having to define a whole palette.
+ * is what lets the workspace owner change one accent colour without having to define a whole palette.
  */
 
 const DEFAULT_PRIMARY = '#667eea';

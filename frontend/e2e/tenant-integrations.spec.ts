@@ -1,6 +1,6 @@
 import { test, expect, mockApi, json, signInAs } from './fixtures';
 
-const superAdmin = { id: 1, name: 'Operator', email: 'ops@example.com', role: 'SUPER_ADMIN' };
+const superAdmin = { id: 1, name: 'Operator', email: 'ops@example.com', role: 'PLATFORM_OWNER' };
 
 const tenant = {
   tenantKey: 'acme', name: 'Acme Builders', subdomain: 'acme', customDomain: null, status: 'ACTIVE',
@@ -18,7 +18,7 @@ const catalog = [
 const none = (capability: string) => ({ capability, configured: false, mode: null, provider: null, enabled: false,
   settings: {}, secretHints: {}, webhookPath: null, updatedBy: null, updatedAt: null });
 
-test.describe('Tenant integrations (Super Admin)', () => {
+test.describe('Tenant integrations (RK platform staff)', () => {
   test('sets up a tenant\'s own Razorpay account; secrets are sent once and only shown masked', async ({ page }) => {
     let payment: Record<string, unknown> = none('payment');
     let saved: Record<string, unknown> | null = null;
@@ -79,11 +79,11 @@ test.describe('Tenant integrations (Super Admin)', () => {
     await mockApi(page, '/tenants', [tenant]);
     await mockApi(page, '/tenants/acme', tenant);
     await mockApi(page, '/tenants/integration-catalog', (route) =>
-      json(route, { message: "Tenant integrations are restricted to the operator tenant's SUPER_ADMINs" }, 403));
+      json(route, { message: 'Tenant integrations is restricted to RK platform staff' }, 403));
     await mockApi(page, '/tenants/acme/integrations', [none('payment')]);
 
     await page.goto('/admin/tenants');
     await page.getByRole('button', { name: 'Configure' }).click();
-    await expect(page.getByTestId('tenant-integrations').getByText(/restricted to the operator tenant/)).toBeVisible();
+    await expect(page.getByTestId('tenant-integrations').getByText(/restricted to RK platform staff/)).toBeVisible();
   });
 });

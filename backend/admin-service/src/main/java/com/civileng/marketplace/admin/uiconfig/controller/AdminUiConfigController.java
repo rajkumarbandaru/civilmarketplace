@@ -16,17 +16,17 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 /**
- * Super Admin's view over the platform's look: the platform-wide theme, and every workspace's
+ * The workspace owner's view over the platform's look: the platform-wide theme, and every workspace's
  * menu and theme override. One role = one workspace.
  *
- * <p>Gated on SUPER_ADMIN alone, not the wider admin set — this changes what every user of the
+ * <p>Gated on the workspace owner alone, not the wider admin set — this changes what every user of the
  * platform sees, which is a different weight of decision from moderating one booking.
  */
 @RestController
 @RequestMapping("/api/v1/admin")
 @RequiredArgsConstructor
 @Slf4j
-@Tag(name = "Admin UI Configuration", description = "Super Admin control of menus, themes and UI style")
+@Tag(name = "Admin UI Configuration", description = "Workspace owner control of menus, themes and UI style")
 public class AdminUiConfigController {
 
     private static final String PLATFORM = "PLATFORM";
@@ -43,7 +43,7 @@ public class AdminUiConfigController {
     @Operation(summary = "Get the platform-wide theme and UI style")
     public ResponseEntity<ResolvedTheme> platformTheme(
             @RequestHeader(value = "X-User-Role", required = false) String role) {
-        requireSuperAdmin(role);
+        requireOwner(role);
         return ResponseEntity.ok(uiConfigService.theme(PLATFORM));
     }
 
@@ -54,9 +54,9 @@ public class AdminUiConfigController {
             @RequestHeader(value = "X-User-Id", required = false) Long adminId,
             @RequestHeader(value = "X-User-Name", required = false) String adminName,
             @RequestBody ThemeUpdateCommand command) {
-        requireSuperAdmin(role);
+        requireOwner(role);
         log.info("Platform theme changed by {} (#{})", adminName, adminId);
-        audit(adminId, "SUPER_ADMIN", PLATFORM, command);
+        audit(adminId, role, PLATFORM, command);
         return ResponseEntity.ok(uiConfigService.updateTheme(PLATFORM, command, adminId));
     }
 
@@ -65,10 +65,10 @@ public class AdminUiConfigController {
      * the console and any other client see the same list as the service that validates saves.
      */
     @GetMapping("/theme/presets")
-    @Operation(summary = "Built-in theme presets a Super Admin can load into the form")
+    @Operation(summary = "Built-in theme presets a workspace owner can load into the form")
     public ResponseEntity<List<ThemePreset>> themePresets(
             @RequestHeader(value = "X-User-Role", required = false) String role) {
-        requireSuperAdmin(role);
+        requireOwner(role);
         return ResponseEntity.ok(uiConfigService.themePresets());
     }
 
@@ -82,7 +82,7 @@ public class AdminUiConfigController {
             @RequestHeader(value = "X-User-Role", required = false) String role,
             @RequestHeader(value = "X-User-Id", required = false) Long adminId,
             @RequestBody CustomPresetCommand command) {
-        requireSuperAdmin(role);
+        requireOwner(role);
         return ResponseEntity.ok(uiConfigService.saveCustomPreset(command, adminId));
     }
 
@@ -91,7 +91,7 @@ public class AdminUiConfigController {
     public ResponseEntity<Void> deleteThemePreset(
             @RequestHeader(value = "X-User-Role", required = false) String role,
             @PathVariable String key) {
-        requireSuperAdmin(role);
+        requireOwner(role);
         uiConfigService.deleteCustomPreset(key);
         return ResponseEntity.noContent().build();
     }
@@ -102,7 +102,7 @@ public class AdminUiConfigController {
     @Operation(summary = "Every role's workspace, with its member count and whether it is customised")
     public ResponseEntity<List<WorkspaceSummary>> listWorkspaces(
             @RequestHeader(value = "X-User-Role", required = false) String role) {
-        requireSuperAdmin(role);
+        requireOwner(role);
         return ResponseEntity.ok(uiConfigService.listWorkspaces());
     }
 
@@ -118,13 +118,13 @@ public class AdminUiConfigController {
             @RequestHeader(value = "X-User-Id", required = false) Long adminId,
             @RequestHeader(value = "X-User-Name", required = false) String adminName,
             @RequestBody WorkspaceCreateCommand command) {
-        requireSuperAdmin(role);
+        requireOwner(role);
         WorkspaceSummary created = uiConfigService.createWorkspace(command);
         log.info("Workspace {} created by {} (#{})", created.role(), adminName, adminId);
         auditPublisher.publish(AuditEventMessage.builder()
                 .sourceService(SOURCE)
                 .actorId(adminId)
-                .actorRole("SUPER_ADMIN")
+                .actorRole(role)
                 .action(AuditAction.CREATE)
                 .entityType("UiWorkspace")
                 .entityId(created.role())
@@ -139,7 +139,7 @@ public class AdminUiConfigController {
     public ResponseEntity<List<WorkspaceMenuRow>> workspaceMenu(
             @RequestHeader(value = "X-User-Role", required = false) String role,
             @PathVariable String workspaceRole) {
-        requireSuperAdmin(role);
+        requireOwner(role);
         return ResponseEntity.ok(uiConfigService.workspaceMenu(workspaceRole));
     }
 
@@ -149,7 +149,7 @@ public class AdminUiConfigController {
             @RequestHeader(value = "X-User-Role", required = false) String role,
             @PathVariable String workspaceRole,
             @RequestBody List<MenuUpdateCommand> commands) {
-        requireSuperAdmin(role);
+        requireOwner(role);
         uiConfigService.updateWorkspaceMenu(workspaceRole, commands);
         return ResponseEntity.ok(uiConfigService.workspaceMenu(workspaceRole));
     }
@@ -159,7 +159,7 @@ public class AdminUiConfigController {
     public ResponseEntity<List<WorkspaceMenuRow>> resetWorkspaceMenu(
             @RequestHeader(value = "X-User-Role", required = false) String role,
             @PathVariable String workspaceRole) {
-        requireSuperAdmin(role);
+        requireOwner(role);
         uiConfigService.resetWorkspaceMenu(workspaceRole);
         return ResponseEntity.ok(uiConfigService.workspaceMenu(workspaceRole));
     }
@@ -170,7 +170,7 @@ public class AdminUiConfigController {
     public ResponseEntity<ResolvedTheme> workspaceTheme(
             @RequestHeader(value = "X-User-Role", required = false) String role,
             @PathVariable String workspaceRole) {
-        requireSuperAdmin(role);
+        requireOwner(role);
         return ResponseEntity.ok(uiConfigService.rawTheme(workspaceRole));
     }
 
@@ -180,7 +180,7 @@ public class AdminUiConfigController {
     public ResponseEntity<ResolvedTheme> effectiveWorkspaceTheme(
             @RequestHeader(value = "X-User-Role", required = false) String role,
             @PathVariable String workspaceRole) {
-        requireSuperAdmin(role);
+        requireOwner(role);
         return ResponseEntity.ok(uiConfigService.theme(workspaceRole));
     }
 
@@ -192,9 +192,9 @@ public class AdminUiConfigController {
             @RequestHeader(value = "X-User-Name", required = false) String adminName,
             @PathVariable String workspaceRole,
             @RequestBody ThemeUpdateCommand command) {
-        requireSuperAdmin(role);
+        requireOwner(role);
         log.info("Workspace theme for {} changed by {} (#{})", workspaceRole, adminName, adminId);
-        audit(adminId, "SUPER_ADMIN", workspaceRole, command);
+        audit(adminId, role, workspaceRole, command);
         return ResponseEntity.ok(uiConfigService.updateTheme(workspaceRole, command, adminId));
     }
 
@@ -204,7 +204,7 @@ public class AdminUiConfigController {
             @RequestHeader(value = "X-User-Role", required = false) String role,
             @RequestHeader(value = "X-User-Id", required = false) Long adminId,
             @PathVariable String workspaceRole) {
-        requireSuperAdmin(role);
+        requireOwner(role);
         uiConfigService.resetTheme(workspaceRole, adminId);
         return ResponseEntity.ok(uiConfigService.theme(workspaceRole));
     }
@@ -217,7 +217,7 @@ public class AdminUiConfigController {
             @RequestHeader(value = "X-User-Role", required = false) String role,
             @PathVariable String workspaceRole,
             @PathVariable Long userId) {
-        requireSuperAdmin(role);
+        requireOwner(role);
         return ResponseEntity.ok(uiConfigService.userMenu(userId, workspaceRole));
     }
 
@@ -228,7 +228,7 @@ public class AdminUiConfigController {
             @PathVariable String workspaceRole,
             @PathVariable Long userId,
             @RequestBody List<UserMenuUpdateCommand> commands) {
-        requireSuperAdmin(role);
+        requireOwner(role);
         uiConfigService.updateUserMenu(userId, commands);
         return ResponseEntity.ok(uiConfigService.userMenu(userId, workspaceRole));
     }
@@ -239,14 +239,14 @@ public class AdminUiConfigController {
             @RequestHeader(value = "X-User-Role", required = false) String role,
             @PathVariable String workspaceRole,
             @PathVariable Long userId) {
-        requireSuperAdmin(role);
+        requireOwner(role);
         uiConfigService.resetUserMenu(userId);
         return ResponseEntity.ok(uiConfigService.userMenu(userId, workspaceRole));
     }
 
-    private static void requireSuperAdmin(String role) {
-        if (!"SUPER_ADMIN".equals(role)) {
-            throw new AccessDeniedException("SUPER_ADMIN role required to change the platform's UI");
+    private static void requireOwner(String role) {
+        if (!com.civileng.marketplace.web.common.StaffRoles.isOwner(role)) {
+            throw new AccessDeniedException("Workspace owner role required to change the platform's UI");
         }
     }
 

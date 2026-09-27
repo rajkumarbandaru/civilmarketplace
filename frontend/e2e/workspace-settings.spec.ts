@@ -7,7 +7,7 @@ import { test, expect, mockApi, json, signInAs } from './fixtures';
  */
 
 const tenantAdmin = { id: 5, name: 'Asha', email: 'asha@acme.in', role: 'ADMIN' };
-const operator = { id: 1, name: 'Operator', email: 'ops@platform.example', role: 'SUPER_ADMIN' };
+const operator = { id: 1, name: 'Operator', email: 'ops@platform.example', role: 'PLATFORM_OWNER' };
 
 const mod = (key: string, over: Record<string, boolean> = {}) =>
   ({ key, chosen: true, running: true, entitled: true, locked: false, ...over });
@@ -89,7 +89,7 @@ test('a workspace admin adds a user with a role, who is invited by email', async
     }
     return json(route, { success: true, data: [], page: 0, size: 10, totalElements: 0, totalPages: 0 });
   });
-  await mockApi(page, '/admin/users/roles', { success: true, data: ['ADMIN', 'CUSTOMER', 'SITE_ENGINEER', 'SUPER_ADMIN']
+  await mockApi(page, '/admin/users/roles', { success: true, data: ['ADMIN', 'CUSTOMER', 'SITE_ENGINEER', 'TENANT_OWNER']
     .map((name) => ({ name, description: '', systemRole: true, userCount: 0 })) });
 
   await page.goto('/admin/users');
@@ -98,8 +98,8 @@ test('a workspace admin adds a user with a role, who is invited by email', async
   await dialog.getByLabel('Name').fill('Ravi');
   await dialog.getByLabel(/Email/).fill('ravi@acme.in');
   await dialog.getByTestId('role-select').getByRole('combobox').click();
-  // A workspace admin cannot make a Super Admin.
-  await expect(page.getByRole('option', { name: 'Super admin' })).toHaveCount(0);
+  // A workspace admin cannot make an owner.
+  await expect(page.getByRole('option', { name: 'Tenant owner' })).toHaveCount(0);
   await page.getByRole('option', { name: 'Site engineer' }).click();
   await dialog.getByRole('button', { name: 'Add and invite' }).click();
 

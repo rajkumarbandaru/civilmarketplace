@@ -11,11 +11,15 @@ import SupportChatWidget from './components/SupportChatWidget';
 // Same reasoning as the widget above: opened from a header icon in every portal, so it belongs to
 // the shell rather than to any one layout.
 import AskAiDrawer from './components/AskAiDrawer';
+import { usePlatformHost } from './hooks/usePlatformHost';
+import { isPlatformOperator } from './utils/roles';
+import { useWorkspace } from './providers/WorkspaceProvider';
 
 // Layout components
 const MainLayout = lazy(() => import('./layouts/MainLayout'));
 const AuthLayout = lazy(() => import('./layouts/AuthLayout'));
 const AdminLayout = lazy(() => import('./layouts/AdminLayout'));
+const PlatformPublicLayout = lazy(() => import('./layouts/PlatformPublicLayout'));
 
 // Pages
 const HomePage = lazy(() => import('./pages/HomePage'));
@@ -61,6 +65,13 @@ const SupportQueuePage = lazy(() => import('./pages/admin/SupportQueuePage'));
 const UserActivityPage = lazy(() => import('./pages/admin/UserActivityPage'));
 const AdminTrackingPage = lazy(() => import('./pages/admin/AdminTrackingPage'));
 
+// RK Technologies platform (the `platform` tenant)
+const PlatformLandingPage = lazy(() => import('./pages/platform/PlatformLandingPage'));
+const PlatformDashboard = lazy(() => import('./pages/platform/PlatformDashboard'));
+const PlansPage = lazy(() => import('./pages/platform/PlansPage'));
+const PlatformAnalyticsPage = lazy(() => import('./pages/platform/PlatformAnalyticsPage'));
+const TenantWorkspaceGate = lazy(() => import('./components/TenantWorkspaceGate'));
+
 /**
  * The landing page is for visitors. Someone already signed in has a workspace, so `/` sends them
  * to it rather than to the marketing page — which is neither themed by their workspace nor
@@ -68,10 +79,42 @@ const AdminTrackingPage = lazy(() => import('./pages/admin/AdminTrackingPage'));
  */
 const HomeOrWorkspace: React.FC = () => {
   const { isAuthenticated, user } = useAppSelector((state) => state.auth);
+  const { isPlatform } = usePlatformHost();
   if (isAuthenticated) {
     return <Navigate to={landingPathFor(user?.role)} replace />;
   }
-  return <HomePage />;
+  return isPlatform ? <PlatformLandingPage /> : <HomePage />;
+};
+
+/**
+ * The public shell for this address. The RK Technologies platform host has no marketplace, so it
+ * gets its own header and footer (and only its landing page); every tenant host gets the
+ * marketplace shell. Waits for the address lookup rather than flashing the wrong one.
+ */
+const PublicShell: React.FC = () => {
+  const { isPlatform, loading } = usePlatformHost();
+  if (loading) return <LoadingFallback />;
+  return isPlatform ? <PlatformPublicLayout /> : <MainLayout />;
+};
+
+/** Sign-up belongs to a tenant; RK staff are invited, so the platform host has none. */
+const RegisterOrSignIn: React.FC = () => {
+  const { isPlatform } = usePlatformHost();
+  return isPlatform ? <Navigate to="/login" replace /> : <RegisterPage />;
+};
+
+/** The console's home: the platform dashboard for RK staff on the RK console, a tenant's otherwise. */
+const AdminHome: React.FC = () => {
+  const role = useAppSelector((state) => state.auth.user?.role);
+  const workspace = useWorkspace();
+  return isPlatformOperator(role, workspace?.tenantKey) ? <PlatformDashboard /> : <AdminDashboard />;
+};
+
+/** Screens that only exist on the RK console. The server refuses anyone else; this saves the trip. */
+const PlatformOnly: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const role = useAppSelector((state) => state.auth.user?.role);
+  const workspace = useWorkspace();
+  return isPlatformOperator(role, workspace?.tenantKey) ? <>{children}</> : <Navigate to="/admin" replace />;
 };
 
 // Protected route component
@@ -106,7 +149,7 @@ const App: React.FC = () => {
       <AnimatePresence mode="wait">
         <Routes>
           {/* Public routes */}
-          <Route path="/" element={<MainLayout />}>
+          <Route path="/" element={<PublicShell />}>
             <Route index element={<HomeOrWorkspace />} />
             <Route path="services" element={<ServicesPage />} />
             <Route path="services/:category" element={<ServicesPage />} />
@@ -161,7 +204,7 @@ const App: React.FC = () => {
           {/* Auth routes */}
           <Route path="/" element={<AuthLayout />}>
             <Route path="login" element={<LoginPage />} />
-            <Route path="register" element={<RegisterPage />} />
+            <Route path="register" element={<RegisterOrSignIn />} />
             <Route path="login/otp" element={<LoginPage />} />
             {/* A new workspace owner's invitation link: set a first password. */}
             <Route path="invite/:token" element={<InviteAcceptPage />} />
@@ -173,7 +216,7 @@ const App: React.FC = () => {
           <Route path="/admin" element={
             <AdminRouteComponent><AdminLayout /></AdminRouteComponent>
           }>
-            <Route index element={<AdminDashboard />} />
+            <Route index element={<AdminHome />} />
             <Route path="users" element={<UserManagement />} />
             <Route path="kyc" element={<KycReviewPage />} />
             <Route path="activity" element={<UserActivityPage />} />
@@ -183,6 +226,9 @@ const App: React.FC = () => {
             <Route path="analytics" element={<AnalyticsPage />} />
             <Route path="revenue" element={<RevenuePage />} />
             <Route path="tenants" element={<TenantManagement />} />
+            <Route path="tenants/new" element={<PlatformOnly><TenantManagement key="new" startCreating /></PlatformOnly>} />
+            <Route path="plans" element={<PlatformOnly><PlansPage /></PlatformOnly>} />
+            <Route path="platform-analytics" element={<PlatformOnly><PlatformAnalyticsPage /></PlatformOnly>} />
             <Route path="workspace-settings" element={<WorkspaceSettingsPage />} />
             <Route path="workspaces" element={<WorkspaceManagement />} />
             <Route path="theme" element={<ThemeSettings />} />
@@ -195,6 +241,30 @@ const App: React.FC = () => {
             <Route path="support" element={<SupportQueuePage />} />
             <Route path="tracking" element={<AdminTrackingPage />} />
             <Route path="settings" element={<PlatformSettingsPage />} />
+            {/* A customer tenant's own screens, run from the RK console on that tenant's data. */}
+            <Route path="tenant">
+              <Route index element={<TenantWorkspaceGate><AdminDashboard /></TenantWorkspaceGate>} />
+              <Route path="users" element={<TenantWorkspaceGate><UserManagement /></TenantWorkspaceGate>} />
+              <Route path="kyc" element={<TenantWorkspaceGate><KycReviewPage /></TenantWorkspaceGate>} />
+              <Route path="activity" element={<TenantWorkspaceGate><UserActivityPage /></TenantWorkspaceGate>} />
+              <Route path="categories" element={<TenantWorkspaceGate><CategoryManagement /></TenantWorkspaceGate>} />
+              <Route path="services" element={<TenantWorkspaceGate><ServiceCatalogueManagement /></TenantWorkspaceGate>} />
+              <Route path="bookings" element={<TenantWorkspaceGate><BookingManagement /></TenantWorkspaceGate>} />
+              <Route path="tracking" element={<TenantWorkspaceGate><AdminTrackingPage /></TenantWorkspaceGate>} />
+              <Route path="analytics" element={<TenantWorkspaceGate><AnalyticsPage /></TenantWorkspaceGate>} />
+              <Route path="support" element={<TenantWorkspaceGate><SupportQueuePage /></TenantWorkspaceGate>} />
+              <Route path="revenue" element={<TenantWorkspaceGate><RevenuePage /></TenantWorkspaceGate>} />
+              <Route path="reports" element={<TenantWorkspaceGate><ReportsPage /></TenantWorkspaceGate>} />
+              <Route path="invoices" element={<TenantWorkspaceGate><InvoicesPage /></TenantWorkspaceGate>} />
+              <Route path="emails" element={<TenantWorkspaceGate><EmailLogPage /></TenantWorkspaceGate>} />
+              <Route path="alerts" element={<TenantWorkspaceGate><AlertsPage /></TenantWorkspaceGate>} />
+              <Route path="workspace-settings" element={<TenantWorkspaceGate><WorkspaceSettingsPage /></TenantWorkspaceGate>} />
+              <Route path="workspaces" element={<TenantWorkspaceGate><WorkspaceManagement /></TenantWorkspaceGate>} />
+              <Route path="content" element={<TenantWorkspaceGate><SiteContentManagement /></TenantWorkspaceGate>} />
+              <Route path="email-templates" element={<TenantWorkspaceGate><EmailTemplateManagement /></TenantWorkspaceGate>} />
+              <Route path="theme" element={<TenantWorkspaceGate><ThemeSettings /></TenantWorkspaceGate>} />
+              <Route path="settings" element={<TenantWorkspaceGate><PlatformSettingsPage /></TenantWorkspaceGate>} />
+            </Route>
           </Route>
 
           {/* Fallback */}

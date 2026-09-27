@@ -1,8 +1,10 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAppSelector } from '../hooks';
+import { PLATFORM_ROLES } from '../utils/roles';
 
-export const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN', 'SUB_ADMIN'];
+/** Roles that land in the console: a tenant's own admins, and RK platform staff. */
+export const ADMIN_ROLES: string[] = ['TENANT_OWNER', 'ADMIN', 'SUB_ADMIN', ...PLATFORM_ROLES];
 
 /**
  * Where a role belongs after signing in. An admin sent to /dashboard lands in the member shell —

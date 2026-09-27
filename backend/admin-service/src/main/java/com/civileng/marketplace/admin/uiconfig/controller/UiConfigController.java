@@ -41,7 +41,7 @@ public class UiConfigController {
 
     /**
      * What the caller's workspace looks like, what they chose themselves, and which parts only
-     * Super Admin can change. Separate from {@link #mySnapshot} because the shell fetches the
+     * The workspace owner can change. Separate from {@link #mySnapshot} because the shell fetches the
      * snapshot on every load, while this is read only when someone opens their settings.
      */
     @GetMapping("/me/appearance")
@@ -92,7 +92,7 @@ public class UiConfigController {
 
     /**
      * Which workspace the caller is asking about. A user holds exactly one role here, so the
-     * header is the answer — except for Super Admin, who may name any role, which is how the
+     * header is the answer — except for the workspace owner, who may name any role, which is how the
      * console previews another workspace's shell. Anyone else naming a role they do not hold is
      * refused rather than quietly served their own, or the console would show a preview that
      * silently is not one.
@@ -101,7 +101,7 @@ public class UiConfigController {
         if (requestedRole == null || requestedRole.isBlank() || requestedRole.equals(userRole)) {
             return userRole;
         }
-        if (!"SUPER_ADMIN".equals(userRole)) {
+        if (!com.civileng.marketplace.web.common.StaffRoles.isOwner(userRole)) {
             throw new AccessDeniedException("You do not hold the role " + requestedRole);
         }
         return requestedRole;

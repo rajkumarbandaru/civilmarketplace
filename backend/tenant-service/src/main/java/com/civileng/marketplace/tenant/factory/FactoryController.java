@@ -4,7 +4,6 @@ import com.civileng.marketplace.tenant.dto.TenantResponse;
 import com.civileng.marketplace.tenant.model.TenantStatusChange;
 import com.civileng.marketplace.tenant.repository.TenantStatusChangeRepository;
 import com.civileng.marketplace.tenant.service.TenantService;
-import com.civileng.marketplace.web.common.AccessDeniedException;
 import com.fasterxml.jackson.databind.JsonNode;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -17,7 +16,7 @@ import java.util.List;
 
 /**
  * The Platform Factory API: wizard drafts, publishing and provisioning progress. Operator-only,
- * like all of tenant administration — SUPER_ADMIN of the platform tenant.
+ * like all of tenant administration — platform staff on the operator tenant (see PlatformRoles).
  */
 @RestController
 @RequestMapping("/api/v1/tenants")
@@ -139,8 +138,6 @@ public class FactoryController {
     }
 
     private static void requireOperator(String role, String tenantId) {
-        if (!"platform".equals(tenantId) || !"SUPER_ADMIN".equals(role)) {
-            throw new AccessDeniedException("Tenant administration is restricted to the operator tenant's SUPER_ADMINs");
-        }
+        com.civileng.marketplace.web.common.PlatformRoles.requireOperator(tenantId, role, "Tenant administration");
     }
 }

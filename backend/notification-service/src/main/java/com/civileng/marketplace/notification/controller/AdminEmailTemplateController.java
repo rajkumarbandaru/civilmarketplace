@@ -14,12 +14,11 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
- * Super Admin's email template console: list, edit, preview and test-send the transactional mail.
+ * The workspace owner's email template console: list, edit, preview and test-send the transactional mail.
  *
- * <p>Writes are Super Admin's alone. The mail here goes out over the platform's own sender to real
+ * <p>Writes are the workspace owner's alone. The mail here goes out over the platform's own sender to real
  * customers, so an edit is closer to changing branding than to changing a booking — the roles that
  * can run day-to-day operations deliberately do not include it.
  */
@@ -29,9 +28,6 @@ import java.util.Set;
 @Tag(name = "Admin Email Templates", description = "Manage the transactional email templates")
 public class AdminEmailTemplateController {
 
-    private static final Set<String> READ_ROLES =
-            Set.of("SUPER_ADMIN", "ADMIN", "SUB_ADMIN", "REGIONAL_ADMIN");
-    private static final Set<String> WRITE_ROLES = Set.of("SUPER_ADMIN");
 
     private final EmailTemplateService templateService;
     private final EmailService emailService;
@@ -40,7 +36,7 @@ public class AdminEmailTemplateController {
     @Operation(summary = "Every email template, built-in and custom")
     public ResponseEntity<List<TemplateResponse>> list(
             @RequestHeader(value = "X-User-Role", required = false) String role) {
-        require(role, READ_ROLES);
+        requireRead(role);
         return ResponseEntity.ok(templateService.list());
     }
 
@@ -49,7 +45,7 @@ public class AdminEmailTemplateController {
     public ResponseEntity<TemplateResponse> get(
             @RequestHeader(value = "X-User-Role", required = false) String role,
             @PathVariable String key) {
-        require(role, READ_ROLES);
+        requireRead(role);
         return ResponseEntity.ok(templateService.get(key));
     }
 
@@ -59,7 +55,7 @@ public class AdminEmailTemplateController {
             @RequestHeader("X-User-Id") Long actorId,
             @RequestHeader(value = "X-User-Role", required = false) String role,
             @Valid @RequestBody CreateTemplateRequest request) {
-        require(role, WRITE_ROLES);
+        requireWrite(role);
         return ResponseEntity.ok(templateService.create(request, actorId));
     }
 
@@ -70,7 +66,7 @@ public class AdminEmailTemplateController {
             @RequestHeader(value = "X-User-Role", required = false) String role,
             @PathVariable String key,
             @Valid @RequestBody UpdateTemplateRequest request) {
-        require(role, WRITE_ROLES);
+        requireWrite(role);
         return ResponseEntity.ok(templateService.update(key, request, actorId));
     }
 
@@ -79,7 +75,7 @@ public class AdminEmailTemplateController {
     public ResponseEntity<Map<String, Object>> delete(
             @RequestHeader(value = "X-User-Role", required = false) String role,
             @PathVariable String key) {
-        require(role, WRITE_ROLES);
+        requireWrite(role);
         templateService.delete(key);
         return ResponseEntity.ok(Map.of("success", true, "message", "Template deleted"));
     }
@@ -90,7 +86,7 @@ public class AdminEmailTemplateController {
             @RequestHeader("X-User-Id") Long actorId,
             @RequestHeader(value = "X-User-Role", required = false) String role,
             @PathVariable String key) {
-        require(role, WRITE_ROLES);
+        requireWrite(role);
         return ResponseEntity.ok(templateService.reset(key, actorId));
     }
 
@@ -104,7 +100,7 @@ public class AdminEmailTemplateController {
             @RequestHeader(value = "X-User-Role", required = false) String role,
             @PathVariable String key,
             @RequestBody(required = false) PreviewRequest request) {
-        require(role, READ_ROLES);
+        requireRead(role);
         PreviewRequest body = request == null ? new PreviewRequest() : request;
         return ResponseEntity.ok(templateService.preview(
                 key, body.getSubject(), body.getHtmlBody(), body.getVariables()));
@@ -118,7 +114,7 @@ public class AdminEmailTemplateController {
             @RequestHeader(value = "X-User-Role", required = false) String role,
             @PathVariable String key,
             @Valid @RequestBody TestSendRequest request) {
-        require(role, WRITE_ROLES);
+        requireWrite(role);
         Map<String, Object> variables = templateService.sampleVariables(key, request.getVariables());
         EmailStatus status = emailService.sendNow(
                 request.getRecipient(), key, key, variables, actorId);
@@ -128,11 +124,15 @@ public class AdminEmailTemplateController {
                 "recipient", request.getRecipient()));
     }
 
-    private void require(String role, Set<String> allowed) {
-        if (role == null || !allowed.contains(role)) {
-            throw new AccessDeniedException(allowed.size() == 1
-                    ? "Super Admin role required"
-                    : "Admin role required");
+    private void requireRead(String role) {
+        if (!com.civileng.marketplace.web.common.StaffRoles.isStaff(role)) {
+            throw new AccessDeniedException("Admin role required");
+        }
+    }
+
+    private void requireWrite(String role) {
+        if (!com.civileng.marketplace.web.common.StaffRoles.isOwner(role)) {
+            throw new AccessDeniedException("Workspace owner role required");
         }
     }
 }

@@ -31,7 +31,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 /**
- * The second factor: an authenticator app (TOTP), required for SUPER_ADMIN.
+ * The second factor: an authenticator app (TOTP), required for workspace owners and all platform staff.
  *
  * <p>Sign-in in two steps. Password, OTP or social sign-in ends in {@link #challenge} rather than a
  * session when the account needs MFA; the client then proves the code with the short-lived MFA
@@ -56,7 +56,8 @@ public class MfaService {
     private static final long TOKEN_TTL_MS = 5 * 60 * 1000;
     private static final long LOCK_MINUTES = 15;
     private static final long PENDING_SECRET_MINUTES = 10;
-    private static final Set<String> MFA_REQUIRED_ROLES = Set.of("SUPER_ADMIN");
+    private static final Set<String> MFA_REQUIRED_ROLES = Set.of(
+            "TENANT_OWNER", "PLATFORM_OWNER", "PLATFORM_ADMIN", "PLATFORM_SUPPORT");
     private static final SecureRandom RANDOM = new SecureRandom();
     private static final String RECOVERY_ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789";
 

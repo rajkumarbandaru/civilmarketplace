@@ -19,6 +19,8 @@ export interface ProviderSpec {
   secrets: string[];
   /** Settings that may be left blank, e.g. the AI model (each provider has a default). */
   optionalSettings?: string[];
+  /** Secrets that may be left blank, e.g. an open-model server's key (a local one has none). */
+  optionalSecrets?: string[];
 }
 
 export interface CapabilitySpec {
@@ -129,7 +131,7 @@ export const CAPABILITY_LABELS: Record<string, { label: string; help: string; pl
   },
   ai: {
     label: 'AI assistant',
-    help: 'The Civil AI Assistant in support chat. Google Gemini by default; OpenAI or Anthropic with the tenant\'s own key.',
+    help: 'The Civil AI Assistant in support chat. Google Gemini by default; OpenAI, Anthropic or an open model (Llama, Qwen, DeepSeek, Mistral… on any OpenAI-compatible server) with the tenant\'s own account.',
     platformNote: "Answered by the platform's Google Gemini account.",
   },
 };
@@ -153,6 +155,7 @@ const FIELD_LABELS: Record<string, string> = {
   username: 'Username',
   password: 'Password',
   model: 'Model',
+  baseUrl: 'Server URL',
 };
 
 /** `fromAddress` → "From address", with a hand-written label where the split reads badly. */
@@ -163,8 +166,21 @@ export const fieldLabel = (key: string) =>
 export const providerLabel = (key: string) =>
   ({
     razorpay: 'Razorpay', smtp: 'SMTP', brevo: 'Brevo', twilio: 'Twilio', gemini: 'Google Gemini',
-    openai: 'OpenAI', anthropic: 'Anthropic (Claude)',
+    openai: 'OpenAI', anthropic: 'Anthropic (Claude)', openai_compatible: 'Open model (OpenAI-compatible)',
   } as Record<string, string>)[key] ?? key;
+
+/**
+ * Well-known OpenAI-compatible servers for open models. Picking one fills the server URL; the model
+ * is still the operator's choice (each host names its models differently).
+ */
+export const OPEN_MODEL_PRESETS: { key: string; label: string; baseUrl: string; model: string }[] = [
+  { key: 'groq', label: 'Groq', baseUrl: 'https://api.groq.com/openai/v1', model: 'llama-3.3-70b-versatile' },
+  { key: 'openrouter', label: 'OpenRouter', baseUrl: 'https://openrouter.ai/api/v1', model: 'meta-llama/llama-3.3-70b-instruct' },
+  { key: 'together', label: 'Together AI', baseUrl: 'https://api.together.xyz/v1', model: 'meta-llama/Llama-3.3-70B-Instruct-Turbo' },
+  { key: 'deepseek', label: 'DeepSeek', baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat' },
+  { key: 'mistral', label: 'Mistral', baseUrl: 'https://api.mistral.ai/v1', model: 'mistral-small-latest' },
+  { key: 'ollama', label: 'Ollama (self-hosted)', baseUrl: 'http://ollama.example.com:11434/v1', model: 'llama3.1' },
+];
 
 /** What the model box suggests when left blank. */
 export const DEFAULT_MODELS: Record<string, string> = {
@@ -215,6 +231,7 @@ export const missingFields = (
     current?.configured && current.mode === 'BYO' && current.provider === draft.provider;
   return [
     ...provider.settings.filter((k) => !draft.settings[k]?.trim()),
+    // Optional secrets (an open model's key) are never missing.
     ...provider.secrets.filter(
       (k) => !draft.secrets[k]?.trim() && !(keepsStored && current?.secretHints[k])
     ),
@@ -237,7 +254,7 @@ export const toSaveRequest = (spec: CapabilitySpec, draft: IntegrationDraft): Sa
     provider: draft.provider,
     enabled: draft.enabled,
     settings: pick(draft.settings, settingKeys),
-    secrets: pick(draft.secrets, provider.secrets),
+    secrets: pick(draft.secrets, [...provider.secrets, ...(provider.optionalSecrets ?? [])]),
   };
 };
 

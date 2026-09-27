@@ -41,6 +41,10 @@ public class TenantMenuOverrideRow {
     @Column(name = "sort_order")
     private Integer sortOrder;
 
+    /** The only roles that may see the item in this tenant, comma-separated; null for the catalogue's. */
+    @Column(name = "roles", length = 1000)
+    private String roles;
+
     public static TenantMenuOverrideRow from(
             com.civileng.marketplace.tenant.common.TenantMenuOverride message) {
         TenantMenuOverrideRow row = new TenantMenuOverrideRow();
@@ -48,6 +52,7 @@ public class TenantMenuOverrideRow {
         row.visible = !message.isHidden();
         row.labelOverride = message.getLabelOverride();
         row.sortOrder = message.getSortOrder();
+        row.roles = message.getRoles() == null || message.getRoles().isBlank() ? null : message.getRoles();
         return row;
     }
 }

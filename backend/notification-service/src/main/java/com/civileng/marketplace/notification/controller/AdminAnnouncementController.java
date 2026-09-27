@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.*;
 
 
 /**
- * Super Admin / staff broadcast console. Publishing with no {@code scheduledAt} fans out
+ * Staff broadcast console. Publishing with no {@code scheduledAt} fans out
  * immediately, matching the SRS's "one-click" framing for ENT·04; with one, the announcement
  * waits for its time and {@code AnnouncementReleaseJob} sends it. There is still no draft state —
  * a scheduled announcement is committed, only not yet delivered, and cancelling is how it is

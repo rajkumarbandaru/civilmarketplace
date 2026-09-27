@@ -56,7 +56,7 @@ import {
 import { SortableTableCell, useTableSort } from '../../components/admin/SortableTable';
 
 /**
- * Super Admin's view over every workspace — one role is one workspace. Picking a workspace opens
+ * The workspace owner's view over every workspace — one role is one workspace. Picking a workspace opens
  * its side menu and its theme override.
  */
 

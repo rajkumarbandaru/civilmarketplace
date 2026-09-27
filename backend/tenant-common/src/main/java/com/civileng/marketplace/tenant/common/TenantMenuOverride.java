@@ -41,6 +41,20 @@ public class TenantMenuOverride {
     /** Replaces the catalogue sort order. Null keeps the shipped position. */
     private Integer sortOrder;
 
+    /**
+     * The only roles that may see this item in this tenant, comma-separated. Null leaves the
+     * catalogue's defaults. A ceiling, not a default: the tenant's own admins can hide the item from
+     * one of these roles in their workspace menus, but cannot show it to a role outside them.
+     */
+    private String roles;
+
+    /** {@link #roles} as a list; empty when the catalogue's defaults apply. */
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    public java.util.List<String> roleList() {
+        if (roles == null || roles.isBlank()) return java.util.List.of();
+        return java.util.Arrays.stream(roles.split(",")).map(String::trim).filter(r -> !r.isEmpty()).toList();
+    }
+
     public boolean isHidden() {
         return Boolean.FALSE.equals(visible);
     }
@@ -48,6 +62,6 @@ public class TenantMenuOverride {
     /** True when this row says nothing the catalogue does not already say. */
     @com.fasterxml.jackson.annotation.JsonIgnore
     public boolean isNoop() {
-        return !isHidden() && labelOverride == null && sortOrder == null;
+        return !isHidden() && labelOverride == null && sortOrder == null && (roles == null || roles.isBlank());
     }
 }

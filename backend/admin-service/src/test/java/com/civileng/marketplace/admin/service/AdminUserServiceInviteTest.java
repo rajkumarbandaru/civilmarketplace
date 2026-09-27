@@ -58,7 +58,7 @@ class AdminUserServiceInviteTest {
     void resendingSendsOnlyTheLinkDetails() {
         when(auth.resendInvitation(eq(7L), any())).thenReturn(ResponseEntity.ok(Map.of("expiresAt", "2026-09-28T10:00")));
 
-        assertThat(service.resendInvitation("SUPER_ADMIN", 7L, request)).containsEntry("success", true);
+        assertThat(service.resendInvitation("TENANT_OWNER", 7L, request)).containsEntry("success", true);
         verify(auth).resendInvitation(7L, Map.of("linkBase", "http://acme.localhost:3000", "workspaceName", "Acme"));
     }
 }

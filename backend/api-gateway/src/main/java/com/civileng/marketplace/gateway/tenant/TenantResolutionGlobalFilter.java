@@ -31,6 +31,10 @@ import java.util.Optional;
  *
  * <p>The JWT's own tenant claim is cross-checked separately, in {@code JwtAuthGatewayFilterFactory}
  * — a valid token from tenant A must not work against tenant B's host.
+ *
+ * <p>One exception to "the host is the tenant": platform staff on the operator's host may ask, with
+ * {@link #ACTING_HEADER}, to act on a customer tenant. The target tenant's status and modules are
+ * enforced here in place of the operator's; everything about the caller is left to the JWT filter.
  */
 @Slf4j
 @Component
@@ -40,6 +44,19 @@ public class TenantResolutionGlobalFilter implements GlobalFilter, Ordered {
     public static final String TENANT_HEADER = "X-Tenant-Id";
     static final String CURRENT_TENANT_PATH = "/api/v1/tenant-resolution/current";
     public static final String TENANT_ATTRIBUTE = "platform.tenant";
+
+    /**
+     * Sent by the platform console when its staff work inside a customer tenant. Only a request
+     * addressed to the operator's host may carry it; the tenant it names is checked here (exists,
+     * live, has the route's module) and the caller is checked by JwtAuthGatewayFilterFactory, which
+     * alone switches {@code X-Tenant-Id} over to it. See {@link #ACTING_ATTRIBUTE}.
+     */
+    public static final String ACTING_HEADER = "X-Acting-Tenant";
+
+    /** The tenant an acting request asked for, once this filter has vetted it. */
+    public static final String ACTING_ATTRIBUTE = "platform.actingTenant";
+
+    public static final String OPERATOR_TENANT = "platform";
 
     /**
      * Path prefix → the module that must be enabled to reach it. Anything unlisted is horizontal
@@ -132,6 +149,11 @@ public class TenantResolutionGlobalFilter implements GlobalFilter, Ordered {
                                 "This workspace is " + tenant.getStatus().toLowerCase());
                     }
 
+                    String acting = exchange.getRequest().getHeaders().getFirst(ACTING_HEADER);
+                    if (acting != null && !acting.isBlank()) {
+                        return actOn(exchange, chain, tenant, acting.trim().toLowerCase(java.util.Locale.ROOT), path);
+                    }
+
                     String requiredModule = requiredModuleFor(path);
                     if (requiredModule != null && !tenant.hasModule(requiredModule)) {
                         log.debug("Tenant '{}' has no '{}' module; refusing {}",
@@ -159,6 +181,55 @@ public class TenantResolutionGlobalFilter implements GlobalFilter, Ordered {
         }
         int colon = host.lastIndexOf(':');
         return colon < 0 ? host : host.substring(0, colon);
+    }
+
+    /**
+     * An operator-host request asking to act on {@code targetKey}: the target must exist, be live
+     * (reads only while it is in maintenance), not be the operator itself, and have the module the
+     * route needs. {@code X-Tenant-Id} stays the operator's here — the token is checked against it —
+     * and the vetted target waits in {@link #ACTING_ATTRIBUTE} for the JWT filter.
+     */
+    private Mono<Void> actOn(ServerWebExchange exchange, GatewayFilterChain chain, TenantDescriptor host,
+                             String targetKey, String path) {
+        if (!OPERATOR_TENANT.equals(host.getTenantKey())) {
+            log.warn("Acting header sent to tenant '{}' host, refused", host.getTenantKey());
+            return reject(exchange, HttpStatus.FORBIDDEN,
+                    "Acting on a tenant is only possible from the platform console");
+        }
+        if (OPERATOR_TENANT.equals(targetKey)) {
+            return reject(exchange, HttpStatus.BAD_REQUEST, "The platform console is not a tenant to act on");
+        }
+        return tenantDirectory.resolveKey(targetKey)
+                .map(Optional::of)
+                .defaultIfEmpty(Optional.empty())
+                .flatMap(found -> {
+                    if (found.isEmpty()) {
+                        return reject(exchange, HttpStatus.NOT_FOUND, "No tenant '" + targetKey + "'");
+                    }
+                    TenantDescriptor target = found.get();
+                    if (target.isMaintenance() && !READS.contains(exchange.getRequest().getMethod())) {
+                        exchange.getResponse().getHeaders().add(HttpHeaders.RETRY_AFTER, "5");
+                        return reject(exchange, HttpStatus.SERVICE_UNAVAILABLE,
+                                "This workspace is being maintained. Changes are paused for a moment; please try again.");
+                    }
+                    if (!target.isActive() && !target.isMaintenance()) {
+                        return reject(exchange, HttpStatus.SERVICE_UNAVAILABLE,
+                                "This workspace is " + target.getStatus().toLowerCase());
+                    }
+                    String requiredModule = requiredModuleFor(path);
+                    if (requiredModule != null && !target.hasModule(requiredModule)) {
+                        return reject(exchange, HttpStatus.NOT_FOUND, "Not found");
+                    }
+                    exchange.getAttributes().put(TENANT_ATTRIBUTE, host);
+                    exchange.getAttributes().put(ACTING_ATTRIBUTE, target);
+                    return chain.filter(exchange.mutate()
+                            .request(r -> r.headers(headers -> {
+                                headers.remove(ACTING_HEADER);
+                                headers.remove(TENANT_HEADER);
+                                headers.set(TENANT_HEADER, host.getTenantKey());
+                            }))
+                            .build());
+                });
     }
 
     private Mono<TenantDescriptor> fallback() {

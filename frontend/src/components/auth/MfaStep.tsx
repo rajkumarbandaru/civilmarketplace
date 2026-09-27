@@ -13,7 +13,7 @@ import { MfaSetup, groupSecret, startMfaSetup } from '../../services/mfaApi';
  * The second sign-in step, shown in place of the login form while a sign-in owes a code.
  *
  * Two shapes: enter a code (or a recovery code) for an account that has an authenticator; or,
- * for one that must have one and does not yet (a Super Admin's first sign-in), scan a QR code,
+ * for one that must have one and does not yet (an owner's or platform staff member's first sign-in), scan a QR code,
  * confirm with a first code, and write down the recovery codes before going on.
  */
 const MfaStep: React.FC<{ onSignedIn: (role?: string) => void }> = ({ onSignedIn }) => {

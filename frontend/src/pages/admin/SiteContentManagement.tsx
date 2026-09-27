@@ -17,7 +17,7 @@ import {
 } from '../../services/siteContentApi';
 
 /**
- * Super Admin's editor for the public site's copy: the landing page's sections, the footer's
+ * The workspace owner's editor for the public site's copy: the landing page's sections, the footer's
  * columns and links, the shared logo, and the images any of them use.
  *
  * <p>One accordion per section, grouped by the page it renders on. Everything on screen maps to a

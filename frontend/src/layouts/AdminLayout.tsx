@@ -42,6 +42,9 @@ import ColorModeToggle from '../components/ColorModeToggle';
 import GlobalSearch from '../components/GlobalSearch';
 import NotificationBell from '../components/NotificationBell';
 import AskAiButton from '../components/AskAiButton';
+import ConsoleTierBadge from '../components/ConsoleTierBadge';
+import { useWorkspace } from '../providers/WorkspaceProvider';
+import { isPlatformOperator } from '../utils/roles';
 
 const DRAWER_WIDTH = 280;
 
@@ -66,6 +69,18 @@ const FALLBACK_NAV = [
   { key: 'admin-workspaces', label: 'Workspaces', path: '/admin/workspaces', icon: 'ViewQuilt', menuGroup: 'System', exactMatch: false },
   { key: 'admin-theme', label: 'Theme & UI style', path: '/admin/theme', icon: 'Palette', menuGroup: 'System', exactMatch: false },
   { key: 'admin-settings', label: 'Settings', path: '/admin/settings', icon: 'Settings', menuGroup: 'System', exactMatch: false },
+];
+
+/** The RK platform console's own screens, mirroring its menu catalogue (admin-service V26, V28). */
+const PLATFORM_FALLBACK_NAV = [
+  { key: 'admin-overview', label: 'Dashboard', path: '/admin', icon: 'Dashboard', menuGroup: 'Overview', exactMatch: true },
+  { key: 'admin-tenants', label: 'Tenants', path: '/admin/tenants', icon: 'Domain', menuGroup: 'Tenants', exactMatch: true },
+  { key: 'platform-new-tenant', label: 'Create tenant', path: '/admin/tenants/new', icon: 'AddBusiness', menuGroup: 'Tenants', exactMatch: false },
+  { key: 'platform-plans', label: 'Plans & subscriptions', path: '/admin/plans', icon: 'WorkspacePremium', menuGroup: 'Tenants', exactMatch: false },
+  { key: 'admin-users', label: 'Platform staff', path: '/admin/users', icon: 'Badge', menuGroup: 'Staff', exactMatch: false },
+  { key: 'platform-analytics', label: 'Platform analytics', path: '/admin/platform-analytics', icon: 'Insights', menuGroup: 'Insights', exactMatch: false },
+  { key: 'admin-settings', label: 'Settings', path: '/admin/settings', icon: 'Settings', menuGroup: 'Settings', exactMatch: false },
+  { key: 'tenant-overview', label: 'Tenant dashboard', path: '/admin/tenant', icon: 'SpaceDashboard', menuGroup: 'Tenant workspace', exactMatch: true },
 ];
 
 /** A menu group and the items under it, in the order the server sorted them. */
@@ -103,13 +118,18 @@ const AdminLayout: React.FC = () => {
   // The console's own nav comes from the "Platform" section of the signed-in admin's menu, so
   // hiding an item for a role in the Workspaces screen actually hides it here.
   const platformItems = menu.filter((item) => item.section === 'Platform');
-  const navItems = platformItems.length > 0 ? platformItems : FALLBACK_NAV;
+  // Without a menu from the server (admin-service down), the RK console falls back to its own
+  // screens rather than to a tenant's.
+  const workspace = useWorkspace();
+  const onPlatformConsole = isPlatformOperator(user?.role, workspace?.tenantKey);
+  const fallback = onPlatformConsole ? PLATFORM_FALLBACK_NAV : FALLBACK_NAV;
+  const navItems = platformItems.length > 0 ? platformItems : fallback;
   // Eleven flat rows is past the point where a sidebar is scanned rather than read, so the items
   // are drawn under their catalogue group. The grouping is presentation only — visibility and
   // order still come from the workspace's menu.
   const navGroups = useMemo(() => toGroups(navItems), [navItems]);
 
-  // Super Admin can move the navigation to the other edge; nothing else about the shell's
+  // The workspace owner can move the navigation to the other edge; nothing else about the shell's
   // geometry is configurable, so this is a single flex direction rather than a layout engine.
   const navOnRight = uiTheme?.layoutStyle === 'sidebar-right';
   // 'topbar' drops the drawer entirely and runs the same items along the top instead, so the
@@ -353,10 +373,13 @@ const AdminLayout: React.FC = () => {
               {navOnTop ? '' : navItems.find(isItemActive)?.label || 'Admin Panel'}
             </Typography>
 
+            <ConsoleTierBadge />
+
             {/* Same catalogue search as the member header — the assistant is on every page and
                 this should be too, rather than dropping out the moment an admin crosses into
                 /admin. Shared component, so the two headers cannot drift apart. */}
-            <GlobalSearch />
+            {/* The catalogue search is a tenant's (services, materials); the platform console has none. */}
+            {!onPlatformConsole && <GlobalSearch />}
 
             <AskAiButton color="#64748b" />
 

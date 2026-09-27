@@ -47,7 +47,7 @@ spring:
         spring.json.trusted.packages: com.civileng.marketplace.*
 
 escrow:
-  # CP-06 FR-03's commission, as a percentage. Category-configurable by Super Admin is the
+  # CP-06 FR-03's commission, as a percentage. Category-configurable by the platform owner is the
   # eventual shape; a single platform rate until admin-service owns per-category rates.
   commission-rate: ${ESCROW_COMMISSION_RATE:5.00}
   # FR-06's auto-release window: how long a funded hold waits for the payer before releasing.

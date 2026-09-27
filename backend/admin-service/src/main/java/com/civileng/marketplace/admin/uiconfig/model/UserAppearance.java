@@ -12,10 +12,10 @@ import java.time.LocalDateTime;
 
 /**
  * One member's own appearance preference — the last layer of the overlay, applied over the
- * workspace theme Super Admin set.
+ * workspace theme the workspace owner set.
  * <p>
  * Deliberately only two fields. Everything about how a workspace <em>looks and is positioned</em>
- * (colours, font, radius, UI style, and the navigation's position) belongs to Super Admin so it
+ * (colours, font, radius, UI style, and the navigation's position) belongs to the workspace owner so it
  * stays consistent for everyone in that workspace; a member gets the two settings that are about
  * their own eyes and screen. There is no column for a layout or a colour here, so a member cannot
  * set one even by calling the API directly.

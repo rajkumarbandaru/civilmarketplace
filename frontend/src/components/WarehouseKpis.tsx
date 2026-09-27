@@ -5,6 +5,7 @@ import {
 } from '@mui/material';
 import { useAppSelector } from '../hooks';
 import { useWorkspace } from '../providers/WorkspaceProvider';
+import { isPlatformOperator } from '../utils/roles';
 import { apiErrorMessage } from '../services/apiError';
 import { fetchCaptureStatus, fetchPlatformKpis, fetchWorkspaceKpis, TenantKpis } from '../services/analyticsApi';
 
@@ -35,7 +36,7 @@ const Totals: React.FC<{ k: TenantKpis }> = ({ k }) => (
 const WarehouseKpis: React.FC = () => {
   const role = useAppSelector((s) => s.auth.user?.role);
   const workspace = useWorkspace();
-  const operator = role === 'SUPER_ADMIN' && (workspace?.tenantKey ?? 'platform') === 'platform';
+  const operator = isPlatformOperator(role, workspace?.tenantKey);
   const platform = useQuery({ queryKey: ['wh-platform'], queryFn: fetchPlatformKpis, enabled: operator, retry: false, refetchInterval: 10000 });
   const capture = useQuery({ queryKey: ['wh-capture'], queryFn: fetchCaptureStatus, enabled: operator, retry: false, refetchInterval: 10000 });
   const mine = useQuery({ queryKey: ['wh-workspace'], queryFn: fetchWorkspaceKpis, enabled: !operator, retry: false, refetchInterval: 10000 });

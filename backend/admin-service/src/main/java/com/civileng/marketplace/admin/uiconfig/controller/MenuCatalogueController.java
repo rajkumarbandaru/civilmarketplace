@@ -39,12 +39,12 @@ public class MenuCatalogueController {
     }
 
     @GetMapping
-    @Operation(summary = "Every menu item and the module it needs (Super Admin)")
+    @Operation(summary = "Every menu item and the module it needs (workspace owner)")
     public ResponseEntity<List<CatalogueEntry>> catalogue(
             @RequestHeader(value = "X-User-Role", required = false) String role) {
 
-        if (!"SUPER_ADMIN".equals(role)) {
-            throw new AccessDeniedException("SUPER_ADMIN role required to read the menu catalogue");
+        if (!com.civileng.marketplace.web.common.StaffRoles.isOwner(role)) {
+            throw new AccessDeniedException("Workspace owner role required to read the menu catalogue");
         }
 
         List<CatalogueEntry> entries = menuItemRepository.findAllByOrderBySortOrderAsc().stream()

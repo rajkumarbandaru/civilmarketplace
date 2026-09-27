@@ -38,6 +38,28 @@ class TenantResolutionControllerTest {
     }
 
     @Test
+    void resolvesByKeyForTheGatewaysActingTenantLookup() {
+        Tenant acme = Tenant.builder().tenantKey("acme").name("Acme Builders").status(TenantStatus.ACTIVE)
+                .vertical(Vertical.CIVIL_MARKETPLACE).enabledModules("bookings").contactEmail("ops@acme.in").build();
+        when(service.byKey("acme")).thenReturn(acme);
+        when(entitlements.runningModules(acme)).thenReturn(java.util.Set.of("auth", "bookings"));
+
+        var body = controller.resolve(null, "acme").getBody();
+
+        assertThat(body.getTenantKey()).isEqualTo("acme");
+        assertThat(body.getStatus()).isEqualTo("ACTIVE");
+        assertThat(body.getModules()).containsExactlyInAnyOrder("auth", "bookings");
+        assertThat(body.getContactEmail()).as("not public").isNull();
+    }
+
+    @Test
+    void resolveTakesExactlyOneOfHostOrKey() {
+        assertThatThrownBy(() -> controller.resolve(null, null)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> controller.resolve("acme.localhost", "acme"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
     void aRequestWithNoResolvedTenantIsNotFound() {
         assertThatThrownBy(() -> controller.current(null)).isInstanceOf(NoSuchElementException.class);
     }

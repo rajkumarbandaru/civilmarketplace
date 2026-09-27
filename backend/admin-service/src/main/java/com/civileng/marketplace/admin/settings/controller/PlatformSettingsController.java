@@ -14,7 +14,7 @@ import java.util.Map;
 /**
  * Platform settings — the switches that change how the platform behaves for everybody.
  *
- * <p>Gated on SUPER_ADMIN, like the UI configuration and for the same reason: fee percentages,
+ * <p>Gated on the workspace owner, like the UI configuration and for the same reason: fee percentages,
  * registration and maintenance mode are platform-wide decisions, not per-admin ones. Identity
  * arrives as {@code X-User-*} headers from the gateway; this service never reads the token.
  */
@@ -22,7 +22,7 @@ import java.util.Map;
 @RequestMapping("/api/v1/admin/settings")
 @RequiredArgsConstructor
 @Slf4j
-@Tag(name = "Admin Platform Settings", description = "Super Admin control of platform-wide settings")
+@Tag(name = "Admin Platform Settings", description = "Workspace owner control of platform-wide settings")
 public class PlatformSettingsController {
 
     private final PlatformSettingsService settingsService;
@@ -31,7 +31,7 @@ public class PlatformSettingsController {
     @Operation(summary = "Every platform setting, grouped, with its current value")
     public ResponseEntity<Map<String, Object>> settings(
             @RequestHeader(value = "X-User-Role", required = false) String role) {
-        requireSuperAdmin(role);
+        requireOwner(role);
         return ResponseEntity.ok(Map.of("success", true, "data", settingsService.settings()));
     }
 
@@ -43,7 +43,7 @@ public class PlatformSettingsController {
     @Operation(summary = "The effective value of every setting, keyed by setting")
     public ResponseEntity<Map<String, Object>> values(
             @RequestHeader(value = "X-User-Role", required = false) String role) {
-        requireSuperAdmin(role);
+        requireOwner(role);
         return ResponseEntity.ok(Map.of("success", true, "data", settingsService.effectiveValues()));
     }
 
@@ -53,7 +53,7 @@ public class PlatformSettingsController {
             @RequestHeader(value = "X-User-Role", required = false) String role,
             @RequestHeader(value = "X-User-Id", required = false) Long adminId,
             @RequestBody Map<String, String> changes) {
-        requireSuperAdmin(role);
+        requireOwner(role);
         return ResponseEntity.ok(Map.of(
                 "success", true,
                 "message", "Settings saved",
@@ -65,16 +65,16 @@ public class PlatformSettingsController {
     public ResponseEntity<Map<String, Object>> reset(
             @RequestHeader(value = "X-User-Role", required = false) String role,
             @PathVariable String key) {
-        requireSuperAdmin(role);
+        requireOwner(role);
         return ResponseEntity.ok(Map.of(
                 "success", true,
                 "message", "Setting reset to its default",
                 "data", settingsService.reset(key)));
     }
 
-    private static void requireSuperAdmin(String role) {
-        if (!"SUPER_ADMIN".equals(role)) {
-            throw new AccessDeniedException("SUPER_ADMIN role required to change platform settings");
+    private static void requireOwner(String role) {
+        if (!com.civileng.marketplace.web.common.StaffRoles.isOwner(role)) {
+            throw new AccessDeniedException("Workspace owner role required to change platform settings");
         }
     }
 }

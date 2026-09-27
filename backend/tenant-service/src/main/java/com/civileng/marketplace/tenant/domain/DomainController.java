@@ -1,13 +1,12 @@
 package com.civileng.marketplace.tenant.domain;
 
-import com.civileng.marketplace.web.common.AccessDeniedException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-/** A tenant's custom domains. The operator tenant's SUPER_ADMINs, like all of tenant administration. */
+/** A tenant's custom domains. platform staff (read) and platform owners/admins (write), like all of tenant administration. */
 @RestController
 @RequestMapping("/api/v1/tenants/{key}/domains")
 @RequiredArgsConstructor
@@ -53,8 +52,6 @@ public class DomainController {
     }
 
     private static void requireOperator(String role, String tenantId) {
-        if (!"platform".equals(tenantId) || !"SUPER_ADMIN".equals(role)) {
-            throw new AccessDeniedException("Custom domains are managed by the operator tenant's SUPER_ADMINs");
-        }
+        com.civileng.marketplace.web.common.PlatformRoles.requireOperator(tenantId, role, "Custom domains");
     }
 }

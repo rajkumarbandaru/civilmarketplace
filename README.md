@@ -186,7 +186,7 @@ cd notification-service && mvn spring-boot:run
 ```bash
 # Isolation and hardening: ports, forged/unsigned identity, tenant-scoped keys, cross-tenant tokens
 python3 scripts/security/phase0_live_check.py
-# Two-step sign-in with the dev SUPER_ADMIN (resets that account's MFA when done)
+# Two-step sign-in with the dev PLATFORM_OWNER (resets that account's MFA when done)
 python3 scripts/security/mfa_live_check.py
 ```
 
@@ -207,7 +207,7 @@ python3 scripts/ops/phase6_warehouse_check.py                 # change-data capt
 python3 scripts/tenancy/workspace_selfservice_check.py        # a workspace's own modules, providers and users
 python3 -m unittest scripts/ops/test_ops.py                   # the ops tooling's own tests
 ```
-These checks sign in as a dedicated `drill-operator@civileng.test` SUPER_ADMIN (created on demand) and
+These checks sign in as a dedicated `drill-operator@civileng.test` owner-level account (created on demand) and
 reset only that account's MFA — never the owner's. Runbook: `docs/operations/tenant-placement-and-restore-runbook.md`.
 
 #### Frontend
@@ -353,8 +353,22 @@ cd frontend && npm test
 
 ## 👥 User Roles
 
-- **Super Admin** — Full system access
-- **Admin** — Platform administration
+The platform has two staff tiers, and each lives in its own tenant:
+
+```
+RK TECHNOLOGIES  — tenant `platform`, console at http://platform.localhost:3000
+     │   PLATFORM_OWNER · PLATFORM_ADMIN · PLATFORM_SUPPORT (read-only)
+     ▼
+PLATFORM FACTORY — creates and runs tenants
+     ├── CIVENGMARKET  — tenant `civengmarket`, http://localhost:3000 (or civengmarket.localhost:3000)
+     ├── B2B tenant    — created in the factory
+     └── Retail tenant — created in the factory
+             TENANT_OWNER · ADMIN · SUB_ADMIN · REGIONAL_ADMIN · members
+```
+
+- **Platform owner / admin / support** — RK Technologies staff: tenants, plans, domains, integrations, placement. Only valid on the `platform` tenant.
+- **Tenant owner** — the top role inside one tenant (replaces the old Super Admin): its staff, theme, content and settings.
+- **Admin** — Tenant administration
 - **City Manager** — City-level operations
 - **Customer** — Book services
 - **Worker** — Service provider (engineer, architect, plumber, etc.)

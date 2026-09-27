@@ -15,7 +15,7 @@ import java.util.List;
 
 /**
  * A workspace's theme history: what was published when, what each release changed, and going
- * back. Same guard as editing the theme — this workspace's SUPER_ADMIN.
+ * back. Same guard as editing the theme — this workspace's owner.
  */
 @RestController
 @RequestMapping("/api/v1/admin/config")
@@ -40,7 +40,7 @@ public class ConfigHistoryController {
             @RequestHeader(value = "X-User-Role", required = false) String role,
             @RequestParam(defaultValue = "PLATFORM") String scope,
             @RequestParam(defaultValue = "50") int limit) {
-        requireSuperAdmin(role);
+        requireOwner(role);
         return ResponseEntity.ok(configService.history(scope(scope), limit));
     }
 
@@ -49,7 +49,7 @@ public class ConfigHistoryController {
     public ResponseEntity<ConfigService.ReleaseDiff> diff(
             @RequestHeader(value = "X-User-Role", required = false) String role,
             @PathVariable Long releaseId) {
-        requireSuperAdmin(role);
+        requireOwner(role);
         return ResponseEntity.ok(configService.diff(releaseId));
     }
 
@@ -60,7 +60,7 @@ public class ConfigHistoryController {
             @RequestHeader(value = "X-User-Id", required = false) Long adminId,
             @PathVariable Long releaseId,
             @RequestBody(required = false) RollbackRequest request) {
-        requireSuperAdmin(role);
+        requireOwner(role);
         String reason = request == null ? null : request.reason();
         ConfigService.ReleaseView release = configService.rollback(releaseId, reason, adminId);
         auditPublisher.publish(AuditEventMessage.builder()
@@ -87,7 +87,7 @@ public class ConfigHistoryController {
             @RequestHeader(value = "X-User-Role", required = false) String role,
             @RequestHeader(value = "X-User-Id", required = false) Long adminId,
             @RequestBody com.civileng.marketplace.admin.uiconfig.dto.UiConfigDTO.ThemeUpdateCommand values) {
-        requireSuperAdmin(role);
+        requireOwner(role);
         uiConfigService.previewTheme(values);
         String token = previewTokens.issue(com.civileng.marketplace.tenant.common.TenantContext.require(), adminId, values);
         return ResponseEntity.ok(new PreviewResponse(token, "/?preview=" + token, ThemePreviewTokens.TTL.toSeconds()));
@@ -99,9 +99,9 @@ public class ConfigHistoryController {
         return ConfigScope.role(scope);
     }
 
-    private static void requireSuperAdmin(String role) {
-        if (!"SUPER_ADMIN".equals(role)) {
-            throw new AccessDeniedException("SUPER_ADMIN role required to view or roll back the theme");
+    private static void requireOwner(String role) {
+        if (!com.civileng.marketplace.web.common.StaffRoles.isOwner(role)) {
+            throw new AccessDeniedException("Workspace owner role required to view or roll back the theme");
         }
     }
 }

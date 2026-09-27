@@ -1,7 +1,6 @@
 package com.civileng.marketplace.tenant.entitlement;
 
 import com.civileng.marketplace.tenant.service.TenantService;
-import com.civileng.marketplace.web.common.AccessDeniedException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -12,7 +11,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 
 /**
- * Plans, subscriptions and grants. The operator endpoints are for the platform's Super Admins; the
+ * Plans, subscriptions and grants. The operator endpoints are for platform owners and admins; the
  * {@code /internal} one is for services asking about their own current tenant (the gateway never
  * routes it from outside).
  */
@@ -118,8 +117,6 @@ public class EntitlementController {
     }
 
     private static void requireOperator(String role, String tenantId) {
-        if (!"platform".equals(tenantId) || !"SUPER_ADMIN".equals(role)) {
-            throw new AccessDeniedException("Plans and entitlements are managed by the operator tenant's SUPER_ADMINs");
-        }
+        com.civileng.marketplace.web.common.PlatformRoles.requireOperator(tenantId, role, "Plans and entitlements");
     }
 }

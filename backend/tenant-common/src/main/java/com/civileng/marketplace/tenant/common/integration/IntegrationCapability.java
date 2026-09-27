@@ -30,11 +30,20 @@ public enum IntegrationCapability {
             "twilio", new ProviderSpec(List.of("accountSid", "fromNumber", "senderName"),
                     List.of("authToken")))),
 
-    /** The assistant's model provider; {@code model} is optional and each adapter has a default. */
+    /**
+     * The assistant's model provider; {@code model} is optional and each adapter has a default.
+     *
+     * <p>{@code openai_compatible} is any server speaking OpenAI's Chat Completions API — open
+     * models self-hosted (Ollama, vLLM, LM Studio) or hosted (Groq, OpenRouter, Together, DeepSeek,
+     * Mistral). It has no default, so the base URL and model are required; the key is optional
+     * because a local server usually has none.
+     */
     AI(Map.of(
             "gemini", new ProviderSpec(List.of(), List.of("apiKey"), List.of("model")),
             "openai", new ProviderSpec(List.of(), List.of("apiKey"), List.of("model")),
-            "anthropic", new ProviderSpec(List.of(), List.of("apiKey"), List.of("model"))));
+            "anthropic", new ProviderSpec(List.of(), List.of("apiKey"), List.of("model")),
+            "openai_compatible", new ProviderSpec(List.of("baseUrl", "model"), List.of(), List.of(),
+                    List.of("apiKey"))));
 
     private final Map<String, ProviderSpec> providers;
 
@@ -66,18 +75,31 @@ public enum IntegrationCapability {
 
     /**
      * What one provider needs. Settings are stored and shown in the clear (an account SID, a
-     * from-address); secrets are encrypted at rest and never returned by any API.
+     * from-address); secrets are encrypted at rest and never returned by any API. The optional
+     * lists may be left blank.
      */
-    public record ProviderSpec(List<String> settings, List<String> secrets, List<String> optionalSettings) {
+    public record ProviderSpec(List<String> settings, List<String> secrets, List<String> optionalSettings,
+                               List<String> optionalSecrets) {
 
         public ProviderSpec(List<String> settings, List<String> secrets) {
-            this(settings, secrets, List.of());
+            this(settings, secrets, List.of(), List.of());
+        }
+
+        public ProviderSpec(List<String> settings, List<String> secrets, List<String> optionalSettings) {
+            this(settings, secrets, optionalSettings, List.of());
+        }
+
+        /** Every secret this provider can store, required or not. */
+        public Set<String> allSecrets() {
+            java.util.Set<String> keys = new java.util.LinkedHashSet<>(secrets);
+            keys.addAll(optionalSecrets);
+            return keys;
         }
 
         public Set<String> allKeys() {
             java.util.Set<String> keys = new java.util.LinkedHashSet<>(settings);
             keys.addAll(optionalSettings);
-            keys.addAll(secrets);
+            keys.addAll(allSecrets());
             return keys;
         }
     }

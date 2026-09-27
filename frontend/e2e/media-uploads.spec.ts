@@ -221,7 +221,7 @@ test.describe('Admin image fields', () => {
   });
 
   test('theme logo: an uploaded logo fills the Logo URL', async ({ page }) => {
-    await signInAs(page, { ...admin, role: 'SUPER_ADMIN' });
+    await signInAs(page, { ...admin, role: 'TENANT_OWNER' });
     await mockUploads(page);
     await mockApi(page, '/admin/theme', { brandName: 'Civil', logoUrl: null });
     await page.goto('/admin/theme');
@@ -230,7 +230,7 @@ test.describe('Admin image fields', () => {
   });
 
   test('tenant logo: an uploaded logo fills the tenant\'s Logo URL', async ({ page }) => {
-    await signInAs(page, { ...admin, role: 'SUPER_ADMIN' });
+    await signInAs(page, { ...admin, role: 'PLATFORM_ADMIN' });
     const uploads = await mockUploads(page);
     const tenant = { tenantKey: 'acme', name: 'Acme Builders', subdomain: 'acme', customDomain: null, status: 'ACTIVE',
       contactEmail: null, plan: null, vertical: 'CIVIL_MARKETPLACE', modules: [], menuOverrides: [], landingPath: null,

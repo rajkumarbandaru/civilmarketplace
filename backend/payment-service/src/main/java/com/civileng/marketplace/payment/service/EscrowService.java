@@ -46,7 +46,7 @@ public class EscrowService {
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final AuditPublisher auditPublisher;
 
-    /** Category-configurable by Super Admin per FR-03; a single platform rate until that exists. */
+    /** Category-configurable by the platform owner per FR-03; a single platform rate until that exists. */
     @Value("${escrow.commission-rate:5.00}")
     private BigDecimal commissionRate;
 

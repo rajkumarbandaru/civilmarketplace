@@ -7,7 +7,7 @@ the AI assistant from the platform's Gemini to Anthropic with a model, switches 
 to the platform default. Payments with no account of the tenant's own run on the platform's
 merchant account, whose webhook settles only such tenants. The owner adds a colleague as ADMIN by
 invitation; the colleague sets a password, signs in and reaches the settings, but cannot make a
-Super Admin. The operator workspace and non-admins are refused. The demo tenant is archived.
+tenant owner. The operator workspace and non-admins are refused. The demo tenant is archived.
 
     python3 scripts/tenancy/workspace_selfservice_check.py
 """
@@ -149,9 +149,9 @@ try:
     check("the colleague signs in to this workspace", s == 200 and mate, (s, login))
     s, _ = call("GET", "/workspace-settings/modules", token=mate, host=HOST)
     check("an ADMIN reaches the workspace settings", s == 200, s)
-    s, r = call("POST", "/admin/users", {"email": f"boss@{KEY}.example.com", "role": "SUPER_ADMIN",
+    s, r = call("POST", "/admin/users", {"email": f"boss@{KEY}.example.com", "role": "TENANT_OWNER",
                 "linkBase": f"http://{HOST}:3000", "workspaceName": "x"}, token=mate, host=HOST)
-    check("an ADMIN cannot add a Super Admin", s == 403, (s, r))
+    check("an ADMIN cannot add a tenant owner", s == 403, (s, r))
     s, _ = call("POST", "/auth/login", {"email": MATE, "password": "another long passphrase"})
     check("the colleague's account exists only in this workspace", s in (400, 401), s)
 

@@ -26,20 +26,36 @@ class AnalyticsControllerTest {
     }
 
     @Test
-    void crossTenantFiguresAreForTheOperatorsSuperAdminsOnly() {
-        assertThatThrownBy(() -> controller.platform("acme", "SUPER_ADMIN")).isInstanceOf(AccessDeniedException.class);
+    void crossTenantFiguresAreForRkPlatformStaffOnly() {
+        assertThatThrownBy(() -> controller.platform("acme", "TENANT_OWNER")).isInstanceOf(AccessDeniedException.class);
+        assertThatThrownBy(() -> controller.platform("acme", "PLATFORM_OWNER")).isInstanceOf(AccessDeniedException.class);
         assertThatThrownBy(() -> controller.platform("platform", "ADMIN")).isInstanceOf(AccessDeniedException.class);
-        controller.platform("platform", "SUPER_ADMIN");
+        controller.platform("platform", "PLATFORM_OWNER");
         verify(kpis).platform();
-        assertThatThrownBy(() -> controller.capture("acme", "SUPER_ADMIN")).isInstanceOf(AccessDeniedException.class);
+        assertThatThrownBy(() -> controller.capture("acme", "PLATFORM_ADMIN")).isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void platformSupportMayReadTheFiguresButNotPurge() {
+        org.springframework.web.context.request.RequestContextHolder.setRequestAttributes(
+                new org.springframework.web.context.request.ServletRequestAttributes(
+                        new org.springframework.mock.web.MockHttpServletRequest("GET", "/api/v1/analytics/platform")));
+        try {
+            controller.platform("platform", "PLATFORM_SUPPORT");
+            verify(kpis).platform();
+        } finally {
+            org.springframework.web.context.request.RequestContextHolder.resetRequestAttributes();
+        }
+        assertThatThrownBy(() -> controller.purge("oldco", "platform", "PLATFORM_SUPPORT"))
+                .isInstanceOf(AccessDeniedException.class);
     }
 
     @Test
     void aTenantsPartitionIsPurgedOnlyByTheOperatorAndNeverThePlatformsOwn() {
         when(projector.purge("oldco")).thenReturn(12);
-        assertThat(controller.purge("oldco", "platform", "SUPER_ADMIN")).containsEntry("rowsDeleted", 12);
-        assertThatThrownBy(() -> controller.purge("oldco", "oldco", "SUPER_ADMIN")).isInstanceOf(AccessDeniedException.class);
-        assertThatThrownBy(() -> controller.purge("platform", "platform", "SUPER_ADMIN")).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> controller.purge("x' OR '1'='1", "platform", "SUPER_ADMIN")).isInstanceOf(IllegalArgumentException.class);
+        assertThat(controller.purge("oldco", "platform", "PLATFORM_ADMIN")).containsEntry("rowsDeleted", 12);
+        assertThatThrownBy(() -> controller.purge("oldco", "oldco", "TENANT_OWNER")).isInstanceOf(AccessDeniedException.class);
+        assertThatThrownBy(() -> controller.purge("platform", "platform", "PLATFORM_OWNER")).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> controller.purge("x' OR '1'='1", "platform", "PLATFORM_OWNER")).isInstanceOf(IllegalArgumentException.class);
     }
 }

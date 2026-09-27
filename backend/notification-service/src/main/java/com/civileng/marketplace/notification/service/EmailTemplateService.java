@@ -25,7 +25,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Renders transactional email, and backs the Super Admin template console.
+ * Renders transactional email, and backs the workspace owner's template console.
  *
  * <p>Every built-in template ships as a Thymeleaf file in {@code resources/templates/email} and is
  * copied into {@code email_templates} on first startup. From then on the database row is what gets

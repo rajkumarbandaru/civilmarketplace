@@ -39,6 +39,10 @@ public class TenantMenuOverrideEntity {
     @Column(name = "sort_order")
     private Integer sortOrder;
 
+    /** The only roles that may see the item in this tenant, comma-separated; null for the catalogue's. */
+    @Column(name = "roles", length = 1000)
+    private String roles;
+
     public TenantMenuOverrideEntity(String tenantKey, String itemKey) {
         this.id = new Key(tenantKey, itemKey);
         this.visible = true;
@@ -55,6 +59,7 @@ public class TenantMenuOverrideEntity {
                 .visible(visible)
                 .labelOverride(labelOverride)
                 .sortOrder(sortOrder)
+                .roles(roles)
                 .build();
     }
 

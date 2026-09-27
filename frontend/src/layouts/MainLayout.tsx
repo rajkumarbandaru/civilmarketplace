@@ -18,7 +18,7 @@ const MainLayout: React.FC = () => {
   // the shell is an app shell, so it goes away entirely.
   const { isAuthenticated } = useAppSelector((state) => state.auth);
 
-  // Navigation position is Super Admin's to set, and it applied only to the admin console until
+  // Navigation position is the workspace owner's to set, and it applied only to the admin console until
   // now — the member shell ignored it entirely, so moving the navigation appeared to do nothing
   // for everyone who is not an admin. 'topbar' and an unset value both keep the bar, which is
   // this shell's original shape.

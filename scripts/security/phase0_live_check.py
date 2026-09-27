@@ -80,7 +80,7 @@ s, d = call("POST", "/auth/otp/verify", {"email": "customer@civileng.test", "otp
 check("right code refused after 5 wrong guesses", s in (400, 401), (s, d))
 
 # Item 1: forged identity headers are dropped at the gateway (visible in its log)
-call("GET", "/catalogue/services", headers={"X-User-Role": "SUPER_ADMIN", "X-User-Id": "1"})
+call("GET", "/catalogue/services", headers={"X-User-Role": "PLATFORM_OWNER", "X-User-Id": "1"})
 glog = subprocess.run(["docker", "logs", "--since", "1m", "civil_api_gateway"], capture_output=True, text=True)
 check("gateway drops forged X-User-* on a public route", "Dropped client-supplied identity headers" in glog.stdout + glog.stderr)
 
@@ -91,14 +91,14 @@ def inside(url, *headers):
     r = subprocess.run(args + [url], capture_output=True, text=True)
     return r.stdout + r.stderr
 
-out = inside("http://user-service:8082/api/v1/users/portfolio", "X-Tenant-Id: platform", "X-User-Id: 1", "X-User-Role: SUPER_ADMIN")
+out = inside("http://user-service:8082/api/v1/users/portfolio", "X-Tenant-Id: platform", "X-User-Id: 1", "X-User-Role: PLATFORM_OWNER")
 check("direct call with forged identity refused (401)", "401" in out, out[-300:])
 out = inside("http://user-service:8082/api/v1/users/portfolio", "X-Tenant-Id: platform", "X-User-Id: 1",
              "X-Internal-Signature: v1:1790000000:forged")
 check("direct call with a made-up signature refused (401)", "401" in out, out[-300:])
 out = inside("http://user-service:8082/actuator/health")
 check("health probe with no identity still served", "UP" in out, out[-300:])
-out = inside("http://tenant-service:8099/api/v1/tenants", "X-Tenant-Id: platform", "X-User-Id: 1", "X-User-Role: SUPER_ADMIN")
+out = inside("http://tenant-service:8099/api/v1/tenants", "X-Tenant-Id: platform", "X-User-Id: 1", "X-User-Role: PLATFORM_OWNER")
 check("tenant-service (tenant runtime off) also refuses forged operator headers", "401" in out, out[-300:])
 
 # Cross-tenant: a token is only good on the workspace it was issued for

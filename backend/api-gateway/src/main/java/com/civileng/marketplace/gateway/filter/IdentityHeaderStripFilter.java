@@ -18,7 +18,7 @@ import java.util.Locale;
  * <p>Services trust {@code X-User-Id} / {@code X-User-Role} as the gateway's word. Only the JWT
  * filter may set them, from a verified token — but that filter is applied per route, and the
  * public routes (auth, catalogue, content, geo, webhooks) skip it, so without this a request to
- * one of them could arrive downstream carrying {@code X-User-Role: SUPER_ADMIN} it made up.
+ * one of them could arrive downstream carrying {@code X-User-Role: PLATFORM_OWNER} it made up.
  *
  * <p>Matched by prefix, case-insensitively, so a new {@code X-User-*} header is covered without
  * being listed here. {@code X-Tenant-Id} is handled by TenantResolutionGlobalFilter, which replaces

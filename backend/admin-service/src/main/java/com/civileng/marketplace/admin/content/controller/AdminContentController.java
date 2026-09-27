@@ -17,10 +17,10 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 
 /**
- * Super Admin's control of the public site's copy: the landing page's sections, the footer's
+ * The workspace owner's control of the public site's copy: the landing page's sections, the footer's
  * columns and links, the shared logo, and the images any of them use.
  *
- * <p>Gated on SUPER_ADMIN alone, matching the theme screen — this changes what every visitor sees
+ * <p>Gated on the workspace owner alone, matching the theme screen — this changes what every visitor sees
  * before they have even signed in, which is a heavier decision than moderating one booking. Every
  * write is audited, because "who changed the homepage headline" is exactly the question that gets
  * asked after the fact.
@@ -29,7 +29,7 @@ import java.util.List;
 @RequestMapping("/api/v1/admin/content")
 @RequiredArgsConstructor
 @Slf4j
-@Tag(name = "Admin Site Content", description = "Super Admin control of the public site's text, links and images")
+@Tag(name = "Admin Site Content", description = "Workspace owner control of the public site's text, links and images")
 public class AdminContentController {
 
     private static final String SOURCE = "admin-service";
@@ -46,7 +46,7 @@ public class AdminContentController {
     @Operation(summary = "Every content section, including the hidden ones")
     public ResponseEntity<List<Section>> sections(
             @RequestHeader(value = "X-User-Role", required = false) String role) {
-        requireSuperAdmin(role);
+        requireOwner(role);
         return ResponseEntity.ok(contentService.allSections());
     }
 
@@ -56,7 +56,7 @@ public class AdminContentController {
             @RequestHeader(value = "X-User-Role", required = false) String role,
             @RequestHeader(value = "X-User-Id", required = false) Long adminId,
             @RequestBody SectionCommand command) {
-        requireSuperAdmin(role);
+        requireOwner(role);
         Section created = contentService.createSection(command);
         audit(adminId, AuditAction.CREATE, SECTION_ENTITY, created.sectionKey(), command.toString());
         return ResponseEntity.ok(created);
@@ -69,7 +69,7 @@ public class AdminContentController {
             @RequestHeader(value = "X-User-Id", required = false) Long adminId,
             @PathVariable Long id,
             @RequestBody SectionCommand command) {
-        requireSuperAdmin(role);
+        requireOwner(role);
         Section saved = contentService.updateSection(id, command);
         audit(adminId, AuditAction.UPDATE, SECTION_ENTITY, saved.sectionKey(), command.toString());
         return ResponseEntity.ok(saved);
@@ -81,7 +81,7 @@ public class AdminContentController {
             @RequestHeader(value = "X-User-Role", required = false) String role,
             @RequestHeader(value = "X-User-Id", required = false) Long adminId,
             @PathVariable Long id) {
-        requireSuperAdmin(role);
+        requireOwner(role);
         contentService.deleteSection(id);
         audit(adminId, AuditAction.DELETE, SECTION_ENTITY, String.valueOf(id), null);
         return ResponseEntity.noContent().build();
@@ -96,7 +96,7 @@ public class AdminContentController {
             @RequestHeader(value = "X-User-Id", required = false) Long adminId,
             @PathVariable Long sectionId,
             @RequestBody ItemCommand command) {
-        requireSuperAdmin(role);
+        requireOwner(role);
         Item created = contentService.addItem(sectionId, command);
         audit(adminId, AuditAction.CREATE, ITEM_ENTITY, String.valueOf(created.id()), command.toString());
         return ResponseEntity.ok(created);
@@ -109,7 +109,7 @@ public class AdminContentController {
             @RequestHeader(value = "X-User-Id", required = false) Long adminId,
             @PathVariable Long itemId,
             @RequestBody ItemCommand command) {
-        requireSuperAdmin(role);
+        requireOwner(role);
         Item saved = contentService.updateItem(itemId, command);
         audit(adminId, AuditAction.UPDATE, ITEM_ENTITY, String.valueOf(itemId), command.toString());
         return ResponseEntity.ok(saved);
@@ -121,7 +121,7 @@ public class AdminContentController {
             @RequestHeader(value = "X-User-Role", required = false) String role,
             @RequestHeader(value = "X-User-Id", required = false) Long adminId,
             @PathVariable Long itemId) {
-        requireSuperAdmin(role);
+        requireOwner(role);
         contentService.deleteItem(itemId);
         audit(adminId, AuditAction.DELETE, ITEM_ENTITY, String.valueOf(itemId), null);
         return ResponseEntity.noContent().build();
@@ -133,7 +133,7 @@ public class AdminContentController {
             @RequestHeader(value = "X-User-Role", required = false) String role,
             @PathVariable Long sectionId,
             @RequestBody ReorderCommand command) {
-        requireSuperAdmin(role);
+        requireOwner(role);
         return ResponseEntity.ok(contentService.reorderItems(sectionId, command.ids()));
     }
 
@@ -145,7 +145,7 @@ public class AdminContentController {
             @RequestHeader(value = "X-User-Role", required = false) String role,
             @RequestHeader(value = "X-User-Id", required = false) Long adminId,
             @RequestPart("file") MultipartFile file) {
-        requireSuperAdmin(role);
+        requireOwner(role);
         Media uploaded = contentService.upload(file, adminId);
         audit(adminId, AuditAction.CREATE, MEDIA_ENTITY, String.valueOf(uploaded.id()), uploaded.filename());
         return ResponseEntity.ok(uploaded);
@@ -155,7 +155,7 @@ public class AdminContentController {
     @Operation(summary = "Every uploaded image, newest first")
     public ResponseEntity<List<Media>> media(
             @RequestHeader(value = "X-User-Role", required = false) String role) {
-        requireSuperAdmin(role);
+        requireOwner(role);
         return ResponseEntity.ok(contentService.listMedia());
     }
 
@@ -165,15 +165,15 @@ public class AdminContentController {
             @RequestHeader(value = "X-User-Role", required = false) String role,
             @RequestHeader(value = "X-User-Id", required = false) Long adminId,
             @PathVariable Long id) {
-        requireSuperAdmin(role);
+        requireOwner(role);
         contentService.deleteMedia(id);
         audit(adminId, AuditAction.DELETE, MEDIA_ENTITY, String.valueOf(id), null);
         return ResponseEntity.noContent().build();
     }
 
-    private static void requireSuperAdmin(String role) {
-        if (!"SUPER_ADMIN".equals(role)) {
-            throw new AccessDeniedException("SUPER_ADMIN role required to change the site's content");
+    private static void requireOwner(String role) {
+        if (!com.civileng.marketplace.web.common.StaffRoles.isOwner(role)) {
+            throw new AccessDeniedException("Workspace owner role required to change the site's content");
         }
     }
 
@@ -181,7 +181,9 @@ public class AdminContentController {
         auditPublisher.publish(AuditEventMessage.builder()
                 .sourceService(SOURCE)
                 .actorId(actorId)
-                .actorRole("SUPER_ADMIN")
+                // Only the workspace owner reaches here (requireOwner), so that is the role.
+                .actorRole(com.civileng.marketplace.web.common.StaffRoles.ownerRoleFor(
+                        com.civileng.marketplace.tenant.common.TenantContext.get()))
                 .action(action)
                 .entityType(entityType)
                 .entityId(entityId)

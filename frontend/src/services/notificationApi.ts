@@ -1,7 +1,7 @@
 import api from './api';
 
 /**
- * The signed-in user's in-app notifications, and Super Admin's broadcast tools.
+ * The signed-in user's in-app notifications, and staff broadcast tools.
  *
  * The bell used to be decorative: nothing ever fetched a notification, and the admin shell's badge
  * was the literal number 3. These are the calls behind making it real.

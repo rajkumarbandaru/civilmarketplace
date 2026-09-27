@@ -20,14 +20,12 @@ import java.util.Set;
 /**
  * Tenant administration. Every write here is operator-level: it provisions or withdraws schemas
  * across the whole platform, so it is gated on the operator tenant, not merely on an admin role
- * — a tenant's own SUPER_ADMIN must not be able to create or suspend a sibling tenant.
+ * — a tenant's own TENANT_OWNER must not be able to create or suspend a sibling tenant.
  */
 @RestController
 @RequestMapping("/api/v1/tenants")
 @RequiredArgsConstructor
 public class TenantController {
-
-    private static final String OPERATOR_TENANT = "platform";
 
     private final TenantService tenantService;
 
@@ -175,9 +173,6 @@ public class TenantController {
     }
 
     private void requireOperator(String role, String tenantId) {
-        if (!OPERATOR_TENANT.equals(tenantId) || !"SUPER_ADMIN".equals(role)) {
-            throw new com.civileng.marketplace.web.common.AccessDeniedException(
-                    "Tenant administration is restricted to the operator tenant's SUPER_ADMINs");
-        }
+        com.civileng.marketplace.web.common.PlatformRoles.requireOperator(tenantId, role, "Tenant administration");
     }
 }

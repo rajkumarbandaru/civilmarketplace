@@ -15,6 +15,11 @@ services:
       CDC_DB_PASSWORD: ${CDC_DB_PASSWORD:-cdc_pass}
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_password}
       MYSQL_DATABASE: civil_engineer_platform
+      # The services' account, created by the image's entrypoint before the init scripts run, with
+      # the password every service reads from .env. The init scripts only grant to it: a password
+      # written into them would not match .env on a fresh volume and every service would be refused.
+      MYSQL_USER: civil_user
+      MYSQL_PASSWORD: ${USER_DB_PASSWORD:-civil_pass}
     volumes:
       - mysql_data:/var/lib/mysql
       - ./database/init:/docker-entrypoint-initdb.d

@@ -1,9 +1,9 @@
 import { Page } from '@playwright/test';
 import { test, expect, mockApi, json } from './fixtures';
 
-/** Two-step sign-in (authenticator app), required for Super Admins. */
+/** Two-step sign-in (authenticator app), required for workspace owners and RK platform staff. */
 
-const superAdmin = { id: 1, name: 'Operator', email: 'ops@example.com', role: 'SUPER_ADMIN' };
+const superAdmin = { id: 1, name: 'Operator', email: 'ops@example.com', role: 'PLATFORM_OWNER' };
 const session = { success: true, user: superAdmin, accessToken: 'a-final', refreshToken: 'r-final' };
 
 const signInWithPassword = async (page: Page) => {
@@ -16,7 +16,7 @@ const signInWithPassword = async (page: Page) => {
 const storedAccessToken = (page: Page) => page.evaluate(() => sessionStorage.getItem('accessToken'));
 
 test.describe('Two-step sign-in', () => {
-  test('first sign-in of a Super Admin enrols an authenticator, shows recovery codes once, then signs in', async ({ page }) => {
+  test('first sign-in of a platform owner enrols an authenticator, shows recovery codes once, then signs in', async ({ page }) => {
     let enabledWith: Record<string, unknown> | null = null;
     await mockApi(page, '/auth/login', { success: true, mfaRequired: true, mfaSetupRequired: true, mfaToken: 'setup-ticket' });
     await mockApi(page, '/auth/mfa/setup', (route) => {
@@ -49,7 +49,7 @@ test.describe('Two-step sign-in', () => {
     expect(await storedAccessToken(page)).toBe('a-final');
   });
 
-  test('an enrolled Super Admin enters a code; a wrong one is reported and can be retried', async ({ page }) => {
+  test('an enrolled platform owner enters a code; a wrong one is reported and can be retried', async ({ page }) => {
     let attempts = 0;
     await mockApi(page, '/auth/login', { success: true, mfaRequired: true, mfaSetupRequired: false, mfaToken: 'verify-ticket' });
     await mockApi(page, '/auth/mfa/verify', (route) => {
@@ -97,7 +97,7 @@ test.describe('Two-step sign-in', () => {
     expect(sent).toBe('abcde-fghjk');
   });
 
-  test('social sign-in of a Super Admin continues on the two-step screen without receiving tokens', async ({ page }) => {
+  test('social sign-in of a platform owner continues on the two-step screen without receiving tokens', async ({ page }) => {
     await mockApi(page, '/auth/mfa/verify', (route) => json(route, session));
     await page.goto('/oauth2/redirect?mfaToken=social-ticket&mfaSetup=false');
     await expect(page).toHaveURL(/\/login$/);

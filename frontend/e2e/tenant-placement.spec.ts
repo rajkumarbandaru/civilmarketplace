@@ -2,7 +2,7 @@ import { test, expect, mockApi, json, signInAs } from './fixtures';
 
 /** Phase 6: where a tenant's data lives, and moving it between MySQL clusters. */
 
-const operator = { id: 1, name: 'Operator', email: 'ops@platform.example', role: 'SUPER_ADMIN' };
+const operator = { id: 1, name: 'Operator', email: 'ops@platform.example', role: 'PLATFORM_OWNER' };
 const tenant = {
   tenantKey: 'acme', name: 'Acme Builders', subdomain: 'acme', customDomain: null, status: 'ACTIVE',
   contactEmail: 'ops@acme.in', plan: 'professional', vertical: 'CIVIL_MARKETPLACE',

@@ -5,6 +5,7 @@ import { logout, setCredentials } from '../store/slices/authSlice';
 // Gateway runs on host port 8080 (HOST_PORT_GATEWAY in docker/.env). Keep this default in step
 // with that variable — pointing at a port nothing serves sends every API call into the void.
 import { API_ORIGIN } from './apiBase';
+import { ACTING_HEADER, actingTenantFor } from './actingTenant';
 
 const API_BASE_URL = API_ORIGIN;
 
@@ -22,6 +23,12 @@ api.interceptors.request.use(
     const token = store.getState().auth.accessToken;
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    }
+    // Platform staff working in a tenant from the console: the gateway switches staff-screen calls
+    // over to that tenant (see actingTenant.ts).
+    const actingOn = actingTenantFor(config.url ?? '', config.method, window.location.pathname);
+    if (actingOn) {
+      config.headers[ACTING_HEADER] = actingOn;
     }
     return config;
   },

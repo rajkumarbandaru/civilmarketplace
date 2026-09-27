@@ -20,7 +20,8 @@ import { SortableTableCell, useTableSort } from '../../components/admin/Sortable
 const roleColors: Record<string, string> = {
   CUSTOMER: '#667eea', CIVIL_ENGINEER: '#10b981', ARCHITECT: '#f59e0b',
   SURVEYOR: '#8b5cf6', WORKER: '#06b6d4', CONTRACTOR: '#ef4444', ADMIN: '#1e293b',
-  SUPER_ADMIN: '#dc2626', SUB_ADMIN: '#0891b2',
+  TENANT_OWNER: '#dc2626', SUB_ADMIN: '#0891b2',
+  PLATFORM_OWNER: '#7c3aed', PLATFORM_ADMIN: '#6d28d9', PLATFORM_SUPPORT: '#a78bfa',
 };
 
 const UserManagement: React.FC = () => {

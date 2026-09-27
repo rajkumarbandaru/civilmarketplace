@@ -7,6 +7,7 @@ import com.civileng.marketplace.auth.repository.RoleRepository;
 import com.civileng.marketplace.auth.repository.UserRepository;
 import com.civileng.marketplace.auth.service.AccountIdentifiers;
 import com.civileng.marketplace.auth.service.RefreshTokenService;
+import com.civileng.marketplace.auth.service.RoleAssignmentPolicy;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -88,7 +89,7 @@ public class AdminUserController {
     public ResponseEntity<Map<String, Object>> inviteMember(
             @RequestHeader(value = "X-User-Role", required = false) String actorRole,
             @RequestBody InviteMemberRequest request) {
-        if (actorRole == null || !java.util.Set.of("SUPER_ADMIN", "ADMIN").contains(actorRole)) {
+        if (!com.civileng.marketplace.web.common.StaffRoles.isManager(actorRole)) {
             throw new SecurityException("An admin role is required to add users");
         }
         var member = invitationService.inviteMember(request.name(), request.email(), request.role(), actorRole,
@@ -136,6 +137,7 @@ public class AdminUserController {
     @Operation(summary = "Update user details")
     public ResponseEntity<Map<String, Object>> updateUser(
             @PathVariable Long userId,
+            @RequestHeader(value = "X-User-Role", required = false) String actorRole,
             @Valid @RequestBody UpdateUserRequest request) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found with id: " + userId));
@@ -168,6 +170,15 @@ public class AdminUserController {
         if (request.getRole() != null) {
             Role role = roleRepository.findByName(request.getRole().toUpperCase())
                     .orElseThrow(() -> new IllegalArgumentException("Invalid role: " + request.getRole()));
+            if (!role.getName().equals(user.getRole().getName())) {
+                RoleAssignmentPolicy.check(role.getName(), actorRole);
+                // Taking an owner role away is an owner's decision too, or an admin could demote
+                // the owner and leave the workspace with nobody able to undo it.
+                if (com.civileng.marketplace.web.common.StaffRoles.isOwner(user.getRole().getName())
+                        && !com.civileng.marketplace.web.common.StaffRoles.isOwner(actorRole)) {
+                    throw new SecurityException("Only the workspace owner can change an owner's role");
+                }
+            }
             user.setRole(role);
         }
 
@@ -231,7 +242,11 @@ public class AdminUserController {
             counts.put((String) row[0], (Long) row[1]);
         }
 
+        // Only the roles that can exist in this tenant: platform roles on the platform console, a
+        // business's own staff roles everywhere else.
+        String tenant = com.civileng.marketplace.tenant.common.TenantContext.get();
         var roles = roleRepository.findAll().stream()
+                .filter(role -> RoleAssignmentPolicy.assignableIn(tenant, role.getName()))
                 .sorted(java.util.Comparator.comparing(Role::getName))
                 .map(role -> Map.of(
                         "name", role.getName(),
@@ -250,7 +265,7 @@ public class AdminUserController {
      * behaviour elsewhere in the platform (admin gating, demand/supply-side splits), and a role
      * invented from the console has none of that, so marking it system would misrepresent it.
      *
-     * <p>Gated on SUPER_ADMIN here as well as in admin-service, which is the caller — this
+     * <p>Gated on the workspace owner here as well as in admin-service, which is the caller — this
      * endpoint changes what roles exist platform-wide, so it should not be reachable by any other
      * admin that happens to acquire a route to it.
      */
@@ -260,8 +275,8 @@ public class AdminUserController {
             @RequestHeader(value = "X-User-Role", required = false) String actorRole,
             @Valid @RequestBody CreateRoleRequest request) {
 
-        if (!"SUPER_ADMIN".equals(actorRole)) {
-            throw new SecurityException("SUPER_ADMIN role required to create a role");
+        if (!com.civileng.marketplace.web.common.StaffRoles.isOwner(actorRole)) {
+            throw new SecurityException("Workspace owner role required to create a role");
         }
 
         String name = normaliseRoleName(request.getName());
@@ -275,7 +290,7 @@ public class AdminUserController {
                         ? request.getDescription().trim() : null)
                 .isSystemRole(false)
                 .build());
-        log.info("Role {} created by a Super Admin", saved.getName());
+        log.info("Role {} created by a {}", saved.getName(), actorRole);
 
         return ResponseEntity.ok(Map.of("success", true, "data", Map.of(
                 "name", saved.getName(),

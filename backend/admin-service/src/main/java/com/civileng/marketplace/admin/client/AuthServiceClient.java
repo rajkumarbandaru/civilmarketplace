@@ -46,7 +46,7 @@ public interface AuthServiceClient {
     /**
      * Creates a role, i.e. a workspace. The actor's role travels as an explicit header because
      * Feign does not forward the inbound request's headers, and auth-service gates this endpoint
-     * on SUPER_ADMIN in its own right.
+     * on the workspace owner in its own right.
      */
     @PostMapping("/admin/roles")
     ResponseEntity<Map<String, Object>> createRole(

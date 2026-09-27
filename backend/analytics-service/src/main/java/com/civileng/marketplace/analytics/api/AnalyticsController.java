@@ -22,7 +22,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class AnalyticsController {
 
-    private static final String OPERATOR = "platform";
+    private static final String OPERATOR = com.civileng.marketplace.web.common.PlatformRoles.OPERATOR_TENANT;
 
     private final Kpis kpis;
     private final CaptureManager captures;
@@ -67,8 +67,6 @@ public class AnalyticsController {
     }
 
     private static void requireOperator(String tenant, String role) {
-        if (!OPERATOR.equals(tenant) || !"SUPER_ADMIN".equals(role)) {
-            throw new AccessDeniedException("Platform analytics are for the operator's SUPER_ADMINs");
-        }
+        com.civileng.marketplace.web.common.PlatformRoles.requireOperator(tenant, role, "Platform analytics");
     }
 }

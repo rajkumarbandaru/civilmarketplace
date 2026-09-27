@@ -41,7 +41,8 @@ public class AuthService {
 
     /** Roles that can only ever be granted by an administrator, never self-selected. */
     private static final Set<String> PRIVILEGED_ROLES = Set.of(
-            "SUPER_ADMIN", "ADMIN", "SUB_ADMIN", "REGIONAL_ADMIN", "CITY_MANAGER");
+            "TENANT_OWNER", "ADMIN", "SUB_ADMIN", "REGIONAL_ADMIN", "CITY_MANAGER",
+            "PLATFORM_OWNER", "PLATFORM_ADMIN", "PLATFORM_SUPPORT");
 
     private static final int MAX_LOGIN_ATTEMPTS = 5;
     private static final int LOCK_DURATION_MINUTES = 30;
@@ -69,11 +70,16 @@ public class AuthService {
 
         // Self-registration must never grant an administrative role: the role name
         // arrives straight from the request body, so without this check anyone could
-        // sign up as SUPER_ADMIN. Admin roles are assigned from the admin console only.
+        // sign up as TENANT_OWNER or PLATFORM_OWNER. Admin roles are assigned from the admin console only.
         if (PRIVILEGED_ROLES.contains(roleName)) {
             log.warn("Rejected self-registration attempt for privileged role {} by {}",
                     roleName, request.getEmail());
             throw new IllegalArgumentException("Invalid role: " + roleName);
+        }
+        // The platform console has no members to sign up: its only accounts are platform staff,
+        // which are invited, never self-registered.
+        if (!RoleAssignmentPolicy.assignableIn(TenantContext.get(), roleName)) {
+            throw new IllegalArgumentException("Sign-up is not available on the platform console");
         }
 
         Role role = roleRepository.findByName(roleName)

@@ -34,6 +34,9 @@ import {
   isGreeting,
   matchFaq,
 } from '../constants/supportFaq';
+import { isOwnerRole, isPlatformRole } from '../utils/roles';
+import { usePlatformHost } from '../hooks/usePlatformHost';
+import { useWorkspace } from '../providers/WorkspaceProvider';
 
 interface ChatMessage {
   id: string;
@@ -79,6 +82,11 @@ const SupportChatWidget: React.FC = () => {
   const navigate = useNavigate();
   const open = useAppSelector((state) => state.ui.supportChatOpen);
   const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
+  // The marketplace's FAQ assistant has nothing to say on the RK platform's own site.
+  const { isPlatform } = usePlatformHost();
+  // A workspace that switched off the support module has no support chat either.
+  const workspace = useWorkspace();
+  const supportOff = Boolean(workspace?.modules?.length) && !workspace!.modules.includes('support');
   const role = useAppSelector((state) => state.auth.user?.role);
   const theme = useTheme();
   const fullWidth = useMediaQuery(theme.breakpoints.down('sm'));
@@ -195,10 +203,10 @@ const SupportChatWidget: React.FC = () => {
     navigate(isAuthenticated ? '/support' : '/login');
   }, [messages, dispatch, navigate, isAuthenticated]);
 
-  // Super admins run the support desk rather than write to it: a bubble offering them canned FAQ
-  // answers and a "raise a ticket" button is noise on every admin screen. Placed after the hooks
-  // so the early return never changes the hook order.
-  if (role === 'SUPER_ADMIN') return null;
+  // Owners and RK platform staff run the support desk rather than write to it: a bubble offering
+  // them canned FAQ answers and a "raise a ticket" button is noise on every admin screen. Placed
+  // after the hooks so the early return never changes the hook order.
+  if (isPlatform || supportOff || isOwnerRole(role) || isPlatformRole(role)) return null;
 
   return (
     <>

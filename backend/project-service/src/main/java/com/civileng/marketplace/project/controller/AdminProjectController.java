@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.*;
 
 
 /**
- * Super Admin's read-only window for dispute investigation and platform reporting (ENT·01
+ * A read-only staff window for dispute investigation and platform reporting (ENT·01
  * actors). Deliberately read-only — no admin endpoint here mutates someone else's project.
  */
 @RestController

@@ -5,7 +5,7 @@ import java.util.List;
 /**
  * The UI-config wire contract, grouped the way this codebase groups DTOs (one holder per
  * feature, nested records inside). Reads are what clients call on every sign-in; the commands
- * are Super Admin console actions and one member-facing appearance save.
+ * are workspace owner console actions and one member-facing appearance save.
  */
 public final class UiConfigDTO {
 
@@ -82,14 +82,14 @@ public final class UiConfigDTO {
     }
 
     /**
-     * A named starting point for a theme — the whole palette in one click, so a Super Admin who
+     * A named starting point for a theme — the whole palette in one click, so a workspace owner who
      * wants "a dark blue console" does not have to invent six hex codes to get one.
      *
      * <p>The values are a {@link ThemeUpdateCommand}, not a stored row: applying a preset in the
      * console fills the form and still has to be saved, so a preset is never a second source of
      * truth for what a scope currently looks like.
      *
-     * @param builtIn true for the presets shipped with the service, false for one a Super Admin
+     * @param builtIn true for the presets shipped with the service, false for one a workspace owner
      *                saved. Only the latter can be deleted, and the console reads this rather
      *                than keeping its own list of which keys are ours.
      */
@@ -115,7 +115,7 @@ public final class UiConfigDTO {
             ThemeUpdateCommand values) {
     }
 
-    /** One row of the Super Admin's "all workspaces" list. */
+    /** One row of the workspace owner's "all workspaces" list. */
     public record WorkspaceSummary(
             String role,
             String label,
@@ -134,7 +134,7 @@ public final class UiConfigDTO {
     }
 
     /**
-     * A menu entry as the Super Admin console edits it — the effective value alongside the
+     * A menu entry as the workspace owner edits it in the console — the effective value alongside the
      * catalogue default it came from, so the console can show what "reset" would restore.
      */
     public record WorkspaceMenuRow(
@@ -210,7 +210,7 @@ public final class UiConfigDTO {
                 List.of("colorMode", "density", "timezone", "dateFormat");
 
         /**
-         * Super Admin's fields, in the order a settings screen should list them: the navigation's
+         * The workspace owner's fields, in the order a settings screen should list them: the navigation's
          * position first, because that is the change a member is most likely to go looking for.
          */
         public static final List<String> ADMIN_CONTROLLED = List.of(
@@ -268,7 +268,7 @@ public final class UiConfigDTO {
      *
      * <p>A null or blank field means "follow the workspace", so clearing a preference is the same
      * call as setting one. That keeps inheritance intact: a member who clears light/dark picks up
-     * whatever Super Admin sets next, instead of being frozen at the value that was current when
+     * whatever the workspace owner sets next, instead of being frozen at the value that was current when
      * they cleared it.
      */
     public record AppearanceUpdateCommand(String colorMode, String density,

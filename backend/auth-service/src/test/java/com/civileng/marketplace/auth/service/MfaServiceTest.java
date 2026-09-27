@@ -74,7 +74,7 @@ class MfaServiceTest {
         mfa = new MfaService(jwt, users, redis, cipher, new SessionIssuer(jwt, refresh), new ObjectMapper(), clock);
 
         Role role = new Role();
-        role.setName("SUPER_ADMIN");
+        role.setName("PLATFORM_OWNER");
         admin = new User();
         admin.setId(1L);
         admin.setName("Ops");
@@ -103,8 +103,19 @@ class MfaServiceTest {
         return store.get("test:secret").toString();
     }
 
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {
+            "TENANT_OWNER", "PLATFORM_OWNER", "PLATFORM_ADMIN", "PLATFORM_SUPPORT"})
+    void ownersAndPlatformStaffAlwaysNeedIt(String roleName) {
+        Role role = new Role();
+        role.setName(roleName);
+        User u = new User();
+        u.setRole(role);
+        assertThat(mfa.required(u)).isTrue();
+    }
+
     @Test
-    void superAdminsAlwaysNeedIt() {
+    void workspaceOwnersAlwaysNeedIt() {
         assertThat(mfa.required(admin)).isTrue();
         Role customer = new Role();
         customer.setName("CUSTOMER");

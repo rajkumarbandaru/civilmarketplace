@@ -23,9 +23,16 @@ public final class InternalContextSignature {
 
     public static final String HEADER = "X-Internal-Signature";
 
-    /** Every header a service takes identity from. Order is part of the format. */
+    /**
+     * Every header a service takes identity from. Order is part of the format.
+     *
+     * <p>{@code X-User-Acting-From} is set only when platform staff act on a customer tenant from the
+     * platform console: it names the tenant their account lives in, so a service can honour a
+     * platform role on a tenant that is not the operator's without trusting a header anyone could type.
+     */
     public static final List<String> SIGNED_HEADERS = List.of(
-            "X-Tenant-Id", "X-User-Id", "X-User-Role", "X-User-Email", "X-User-Name");
+            "X-Tenant-Id", "X-User-Id", "X-User-Role", "X-User-Email", "X-User-Name",
+            "X-User-Acting-From");
 
     private static final String VERSION = "v1";
 

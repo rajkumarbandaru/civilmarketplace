@@ -68,7 +68,7 @@ public class TenantIntegrationService {
                     Map<String, ProviderView> providers = new LinkedHashMap<>();
                     capability.providers().forEach((key, spec) ->
                             providers.put(key, new ProviderView(spec.settings(), spec.secrets(),
-                                    spec.optionalSettings())));
+                                    spec.optionalSettings(), spec.optionalSecrets())));
                     return new CapabilityView(capability.key(), providers);
                 })
                 .toList();
@@ -117,10 +117,10 @@ public class TenantIntegrationService {
             // known from their hints — this service never opens a secret (its broker policy cannot).
             Map<String, String> previousHints = sameAccount ? read(row.getSecretHintsJson()) : new LinkedHashMap<>();
             Map<String, String> fresh = clean(request.secrets());
-            fresh.keySet().retainAll(spec.secrets());
+            fresh.keySet().retainAll(spec.allSecrets());
             java.util.Set<String> keep = new java.util.LinkedHashSet<>(previousHints.keySet());
             keep.removeAll(fresh.keySet());
-            keep.retainAll(spec.secrets());
+            keep.retainAll(spec.allSecrets());
             Map<String, String> present = new LinkedHashMap<>(fresh);
             keep.forEach(k -> present.put(k, "(kept)"));
 
@@ -272,17 +272,33 @@ public class TenantIntegrationService {
         if (publisher == null) {
             return;
         }
-        // Filed under the operator tenant: this is a Super Admin action on the platform's registry,
+        // Filed under the operator tenant: this is a change to the platform's registry,
         // and audit-service drops any event that arrives without a tenant header.
         TenantContext.runAs(OPERATOR_TENANT, () -> publisher.publish(AuditEventMessage.builder()
                 .sourceService(SOURCE)
                 .actorId(parseActor(actorId))
-                .actorRole("SUPER_ADMIN")
+                .actorRole(currentActorRole())
                 .action(action)
                 .entityType(ENTITY)
                 .entityId(capability == null ? tenantKey : tenantKey + "/" + capability.key())
                 .afterState(after)
                 .build()));
+    }
+
+    /**
+     * The role of whoever is making this change — a platform admin from the console or a workspace
+     * admin from their own settings — read from the request rather than assumed, since both reach
+     * this service. SYSTEM when no request is in flight (tenant creation's defaults).
+     */
+    private static String currentActorRole() {
+        if (org.springframework.web.context.request.RequestContextHolder.getRequestAttributes()
+                instanceof org.springframework.web.context.request.ServletRequestAttributes attributes) {
+            String role = attributes.getRequest().getHeader("X-User-Role");
+            if (role != null && !role.isBlank()) {
+                return role;
+            }
+        }
+        return "SYSTEM";
     }
 
     private static Long parseActor(String actorId) {

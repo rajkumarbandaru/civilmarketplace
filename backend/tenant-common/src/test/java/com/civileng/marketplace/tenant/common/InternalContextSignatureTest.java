@@ -16,7 +16,7 @@ class InternalContextSignatureTest {
      * Computed independently (Python hmac) from the documented format. api-gateway's copy asserts
      * the same value: if either implementation changes, one of the two builds fails.
      */
-    static final String VECTOR = "v1:1790000000:LQhELGFA-VPI8BUSiFqJ53O_MPeTcxVc4ohp46ODSBA";
+    static final String VECTOR = "v1:1790000000:mP7Xl2Y2U4XFlATM2mzsQ64NHx8qVpSOI_lF001RC7c";
 
     static Map<String, String> identity() {
         Map<String, String> h = new HashMap<>();
@@ -48,7 +48,7 @@ class InternalContextSignatureTest {
             assertThat(InternalContextSignature.verify(KEY, h::get, VECTOR, TS, 120)).as(header).isFalse();
         }
         Map<String, String> escalated = identity();
-        escalated.put("X-User-Role", "SUPER_ADMIN");
+        escalated.put("X-User-Role", "PLATFORM_OWNER");
         assertThat(InternalContextSignature.verify(KEY, escalated::get, VECTOR, TS, 120)).isFalse();
         Map<String, String> dropped = identity();
         dropped.remove("X-User-Name");

@@ -41,7 +41,8 @@ public class ReindexService {
     private static final int PAGE_SIZE = 100;
     /** Roles that are demand-side or staff — never surfaced as bookable supply in search. */
     private static final Set<String> NON_SUPPLY_ROLES = Set.of(
-            "CUSTOMER", "SUPER_ADMIN", "ADMIN", "SUB_ADMIN", "REGIONAL_ADMIN", "CITY_MANAGER");
+            "CUSTOMER", "TENANT_OWNER", "ADMIN", "SUB_ADMIN", "REGIONAL_ADMIN", "CITY_MANAGER",
+            "PLATFORM_OWNER", "PLATFORM_ADMIN", "PLATFORM_SUPPORT");
     /** Only these account states may appear in results (FR-10: exclude suspended/pending). */
     private static final Set<String> SEARCHABLE_STATUSES = Set.of("ACTIVE");
 

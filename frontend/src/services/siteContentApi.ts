@@ -7,7 +7,7 @@ import { API_ORIGIN } from './apiBase';
  *
  * Public on the same reasoning as the catalogue: it is what a signed-out visitor lands on, so it
  * is routed at `/api/v1/content` outside the gateway's auth filter. Writes live under
- * `/api/v1/admin/content` and are Super Admin's alone.
+ * `/api/v1/admin/content` and are the workspace owner's alone.
  */
 
 export interface ContentItem {

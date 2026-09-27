@@ -14,7 +14,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.time.LocalDateTime;
 
 /**
- * A theme preset a Super Admin saved from the console, offered in the same picker as the shipped
+ * A theme preset a workspace owner saved from the console, offered in the same picker as the shipped
  * ones in {@link com.civileng.marketplace.admin.uiconfig.service.ThemePresets}.
  *
  * <p>It stores style values only — no brand name or logo. A preset is a look, and carrying a

@@ -29,9 +29,18 @@ public class TenantResolutionController {
     private final TenantService tenantService;
     private final EntitlementService entitlements;
 
+    /**
+     * The tenant serving {@code host}, or — for the gateway, when platform staff act on a tenant from
+     * the platform console — the tenant whose key is {@code key}. The same public identity either
+     * way: a key is no more secret than the subdomain it usually equals.
+     */
     @GetMapping
-    public ResponseEntity<TenantResponse> resolve(@RequestParam String host) {
-        Tenant tenant = tenantService.byHost(host);
+    public ResponseEntity<TenantResponse> resolve(@RequestParam(required = false) String host,
+                                                  @RequestParam(required = false) String key) {
+        if ((host == null) == (key == null)) {
+            throw new IllegalArgumentException("Give exactly one of host or key");
+        }
+        Tenant tenant = key != null ? tenantService.byKey(key) : tenantService.byHost(host);
 
         return ResponseEntity.ok(TenantResponse.builder()
                 .tenantKey(tenant.getTenantKey())

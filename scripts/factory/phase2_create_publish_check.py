@@ -1,6 +1,6 @@
 """Phase 2 exit criterion, live: create -> publish a tenant end to end in < 10 min, no manual steps.
 
-As the platform operator (the dev SUPER_ADMIN, enrolling the required authenticator like an app
+As the platform operator (the dev PLATFORM_OWNER, enrolling the required authenticator like an app
 would): a wizard draft is autosaved, turned into a DRAFT tenant, published, and followed until it
 is live. Then, as the new owner: the invitation email is read from the tenant's email log (what
 their inbox would show), the password is set with its link, and they sign in — enrolling their own
@@ -15,7 +15,7 @@ SEEDER = os.path.join(os.path.dirname(__file__),
                       "../../backend/auth-service/src/main/java/com/civileng/marketplace/auth/service/DevUserSeeder.java")
 src = open(SEEDER).read()
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
-# Never the owner's Super Admin: these checks enrol and reset MFA (see scripts/lib/live.py).
+# Never the owner's own platform-owner account: these checks enrol and reset MFA (see scripts/lib/live.py).
 from live import OP_EMAIL as OP_EMAIL, OP_PASSWORD as OP_PASSWORD, ensure_drill_operator
 KEY = "demo" + str(int(time.time()) % 1000000)
 OWNER = f"owner@{KEY}.example.com"
@@ -133,7 +133,7 @@ try:
     check("the link works only once", s == 404, s)
 
     sess = sign_in_with_new_authenticator(OWNER, OWNER_PASSWORD, host=host)
-    check("owner signs in to their workspace (after enrolling MFA)", sess["user"]["role"] == "SUPER_ADMIN", sess["user"])
+    check("owner signs in to their workspace (after enrolling MFA)", sess["user"]["role"] == "TENANT_OWNER", sess["user"])
     s, theme = call("GET", "/admin/theme", token=sess["accessToken"], host=host)
     check("owner runs their own console, seeded with the onboarding branding",
           s == 200 and theme["primaryColor"] == "#00695c", (s, theme))

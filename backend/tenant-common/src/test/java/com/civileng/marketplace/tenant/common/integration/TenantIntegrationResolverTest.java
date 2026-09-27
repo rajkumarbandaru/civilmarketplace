@@ -93,11 +93,21 @@ class TenantIntegrationResolverTest {
 
     @Test
     void aiProvidersTakeAnOptionalModel() {
-        assertThat(IntegrationCapability.AI.providers()).containsOnlyKeys("gemini", "openai", "anthropic");
+        assertThat(IntegrationCapability.AI.providers())
+                .containsOnlyKeys("gemini", "openai", "anthropic", "openai_compatible");
         IntegrationCapability.ProviderSpec openai = IntegrationCapability.AI.provider("openai").orElseThrow();
         assertThat(openai.settings()).isEmpty();
         assertThat(openai.optionalSettings()).containsExactly("model");
         assertThat(openai.allKeys()).containsExactly("model", "apiKey");
+    }
+
+    @Test
+    void anOpenAiCompatibleServerNeedsItsUrlAndModelButNotAKey() {
+        IntegrationCapability.ProviderSpec compatible =
+                IntegrationCapability.AI.provider("openai_compatible").orElseThrow();
+        assertThat(compatible.settings()).containsExactly("baseUrl", "model");
+        assertThat(compatible.secrets()).isEmpty();
+        assertThat(compatible.optionalSecrets()).containsExactly("apiKey");
     }
 
     @Test
